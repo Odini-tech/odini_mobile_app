@@ -20,7 +20,7 @@ const Home = () => {
   const tabs = [
     { id: 0, label: 'Explore', icon: '' },
     { id: 1, label: 'FYP', icon: '' },
-    { id: 2, label: 'Friends', icon: '' },
+    { id: 2, label: 'DASH', icon: '' },
   ];
 
   const handleTabPress = (index) => {
@@ -104,7 +104,7 @@ const Home = () => {
         {/* Tab 3: Friends */}
         <View key="3" style={styles.page}>
           <View style={styles.content}>
-            <Text style={styles.pageTitle}>Friends</Text>
+            <Text style={styles.pageTitle}>DASH</Text>
           </View>
         </View>
       </PagerView>
