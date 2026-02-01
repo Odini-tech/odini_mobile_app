@@ -127,7 +127,7 @@ const localStyles = StyleSheet.create({
   activeBadgeText: {
     fontSize: 10,
     fontWeight: "600",
-    color: "#FFF",
+    color: "#ffffffad",
   },
   typeBadge: {
     backgroundColor: "rgba(255, 255, 255, 0.95)",
