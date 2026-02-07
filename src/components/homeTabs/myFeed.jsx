@@ -102,7 +102,7 @@ export function ForYouPage({ onEventClick }) {
 
       <FlatList
         data={listings}
-        keyExtractor={(item) => item.id}
+        keyExtractor={(item) => String(item?.id)}
         renderItem={({ item }) => (
           <ListingCard
             item={item}
@@ -111,7 +111,8 @@ export function ForYouPage({ onEventClick }) {
             favoriteLoading={favoriteLoading[item.id] || false}
           />
         )}
-        scrollEnabled={false}
+        style={{ flex: 1 }}
+        contentContainerStyle={{ paddingBottom: 80 }}
         ListFooterComponent={
           listings.length > 0 ? (
             <View style={styles.footer}>
