@@ -7,7 +7,7 @@ export default function Explore({ onItemClick }) {
 	return (
 		<View style={styles.container}>
 			<Text style={styles.title}>Explore</Text>
-			<Text style={styles.sub}>Coming soon</Text>
+			<Text style={styles.sub}>Coming soon: fake feed coming soon</Text>
 
 			<TouchableOpacity style={styles.card} onPress={() => onItemClick?.(dummy)}>
 				<Text style={styles.cardText}>Preview content — tap to activate tab</Text>
