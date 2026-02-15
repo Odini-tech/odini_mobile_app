@@ -1,7 +1,6 @@
 // src/services/listingService.ts
 
-import { supabase } from '../config/supabaseclient';
-import type { Database } from '../types/';
+import { supabase } from '../../lib/supabase';
 
 /**
  * Core listing type from database
@@ -90,8 +89,7 @@ export const listingService = {
     try {
       let query = supabase
         .from('listings')
-        .select('*')
-        .eq('is_available', true);
+        .select('*');
 
       // Apply pagination
       const page = params?.pagination?.page || 1;
@@ -137,10 +135,11 @@ export const listingService = {
       const { data, error } = await query.order('created_at', { ascending: false });
 
       if (error) {
-        console.error('Error fetching listings:', error);
+        console.error('Supabase Error:', error);
         throw new Error(`Failed to fetch listings: ${error.message}`);
       }
 
+      console.log('Listings fetched:', data?.length || 0);
       return data || [];
     } catch (error) {
       console.error('Error in fetchListings:', error);
