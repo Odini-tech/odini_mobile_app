@@ -2,11 +2,16 @@ import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, FlatList, StyleSheet, Text, View } from 'react-native';
 import { listingService } from '../../services/listingService';
 import ExploreCard from '../ExploreCard';
+import StayDetail from '../details/StayDetail';
+import EventDetail from '../details/EventDetail';
+import OfferingDetail from '../details/OfferingDetail';
 
 export default function Explore({ onItemClick }) {
 	const [listings, setListings] = useState([]);
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState(null);
+	const [selectedListing, setSelectedListing] = useState(null);
+	const [detailsType, setDetailsType] = useState(null);
 
 	useEffect(() => {
 		loadListings();
@@ -36,7 +41,14 @@ export default function Explore({ onItemClick }) {
 	};
 
 	const handleCardPress = (listing) => {
+		setSelectedListing(listing);
+		setDetailsType(listing.listing_type);
 		onItemClick?.(listing);
+	};
+
+	const handleCloseDetails = () => {
+		setSelectedListing(null);
+		setDetailsType(null);
 	};
 
 	if (loading) {
@@ -69,6 +81,17 @@ export default function Explore({ onItemClick }) {
 				contentContainerStyle={styles.gridContent}
 				showsVerticalScrollIndicator={false}
 			/>
+
+			{/* Detail Modals */}
+			{selectedListing && detailsType === 'stay' && (
+				<StayDetail listing={selectedListing} onClose={handleCloseDetails} />
+			)}
+			{selectedListing && detailsType === 'event' && (
+				<EventDetail listing={selectedListing} onClose={handleCloseDetails} />
+			)}
+			{selectedListing && detailsType === 'offering' && (
+				<OfferingDetail listing={selectedListing} onClose={handleCloseDetails} />
+			)}
 		</View>
 	);
 }

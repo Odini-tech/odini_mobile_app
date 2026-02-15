@@ -48,3 +48,20 @@ Join our community of developers creating universal apps.
 
 - [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
 - [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+
+<<<<<<< HEAD
+
+  # Portfolio site creation
+
+  This is a code bundle for Portfolio site creation. The original project is available at https://www.figma.com/design/WFbq3fZhc4PISUtJqs29aS/Portfolio-site-creation.
+
+  ## Running the code
+
+  Run `npm i` to install the dependencies.
+
+  Run `npm run dev` to start the development server.
+  
+=======
+# potfolio
+my potfolio site
+>>>>>>> 729263b36019e860eceea2a4cc2814d3cb227849
