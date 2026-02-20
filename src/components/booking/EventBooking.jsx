@@ -1,15 +1,17 @@
+import { Ionicons } from '@expo/vector-icons';
 import React, { useState } from 'react';
 import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
   Modal,
-  ScrollView,
-  TextInput,
   SafeAreaView,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { supabase } from '../../../lib/supabase';
+import bookingService from '../../../src/services/bookingService';
 
 export default function EventBookingModal({ listing, eventDetails, onClose, onConfirm }) {
   const [ticketCount, setTicketCount] = useState('1');
@@ -26,7 +28,41 @@ export default function EventBookingModal({ listing, eventDetails, onClose, onCo
       alert('Please select number of tickets');
       return;
     }
-    onConfirm();
+    (async () => {
+      try {
+        setProcessing?.(true);
+      } catch (e) {}
+      const { data: userData, error: userErr } = await supabase.auth.getUser();
+      const userId = userData?.user?.id || null;
+      if (userErr || !userId) {
+        alert('You must be signed in to book.');
+        return;
+      }
+
+      const payload = {
+        quantity: parseInt(ticketCount, 10) || 1,
+        event_slot: eventDetails.event_time || null,
+        reservation_time: new Date().toISOString(),
+        guests: 1,
+      };
+
+      const res = await bookingService.createBooking({
+        userId,
+        listingId: listing.id,
+        listingType: 'event',
+        priceAtBooking: listing.price_per_night || 0,
+        payload,
+      });
+
+      if (res.error) {
+        alert(res.error.message || 'Failed to create booking');
+        return;
+      }
+
+      // notify parent and close
+      onConfirm && onConfirm(res.data);
+      onClose && onClose();
+    })();
   };
 
   const formatEventTime = (timestamp) => {

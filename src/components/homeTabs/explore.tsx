@@ -2,9 +2,9 @@ import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, FlatList, StyleSheet, Text, View } from 'react-native';
 import { listingService } from '../../services/listingService';
 import ExploreCard from '../ExploreCard';
-import StayDetail from '../details/StayDetail';
 import EventDetail from '../details/EventDetail';
 import OfferingDetail from '../details/OfferingDetail';
+import StayDetail from '../details/StayDetail';
 
 export default function Explore({ onItemClick }) {
 	const [listings, setListings] = useState([]);

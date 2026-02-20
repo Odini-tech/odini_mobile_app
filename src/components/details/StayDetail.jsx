@@ -1,16 +1,15 @@
+import { Ionicons } from '@expo/vector-icons';
 import React, { useState } from 'react';
 import {
-  ScrollView,
-  View,
-  Text,
   Image,
-  StyleSheet,
-  TouchableOpacity,
   Modal,
   SafeAreaView,
-  ActivityIndicator,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
 import StayBookingModal from '../booking/StayBooking';
 
 export default function StayDetail({ listing, onClose }) {

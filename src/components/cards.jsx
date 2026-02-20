@@ -1,4 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
+import { useRouter } from 'expo-router';
 import { ActivityIndicator, Image, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 
 const LISTING_TYPE_ICONS = {
@@ -11,9 +12,12 @@ export default function ListingCard({ item, onPress, onFavoritePress, favoriteLo
   const styles = externalStyles || localStyles;
   const typeIcon = LISTING_TYPE_ICONS[item.listing_type] || LISTING_TYPE_ICONS.stay;
   const hostName = item.profiles?.firstname || item.profiles?.username || "Host";
+  const router = useRouter();
+
+  const handlePress = onPress || (() => router.push(`/listingScreen?listingId=${item.id}`));
 
   return (
-    <View style={styles.postContainer}>
+    <TouchableOpacity style={styles.postContainer} activeOpacity={0.9} onPress={handlePress}>
       {/* Header */}
       <View style={styles.postHeader}>
         <View style={styles.userInfo}>
@@ -34,7 +38,7 @@ export default function ListingCard({ item, onPress, onFavoritePress, favoriteLo
       <TouchableOpacity 
         style={styles.imageContainer}
         activeOpacity={0.9}
-        onPress={onPress}
+        onPress={handlePress}
       >
         {item.image_url ? (
           <Image
@@ -65,7 +69,7 @@ export default function ListingCard({ item, onPress, onFavoritePress, favoriteLo
             />
           )}
         </TouchableOpacity>
-        <TouchableOpacity style={styles.interactionButton} onPress={onPress}>
+        <TouchableOpacity style={styles.interactionButton} onPress={handlePress}>
           <Ionicons name="chatbubble-outline" size={24} color="#1A1A1A" />
         </TouchableOpacity>
         <TouchableOpacity style={styles.interactionButton}>
@@ -91,11 +95,11 @@ export default function ListingCard({ item, onPress, onFavoritePress, favoriteLo
             {item.description}
           </Text>
         )}
-        <TouchableOpacity onPress={onPress}>
+        <TouchableOpacity onPress={handlePress}>
           <Text style={styles.viewMore}>View Details</Text>
         </TouchableOpacity>
       </View>
-    </View>
+    </TouchableOpacity>
   );
 }
 

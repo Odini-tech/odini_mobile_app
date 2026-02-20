@@ -3,13 +3,17 @@ import { Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 export default function ExploreCard({ item, onPress }) {
   const typeIcon = getTypeIcon(item.listing_type);
+  const displayImage =
+    item.image_url ||
+    (Array.isArray(item.images) && (item.images[0]?.image_url || item.images[0])) ||
+    null;
 
   return (
     <TouchableOpacity style={styles.card} onPress={onPress} activeOpacity={0.85}>
       {/* Image Container with Type Badge */}
       <View style={styles.imageContainer}>
-        {item.image_url ? (
-          <Image source={{ uri: item.image_url }} style={styles.image} />
+        {displayImage ? (
+          <Image source={{ uri: displayImage }} style={styles.image} />
         ) : (
           <View style={[styles.image, styles.imagePlaceholder]}>
             <Ionicons name={typeIcon.name} size={40} color={typeIcon.color} />
@@ -49,17 +53,13 @@ const styles = StyleSheet.create({
   card: {
     flex: 1,
     backgroundColor: '#FFF',
-    borderRadius: 12,
     overflow: 'hidden',
     marginHorizontal: 6,
     marginBottom: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    
   },
   imageContainer: {
+    borderRadius: 12,
     width: '100%',
     aspectRatio: 0.75,
     backgroundColor: '#F0F7FF',
@@ -67,6 +67,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     position: 'relative',
     overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
   image: {
     width: '100%',

@@ -1,15 +1,17 @@
+import { Ionicons } from '@expo/vector-icons';
 import React, { useState } from 'react';
 import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
   Modal,
-  ScrollView,
-  TextInput,
   SafeAreaView,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { supabase } from '../../../lib/supabase';
+import bookingService from '../../../src/services/bookingService';
 
 export default function OfferingBookingModal({ listing, offeringDetails, onClose, onConfirm }) {
   const [serviceDate, setServiceDate] = useState(new Date().toISOString().split('T')[0]);
@@ -25,7 +27,35 @@ export default function OfferingBookingModal({ listing, offeringDetails, onClose
       alert('Please select date and time');
       return;
     }
-    onConfirm();
+    (async () => {
+      const { data: userData, error: userErr } = await supabase.auth.getUser();
+      const userId = userData?.user?.id || null;
+      if (userErr || !userId) {
+        alert('You must be signed in to request this service.');
+        return;
+      }
+
+      const payload = {
+        reservation_time: `${serviceDate}T${serviceTime}:00.000Z`,
+        quantity: parseInt(quantity, 10) || 1,
+      };
+
+      const res = await bookingService.createBooking({
+        userId,
+        listingId: listing.id,
+        listingType: 'offering',
+        priceAtBooking: 0,
+        payload,
+      });
+
+      if (res.error) {
+        alert(res.error.message || 'Failed to create booking');
+        return;
+      }
+
+      onConfirm && onConfirm(res.data);
+      onClose && onClose();
+    })();
   };
 
   const formatDate = (dateString) => {

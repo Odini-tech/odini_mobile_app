@@ -1,15 +1,15 @@
+import { Ionicons } from '@expo/vector-icons';
 import React, { useState } from 'react';
 import {
-  ScrollView,
-  View,
-  Text,
-  Image,
-  StyleSheet,
-  TouchableOpacity,
-  Modal,
-  SafeAreaView,
+    Image,
+    Modal,
+    SafeAreaView,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
 import EventBookingModal from '../booking/EventBooking';
 
 export default function EventDetail({ listing, onClose }) {

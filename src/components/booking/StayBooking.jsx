@@ -1,15 +1,17 @@
+import { Ionicons } from '@expo/vector-icons';
 import React, { useState } from 'react';
 import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
   Modal,
-  ScrollView,
-  TextInput,
   SafeAreaView,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { supabase } from '../../../lib/supabase';
+import bookingService from '../../../src/services/bookingService';
 
 export default function StayBookingModal({ listing, stayDetails, onClose, onConfirm }) {
   const [checkInDate, setCheckInDate] = useState(new Date().toISOString().split('T')[0]);
@@ -37,7 +39,38 @@ export default function StayBookingModal({ listing, stayDetails, onClose, onConf
       alert('Please fill in all required fields');
       return;
     }
-    onConfirm();
+    (async () => {
+      const { data: userData, error: userErr } = await supabase.auth.getUser();
+      const userId = userData?.user?.id || null;
+      if (userErr || !userId) {
+        alert('You must be signed in to book.');
+        return;
+      }
+
+      const payload = {
+        check_in: checkInDate,
+        check_out: checkOutDate,
+        guests: parseInt(guestCount, 10) || 1,
+        quantity: parseInt(rooms, 10) || 1,
+        reservation_time: new Date().toISOString(),
+      };
+
+      const res = await bookingService.createBooking({
+        userId,
+        listingId: listing.id,
+        listingType: 'stay',
+        priceAtBooking: listing.price_per_night || 0,
+        payload,
+      });
+
+      if (res.error) {
+        alert(res.error.message || 'Failed to create booking');
+        return;
+      }
+
+      onConfirm && onConfirm(res.data);
+      onClose && onClose();
+    })();
   };
 
   return (
