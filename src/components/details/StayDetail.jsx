@@ -142,7 +142,7 @@ export default function StayDetail({ listing, onClose }) {
             <View style={styles.bookingSection}>
               <View>
                 <Text style={styles.priceLabel}>Price per night</Text>
-                <Text style={styles.price}>${listing.price_per_night || 0}</Text>
+                <Text style={styles.price}>${listing.price|| 0}</Text>
               </View>
               <TouchableOpacity
                 style={styles.bookButton}

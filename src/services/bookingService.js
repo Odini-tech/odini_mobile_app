@@ -8,21 +8,28 @@ import { supabase } from '../../lib/supabase';
 const BOOKINGS_TABLE = 'bookings';
 
 const validatePayload = ({ listingType, payload }) => {
-  if (!listingType || !['stay', 'event', 'offering'].includes(listingType)) {
-    return 'Invalid or missing listingType';
+  const validTypes = ['stay', 'event', 'offering'];
+  
+  if (!listingType) {
+    return 'Missing listingType';
+  }
+  
+  const normalizedType = String(listingType).toLowerCase().trim();
+  if (!validTypes.includes(normalizedType)) {
+    return `Invalid listingType: "${listingType}". Must be one of: ${validTypes.join(', ')}`;
   }
 
-  if (listingType === 'stay') {
+  if (normalizedType === 'stay') {
     if (!payload.check_in || !payload.check_out) return 'check_in and check_out required for stay bookings';
     if (!payload.guests) return 'guests required for stay bookings';
   }
 
-  if (listingType === 'event') {
+  if (normalizedType === 'event') {
     if (!payload.event_slot && !payload.reservation_time) return 'event_slot or reservation_time required for event bookings';
     if (!payload.quantity) return 'quantity required for event bookings';
   }
 
-  if (listingType === 'offering') {
+  if (normalizedType === 'offering') {
     if (!payload.reservation_time) return 'reservation_time required for offering bookings';
     if (!payload.quantity) return 'quantity required for offering bookings';
   }
@@ -32,12 +39,18 @@ const validatePayload = ({ listingType, payload }) => {
 
 export async function createBooking({ userId, listingId, listingType, priceAtBooking, payload = {} }) {
   // ensure listingType is normalized and present; if not provided, try to fetch from listings table
-  let normalizedType = listingType && String(listingType).toLowerCase();
+  let normalizedType = listingType ? String(listingType).toLowerCase().trim() : null;
+  
   if (!normalizedType || !['stay', 'event', 'offering'].includes(normalizedType)) {
     try {
       const { data: listingData, error: listingErr } = await supabase.from('listings').select('listing_type').eq('id', listingId).single();
       if (listingErr) return { data: null, error: listingErr };
-      normalizedType = listingData?.listing_type;
+      normalizedType = listingData?.listing_type ? String(listingData.listing_type).toLowerCase().trim() : null;
+      
+      // Final validation after fetching
+      if (!normalizedType || !['stay', 'event', 'offering'].includes(normalizedType)) {
+        return { data: null, error: { message: 'Invalid listing type from database' } };
+      }
     } catch (e) {
       return { data: null, error: { message: 'Failed to determine listing type' } };
     }

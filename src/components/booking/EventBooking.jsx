@@ -17,7 +17,7 @@ export default function EventBookingModal({ listing, eventDetails, onClose, onCo
   const [ticketCount, setTicketCount] = useState('1');
   const [specialRequests, setSpecialRequests] = useState('');
 
-  const pricePerTicket = listing.price_per_night || 0;
+  const pricePerTicket = listing.price || 0;
   const tickets = parseInt(ticketCount) || 1;
   const subtotal = tickets * pricePerTicket;
   const serviceFee = Math.round(subtotal * 0.1);
@@ -50,7 +50,7 @@ export default function EventBookingModal({ listing, eventDetails, onClose, onCo
         userId,
         listingId: listing.id,
         listingType: 'event',
-        priceAtBooking: listing.price_per_night || 0,
+        priceAtBooking: listing.price || 0,
         payload,
       });
 

@@ -10,7 +10,7 @@ export interface Listing {
   title: string;
   description: string;
   host_id: string;
-  price_per_night: number;
+  price: number;
   location_lat: number;
   location_lng: number;
   address_city: string;
@@ -120,10 +120,10 @@ export const listingService = {
 
       // Apply price range filter
       if (params?.minPrice !== undefined) {
-        query = query.gte('price_per_night', params.minPrice);
+        query = query.gte('price  ', params.minPrice);
       }
       if (params?.maxPrice !== undefined) {
-        query = query.lte('price_per_night', params.maxPrice);
+        query = query.lte('price ', params.maxPrice);
       }
 
       // Apply amenities filter

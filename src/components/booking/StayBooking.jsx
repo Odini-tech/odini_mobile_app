@@ -29,7 +29,7 @@ export default function StayBookingModal({ listing, stayDetails, onClose, onConf
   };
 
   const nights = calculateNights();
-  const pricePerNight = listing.price_per_night || 0;
+  const pricePerNight = listing.price || 0;
   const subtotal = nights * pricePerNight;
   const serviceFee = Math.round(subtotal * 0.1);
   const total = subtotal + serviceFee;
@@ -59,7 +59,7 @@ export default function StayBookingModal({ listing, stayDetails, onClose, onConf
         userId,
         listingId: listing.id,
         listingType: 'stay',
-        priceAtBooking: listing.price_per_night || 0,
+        priceAtBooking: listing.price || 0,
         payload,
       });
 
