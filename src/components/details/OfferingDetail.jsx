@@ -1,14 +1,14 @@
 import { Ionicons } from '@expo/vector-icons';
 import React, { useState } from 'react';
 import {
-    Image,
-    Modal,
-    SafeAreaView,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  Image,
+  Modal,
+  SafeAreaView,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import OfferingBookingModal from '../booking/OfferingBooking';
 
@@ -170,7 +170,7 @@ export default function OfferingDetail({ listing, onClose }) {
             <View style={styles.bookingSection}>
               <View>
                 <Text style={styles.priceLabel}>Starting from</Text>
-                <Text style={styles.price}>{offeringDetails.price_range || '$0'}</Text>
+                <Text style={styles.price}>${offeringDetails.price || 0}</Text>
               </View>
               <TouchableOpacity
                 style={styles.bookButton}

@@ -10,7 +10,7 @@ const BOOKINGS_TABLE = 'bookings';
 const validatePayload = ({ listingType, payload }) => {
   const validTypes = ['stay', 'event', 'offering'];
   
-  if (!listingType) {
+  if (!listingType)  {
     return 'Missing listingType';
   }
   
@@ -28,7 +28,7 @@ const validatePayload = ({ listingType, payload }) => {
     if (!payload.event_slot && !payload.reservation_time) return 'event_slot or reservation_time required for event bookings';
     if (!payload.quantity) return 'quantity required for event bookings';
   }
-
+ 
   if (normalizedType === 'offering') {
     if (!payload.reservation_time) return 'reservation_time required for offering bookings';
     if (!payload.quantity) return 'quantity required for offering bookings';
