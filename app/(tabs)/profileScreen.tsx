@@ -12,7 +12,6 @@ import {
   View
 } from 'react-native';
 import { supabase } from '../../lib/supabase';
-import Favorites from './components/favorites';
 
 interface Profile {
   id: string;
@@ -183,7 +182,6 @@ export default function ProfileScreen() {
           </View>
         </View>
       </View>
-      <Favorites/>
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Quick Actions</Text>
         
