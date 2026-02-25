@@ -36,10 +36,6 @@ export default function RootLayout() {
     router.push("/home" as any);
   };
 
-  const handleListings = () => {
-    router.push("/listings" as any);
-  };
-
   const handleSearch = () => {
     router.push("/search" as any);
   }
@@ -61,7 +57,6 @@ export default function RootLayout() {
       {isAuthenticated ? (
         <BottomNav
           onHomePress={handleHome}
-          onListingsPress={handleListings}
           onProfilePress={handleProfile}
           onSignOutPress={handleSignOut}
           onSearchPress={handleSearch}
