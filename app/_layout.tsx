@@ -40,6 +40,10 @@ export default function RootLayout() {
     router.push("/listings" as any);
   };
 
+  const handleSearch = () => {
+    router.push("/search" as any);
+  }
+
   const handleSignOut = async () => {
     try {
       await supabase.auth.signOut();
@@ -60,6 +64,7 @@ export default function RootLayout() {
           onListingsPress={handleListings}
           onProfilePress={handleProfile}
           onSignOutPress={handleSignOut}
+          onSearchPress={handleSearch}
         />
       ) : null}
     </View>

@@ -2,7 +2,7 @@ import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { useSegments } from 'expo-router';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
-export default function BottomNav({ onHomePress = () => {}, onListingsPress = () => {}, onProfilePress = () => {}, onSignOutPress = () => {} }) {
+export default function BottomNav({ onHomePress = () => {}, onListingsPress = () => {}, onSearchPress = () => {}, onProfilePress = () => {}, onSignOutPress = () => {} }) {
   const segments = useSegments();
   const isActive = (name) => {
     if (!segments || segments.length === 0) return name === 'home';
@@ -29,6 +29,16 @@ export default function BottomNav({ onHomePress = () => {}, onListingsPress = ()
       >
         <Ionicons name="list-outline" size={24} color={isActive('listings') ? '#4A90E2' : '#222'} />
         <Text style={[styles.label, isActive('listings') && styles.labelActive]}>Listings</Text>
+      </Pressable>
+
+      <Pressable
+        style={[styles.button, isActive('search') && styles.buttonActive]}
+        onPress={onSearchPress}
+        accessibilityRole="button"
+        accessibilityLabel="Open search"
+      >
+        <Ionicons name="search-outline" size={24} color={isActive('search') ? '#4A90E2' : '#222'} />
+        <Text style={[styles.label, isActive('search') && styles.labelActive]}>Search</Text>
       </Pressable>
 
       <Pressable
