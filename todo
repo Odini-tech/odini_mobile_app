@@ -1,7 +1,11 @@
 # Todo List
 
-- [ ] Create fake explore page
-- [ ] Create event, stay, and offering detailed booking pages
-- [ ] Plan for trips feature
-- [ ] Make interactions service work
-- [ ] Investigate map/location app stuff
+- [*] Create fake explore page
+- [*] Create event, stay, and offering detailed booking pages
+- [*] Plan for trips feature
+- [*] Make interactions service work
+- [*] Investigate map/location app stuff
+- [] add interactions service
+- [] add interactions ui
+- [] unify theme
+- [] test further
