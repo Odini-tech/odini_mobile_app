@@ -1,17 +1,18 @@
 import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import {
-    ActivityIndicator,
-    FlatList,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  FlatList,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import { supabase } from '../lib/supabase';
 import ExploreCard from '../src/components/ExploreCard';
+import FilterPopup from '../src/components/FilterPopup';
 import { searchService } from '../src/services/searchService';
 
 export default function SearchPage() {
@@ -23,6 +24,25 @@ export default function SearchPage() {
   const [selectedCategoryListings, setSelectedCategoryListings] = useState([]);
   const [selectedCategory, setSelectedCategory] = useState(null);
   const [searchResults, setSearchResults] = useState([]);
+  const [showFilter, setShowFilter] = useState(false);
+  const [filters, setFilters] = useState({ type: null, price_min: null, price_max: null, category_id: null });
+
+  async function handleApplyFilters(applied) {
+    setFilters(applied);
+    setLoading(true);
+    try {
+      const res = await searchService.searchListings({ query, filters: applied, page: 1, page_size: 50 });
+      setSearchResults(res.listings || []);
+      setSelectedCategory(null);
+      setSelectedCategoryListings([]);
+    } catch (error) {
+      console.error('Filter search failed', error);
+      setSearchResults([]);
+    } finally {
+      setLoading(false);
+      setShowFilter(false);
+    }
+  }
 
   useEffect(() => {
     fetchPopularCategories();
@@ -167,6 +187,9 @@ export default function SearchPage() {
           returnKeyType="search"
           onSubmitEditing={onSearchSubmit}
         />
+        <TouchableOpacity style={styles.filterBtn} onPress={() => setShowFilter(true)}>
+          <Text style={styles.filterBtnText}>Filter</Text>
+        </TouchableOpacity>
         <TouchableOpacity style={styles.searchBtn} onPress={onSearchSubmit}>
           <Text style={styles.searchBtnText}>Search</Text>
         </TouchableOpacity>
@@ -226,8 +249,12 @@ export default function SearchPage() {
             />
           </View>
         )}
-      </ScrollView>
-    </View>
+      </ScrollView>        <FilterPopup
+          visible={showFilter}
+          onClose={() => setShowFilter(false)}
+          onApply={handleApplyFilters}
+          initialFilters={filters}
+        />    </View>
   );
 }
 
@@ -248,6 +275,15 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   searchBtnText: { color: '#FFF', fontWeight: '700' },
+  filterBtn: {
+    backgroundColor: '#FFF',
+    borderColor: '#4A90E2',
+    borderWidth: 1,
+    paddingHorizontal: 12,
+    justifyContent: 'center',
+    borderRadius: 8,
+  },
+  filterBtnText: { color: '#4A90E2', fontWeight: '700' },
   content: { flex: 1 },
   sectionTitle: { fontSize: 16, fontWeight: '700', marginTop: 12, marginLeft: 12 },
   categoryTile: {
