@@ -113,7 +113,7 @@ export const listingService = {
         return data || [];
       }
 
-      // Apply category filter
+      // Apply category filter 
       if (params?.category) {
         query = query.eq('category', params.category);
       }

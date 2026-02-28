@@ -187,7 +187,7 @@ export default function StayBookingModal({ listing, stayDetails, onClose, onConf
             style={styles.button}
             onPress={handleConfirm}
           >
-            <Text style={styles.buttonText}>Book Now - ${total}</Text>
+            <Text style={styles.buttonText}>Book Now - $ {total}</Text>
           </TouchableOpacity>
         </View>
       </SafeAreaView>

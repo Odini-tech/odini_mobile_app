@@ -221,7 +221,7 @@ export default function ProfileScreen() {
         </TouchableOpacity>
       </View>
 
-      <Text style={styles.versionText}>Version 1.0.0</Text>
+      <Text style={styles.versionText}>Version 1.0.1</Text>
     </ScrollView>
   );
 }
