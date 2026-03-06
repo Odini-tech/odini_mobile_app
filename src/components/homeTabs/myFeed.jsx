@@ -2,17 +2,12 @@ import { useEffect, useState } from "react";
 import { ActivityIndicator, FlatList, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { getListings } from "../../../services/listings.service";
 import ListingCard from "../cards";
-import EventDetail from "../details/EventDetail";
-import OfferingDetail from "../details/OfferingDetail";
-import StayDetail from "../details/StayDetail";
 
 export function ForYouPage({ onEventClick }) {
   const [listings, setListings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [favoriteLoading, setFavoriteLoading] = useState({});
-  const [selectedListing, setSelectedListing] = useState(null);
-  const [detailsType, setDetailsType] = useState(null);
 
   useEffect(() => {
     fetchListings();
@@ -39,14 +34,8 @@ export function ForYouPage({ onEventClick }) {
   };
 
   const handleCardPress = (listing) => {
-    setSelectedListing(listing);
-    setDetailsType(listing.listing_type);
+    // TODO: Navigate to detail page
     onEventClick?.(listing);
-  };
-
-  const handleCloseDetails = () => {
-    setSelectedListing(null);
-    setDetailsType(null);
   };
 
   if (loading) {
@@ -132,16 +121,6 @@ export function ForYouPage({ onEventClick }) {
           ) : null
         }
       />
-
-      {selectedListing && detailsType === "stay" && (
-        <StayDetail listing={selectedListing} onClose={handleCloseDetails} />
-      )}
-      {selectedListing && detailsType === "event" && (
-        <EventDetail listing={selectedListing} onClose={handleCloseDetails} />
-      )}
-      {selectedListing && detailsType === "offering" && (
-        <OfferingDetail listing={selectedListing} onClose={handleCloseDetails} />
-      )}
     </View>
   );
 }

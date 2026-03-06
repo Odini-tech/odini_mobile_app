@@ -1,6 +1,9 @@
 import { Ionicons } from "@expo/vector-icons";
-import { useRouter } from 'expo-router';
+import { useState } from "react";
 import { ActivityIndicator, Image, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import EventDetail from "./details/EventDetail";
+import OfferingDetail from "./details/OfferingDetail";
+import StayDetail from "./details/StayDetail";
 
 const LISTING_TYPE_ICONS = {
   stay: { name: "home", color: "#4A90E2" },
@@ -12,12 +15,43 @@ export default function ListingCard({ item, onPress, onFavoritePress, favoriteLo
   const styles = externalStyles || localStyles;
   const typeIcon = LISTING_TYPE_ICONS[item.listing_type] || LISTING_TYPE_ICONS.stay;
   const hostName = item.profiles?.firstname || item.profiles?.username || "Host";
-  const router = useRouter();
+  const [showDetails, setShowDetails] = useState(false);
 
-  const handlePress = onPress || (() => router.push(`/listingScreen?listingId=${item.id}`));
+  const handleCloseDetails = () => {
+    setShowDetails(false);
+  };
+
+  const handleDetails = () => {
+    if (onPress) {
+      onPress(item);
+      return;
+    }
+
+    if (item?.listing_type) {
+      setShowDetails(true);
+    }
+  };
+
+  const renderDetailModal = () => {
+    if (!showDetails) {
+      return null;
+    }
+
+    switch (item?.listing_type) {
+      case "stay":
+        return <StayDetail listing={item} onClose={handleCloseDetails} />;
+      case "event":
+        return <EventDetail listing={item} onClose={handleCloseDetails} />;
+      case "offering":
+        return <OfferingDetail listing={item} onClose={handleCloseDetails} />;
+      default:
+        return null;
+    }
+  };
 
   return (
-    <TouchableOpacity style={styles.postContainer} activeOpacity={0.9} onPress={handlePress}>
+    <>
+      <TouchableOpacity style={styles.postContainer} activeOpacity={0.9} onPress={handleDetails}>
       {/* Header */}
       <View style={styles.postHeader}>
         <View style={styles.userInfo}>
@@ -38,7 +72,7 @@ export default function ListingCard({ item, onPress, onFavoritePress, favoriteLo
       <TouchableOpacity 
         style={styles.imageContainer}
         activeOpacity={0.9}
-        onPress={handlePress}
+        onPress={handleDetails}
       >
         {item.image_url ? (
           <Image
@@ -69,7 +103,7 @@ export default function ListingCard({ item, onPress, onFavoritePress, favoriteLo
             />
           )}
         </TouchableOpacity>
-        <TouchableOpacity style={styles.interactionButton} onPress={handlePress}>
+        <TouchableOpacity style={styles.interactionButton} onPress={handleDetails}>
           <Ionicons name="chatbubble-outline" size={24} color="#1A1A1A" />
         </TouchableOpacity>
         <TouchableOpacity style={styles.interactionButton}>
@@ -95,11 +129,13 @@ export default function ListingCard({ item, onPress, onFavoritePress, favoriteLo
             {item.description}
           </Text>
         )}
-        <TouchableOpacity onPress={handlePress}>
+        <TouchableOpacity onPress={handleDetails}>
           <Text style={styles.viewMore}>View Details</Text>
         </TouchableOpacity>
       </View>
-    </TouchableOpacity>
+      </TouchableOpacity>
+      {renderDetailModal()}
+    </>
   );
 }
 

@@ -3,36 +3,38 @@ import { Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 export default function ExploreCard({ item, onPress }) {
   const typeIcon = getTypeIcon(item.listing_type);
-  const displayImage =
+
+  // Get image URL safely – same approach as ListingCard, with extra fallback for arrays
+  const imageUrl =
     item.image_url ||
-    (Array.isArray(item.images) && (item.images[0]?.image_url || item.images[0])) ||
+    (Array.isArray(item.images) &&
+      item.images[0] &&
+      (typeof item.images[0] === 'string'
+        ? item.images[0]
+        : item.images[0].image_url)) ||
     null;
 
   return (
     <TouchableOpacity style={styles.card} onPress={onPress} activeOpacity={0.85}>
-      {/* Image Container with Type Badge */}
       <View style={styles.imageContainer}>
-        {displayImage ? (
-          <Image source={{ uri: displayImage }} style={styles.image} />
+        {imageUrl ? (
+          <Image source={{ uri: imageUrl }} style={styles.image} />
         ) : (
           <View style={[styles.image, styles.imagePlaceholder]}>
             <Ionicons name={typeIcon.name} size={40} color={typeIcon.color} />
           </View>
         )}
 
-        {/* Type Badge */}
         <View style={[styles.typeBadge, { backgroundColor: typeIcon.color }]}>
           <Ionicons name={typeIcon.name} size={12} color="#FFF" />
           <Text style={styles.typeBadgeText}>{item.listing_type.toUpperCase()}</Text>
         </View>
       </View>
 
-      {/* Title */}
       <Text style={styles.title} numberOfLines={2}>
         {item.title}
       </Text>
 
-      {/* Host Name */}
       <Text style={styles.hostName} numberOfLines={1}>
         by {item.profiles?.firstname || item.profiles?.username || 'Host'}
       </Text>
@@ -56,7 +58,6 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     marginHorizontal: 6,
     marginBottom: 12,
-    
   },
   imageContainer: {
     borderRadius: 12,
@@ -91,7 +92,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 6,
-    backgroundColor: 'rgba(0, 0, 0, 0.7)',
   },
   typeBadgeText: {
     fontSize: 10,
