@@ -52,12 +52,8 @@ export default function EventDetail({ listing, onClose }) {
             style={styles.imagesContainer}
           >
             {listing.images?.length > 0 ? (
-              listing.images.map((image, idx) => (
-                <Image
-                  key={idx}
-                  source={{ uri: image }}
-                  style={styles.image}
-                />
+              listing.images.map((imageUrl, idx) => (
+                <Image source={{ uri: imageUrl }} style={styles.image} key={idx} />
               ))
             ) : (
               <View style={[styles.image, styles.imagePlaceholder]}>

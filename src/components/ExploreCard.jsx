@@ -4,15 +4,8 @@ import { Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 export default function ExploreCard({ item, onPress }) {
   const typeIcon = getTypeIcon(item.listing_type);
 
-  // Get image URL safely – same approach as ListingCard, with extra fallback for arrays
-  const imageUrl =
-    item.image_url ||
-    (Array.isArray(item.images) &&
-      item.images[0] &&
-      (typeof item.images[0] === 'string'
-        ? item.images[0]
-        : item.images[0].image_url)) ||
-    null;
+  // Get the first image URL based on listing type
+  const imageUrl = getFirstImageUrl(item);
 
   return (
     <TouchableOpacity style={styles.card} onPress={onPress} activeOpacity={0.85}>
@@ -40,6 +33,39 @@ export default function ExploreCard({ item, onPress }) {
       </Text>
     </TouchableOpacity>
   );
+}
+
+/**
+ * Extracts the first image URL from the listing item based on its type.
+ * Supports:
+ * - Direct `image_url` (legacy)
+ * - Unified `images` array (pre‑processed)
+ * - Type‑specific relations (`stay_images`, `event_images`, `offering_images`)
+ */
+function getFirstImageUrl(item) {
+  // 1. Direct image_url (simplest case)
+  if (item.image_url) return item.image_url;
+
+  // 2. Unified images array (e.g., from a view or transformed data)
+  if (Array.isArray(item.images) && item.images.length > 0) {
+    const first = item.images[0];
+    return typeof first === 'string' ? first : first?.image_url;
+  }
+
+  // 3. Type‑specific relations (schema‑compliant)
+  const type = item.listing_type;
+  if (type === 'stay' && Array.isArray(item.stay_images) && item.stay_images.length > 0) {
+    return item.stay_images[0].image_url;
+  }
+  if (type === 'event' && Array.isArray(item.event_images) && item.event_images.length > 0) {
+    return item.event_images[0].image_url;
+  }
+  if (type === 'offering' && Array.isArray(item.offering_images) && item.offering_images.length > 0) {
+    return item.offering_images[0].image_url;
+  }
+
+  // No image found
+  return null;
 }
 
 function getTypeIcon(listingType) {

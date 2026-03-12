@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, FlatList, StyleSheet, Text, View } from 'react-native';
-import { listingService } from '../../services/listingService';
+import { getListings } from "../../../services/listings.service";
 import ExploreCard from '../ExploreCard';
 import EventDetail from '../details/EventDetail';
 import OfferingDetail from '../details/OfferingDetail';
@@ -22,9 +22,8 @@ export default function Explore({ onItemClick }) {
 			setLoading(true);
 			setError(null);
 			console.log('Starting to fetch listings...');
-			const data = await listingService.fetchListings({
-				pagination: { page: 1, pageSize: 20 },
-			});
+			const data = await getListings();
+      setListings(data || []);
 			console.log('Listings received:', data);
 			if (!data || data.length === 0) {
 				setError('No listings available');
