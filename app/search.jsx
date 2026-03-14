@@ -2,7 +2,7 @@ import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
-  FlatList,
+  ImageBackground,
   ScrollView,
   StyleSheet,
   Text,
@@ -11,38 +11,14 @@ import {
   View,
 } from 'react-native';
 import { supabase } from '../lib/supabase';
-import ExploreCard from '../src/components/ExploreCard';
-import FilterPopup from '../src/components/FilterPopup';
-import { searchService } from '../src/services/searchService';
 
 export default function SearchPage() {
   const router = useRouter();
   const [query, setQuery] = useState('');
-  const [loading, setLoading] = useState(false);
   const [popularCategories, setPopularCategories] = useState([]);
   const [personalCategories, setPersonalCategories] = useState([]);
-  const [selectedCategoryListings, setSelectedCategoryListings] = useState([]);
-  const [selectedCategory, setSelectedCategory] = useState(null);
-  const [searchResults, setSearchResults] = useState([]);
-  const [showFilter, setShowFilter] = useState(false);
-  const [filters, setFilters] = useState({ type: null, price_min: null, price_max: null, category_id: null });
-
-  async function handleApplyFilters(applied) {
-    setFilters(applied);
-    setLoading(true);
-    try {
-      const res = await searchService.searchListings({ query, filters: applied, page: 1, page_size: 50 });
-      setSearchResults(res.listings || []);
-      setSelectedCategory(null);
-      setSelectedCategoryListings([]);
-    } catch (error) {
-      console.error('Filter search failed', error);
-      setSearchResults([]);
-    } finally {
-      setLoading(false);
-      setShowFilter(false);
-    }
-  }
+  const [popularLoading, setPopularLoading] = useState(false);
+  const [personalLoading, setPersonalLoading] = useState(false);
 
   useEffect(() => {
     fetchPopularCategories();
@@ -50,31 +26,26 @@ export default function SearchPage() {
   }, []);
 
   async function fetchPopularCategories() {
-    setLoading(true);
+    setPopularLoading(true);
     try {
-      // Get all category-listing relations with category info
       const { data: catListings } = await supabase
         .from('category_listings')
-        .select('listing_id, categories(id, name, image_url)');
+        .select('listing_id, categories(id, name, image_url)')
+        .order('listing_id');
 
       if (!catListings) {
         setPopularCategories([]);
         return;
       }
 
-      const listingIds = Array.from(new Set(catListings.map(c => c.listing_id)));
-
-      // Fetch bookings for these listings
-      const { data: bookings } = await supabase
-        .from('bookings')
-        .select('listing_id');
+      const listingIds = Array.from(new Set(catListings.map((c) => c.listing_id)));
+      const { data: bookings } = await supabase.from('bookings').select('listing_id');
 
       const bookingCountByListing = {};
-      bookings?.forEach(b => {
+      bookings?.forEach((b) => {
         bookingCountByListing[b.listing_id] = (bookingCountByListing[b.listing_id] || 0) + 1;
       });
 
-      // Aggregate counts per category
       const catMap = {};
       catListings.forEach((cl) => {
         const cat = cl.categories;
@@ -87,94 +58,73 @@ export default function SearchPage() {
       setPopularCategories(categoriesArray.slice(0, 6));
     } catch (error) {
       console.error('Failed to fetch popular categories', error);
+      setPopularCategories([]);
     } finally {
-      setLoading(false);
+      setPopularLoading(false);
     }
   }
 
   async function fetchPersonalCategories() {
+    setPersonalLoading(true);
     try {
       const { data: userResult } = await supabase.auth.getUser();
       const user = userResult?.user;
-      if (!user) return setPersonalCategories([]);
+      if (!user) {
+        setPersonalCategories([]);
+        return;
+      }
 
-      // Get user's bookings
       const { data: userBookings } = await supabase
         .from('bookings')
         .select('listing_id')
         .eq('user_id', user.id);
 
-      const userListingIds = Array.from(new Set(userBookings?.map(b => b.listing_id) || []));
-      if (userListingIds.length === 0) {
+      const userListingIds = Array.from(new Set(userBookings?.map((b) => b.listing_id) || []));
+      if (!userListingIds.length) {
         setPersonalCategories([]);
         return;
       }
 
-      // Get categories for those listings
       const { data: catListings } = await supabase
         .from('category_listings')
         .select('listing_id, categories(id, name, image_url)')
         .in('listing_id', userListingIds);
 
-      const catCount = {};
-      catListings?.forEach(cl => {
+      const categoryCount = {};
+      catListings?.forEach((cl) => {
         const cat = cl.categories;
         if (!cat) return;
-        catCount[cat.id] = catCount[cat.id] || { ...cat, count: 0 };
-        catCount[cat.id].count += 1;
+        categoryCount[cat.id] = categoryCount[cat.id] || { ...cat, count: 0 };
+        categoryCount[cat.id].count += 1;
       });
 
-      const personal = Object.values(catCount).sort((a, b) => b.count - a.count);
+      const personal = Object.values(categoryCount).sort((a, b) => b.count - a.count);
       setPersonalCategories(personal.slice(0, 6));
     } catch (error) {
       console.error('Failed to fetch personal categories', error);
-    }
-  }
-
-  async function onCategoryPress(category) {
-    setSelectedCategory(category);
-    setSelectedCategoryListings([]);
-    setLoading(true);
-    try {
-      const results = await searchService.searchByCategory(category.id, { page: 1, page_size: 50 });
-      setSelectedCategoryListings(results.listings || []);
-    } catch (error) {
-      console.error('Failed to fetch category listings', error);
-      setSelectedCategoryListings([]);
+      setPersonalCategories([]);
     } finally {
-      setLoading(false);
+      setPersonalLoading(false);
     }
   }
 
-  async function onSearchSubmit() {
-    setLoading(true);
-    try {
-      const res = await searchService.searchListings({ query, page: 1, page_size: 50 });
-      setSearchResults(res.listings || []);
-      setSelectedCategory(null);
-      setSelectedCategoryListings([]);
-    } catch (error) {
-      console.error('Search failed', error);
-      setSearchResults([]);
-    } finally {
-      setLoading(false);
-    }
-  }
+  const handleSearchSubmit = () => {
+    const trimmed = query.trim();
+    router.replace({
+      pathname: '/search/results',
+      params: trimmed ? { query: trimmed } : {},
+    });
+  };
 
-  function renderCategoryItem({ item }) {
-    return (
-      <TouchableOpacity style={styles.categoryTile} onPress={() => onCategoryPress(item)}>
-        <Text style={styles.categoryName}>{item.name}</Text>
-        <Text style={styles.categoryCount}>{item.count || 0} bookings</Text>
-      </TouchableOpacity>
-    );
-  }
-
-  function renderListing({ item }) {
-    return (
-      <ExploreCard item={item} onPress={() => router.push(`/listings/${item.id}`)} />
-    );
-  }
+  const handleCategoryPress = (category) => {
+    router.push({
+      pathname: '/search/results',
+      params: {
+        categoryId: category.id,
+        categoryName: category.name,
+      },
+    });
+  };
 
   return (
     <View style={styles.page}>
@@ -185,82 +135,96 @@ export default function SearchPage() {
           value={query}
           onChangeText={setQuery}
           returnKeyType="search"
-          onSubmitEditing={onSearchSubmit}
+          onSubmitEditing={handleSearchSubmit}
         />
-        <TouchableOpacity style={styles.filterBtn} onPress={() => setShowFilter(true)}>
-          <Text style={styles.filterBtnText}>Filter</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.searchBtn} onPress={onSearchSubmit}>
+        <TouchableOpacity style={styles.searchBtn} onPress={handleSearchSubmit}>
           <Text style={styles.searchBtnText}>Search</Text>
         </TouchableOpacity>
       </View>
 
-      <ScrollView style={styles.content}>
+      <ScrollView style={styles.content} contentContainerStyle={styles.contentContainer}>
         <Text style={styles.sectionTitle}>Popular Today</Text>
-        {loading ? (
-          <ActivityIndicator size="small" color="#4A90E2" />
+        {popularLoading ? (
+          <View style={styles.loaderRow}>
+            <ActivityIndicator size="small" color="#4A90E2" />
+          </View>
         ) : (
-          <FlatList
-            data={popularCategories}
-            keyExtractor={(i) => i.id}
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            renderItem={renderCategoryItem}
-            contentContainerStyle={{ paddingHorizontal: 12 }}
+          <CategoryGrid
+            categories={popularCategories}
+            fallbackText="No trending categories yet."
+            onPress={handleCategoryPress}
           />
         )}
 
         <Text style={styles.sectionTitle}>You May Like</Text>
-        <FlatList
-          data={personalCategories}
-          keyExtractor={(i) => i.id}
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          renderItem={renderCategoryItem}
-          contentContainerStyle={{ paddingHorizontal: 12 }}
-        />
-
-        {selectedCategory && (
-          <View>
-            <Text style={styles.sectionTitle}>Results for {selectedCategory.name}</Text>
-            {loading ? (
-              <ActivityIndicator size="large" color="#4A90E2" />
-            ) : (
-              <FlatList
-                data={selectedCategoryListings}
-                keyExtractor={(l) => l.id}
-                renderItem={renderListing}
-                numColumns={2}
-                contentContainerStyle={{ padding: 12 }}
-              />
-            )}
+        {personalLoading ? (
+          <View style={styles.loaderRow}>
+            <ActivityIndicator size="small" color="#4A90E2" />
           </View>
+        ) : (
+          <CategoryGrid
+            categories={personalCategories}
+            fallbackText="Nothing personalized yet."
+            onPress={handleCategoryPress}
+          />
         )}
+      </ScrollView>
+    </View>
+  );
+}
 
-        {searchResults.length > 0 && (
-          <View>
-            <Text style={styles.sectionTitle}>Search Results</Text>
-            <FlatList
-              data={searchResults}
-              keyExtractor={(l) => l.id}
-              renderItem={renderListing}
-              numColumns={2}
-              contentContainerStyle={{ padding: 12 }}
-            />
-          </View>
-        )}
-      </ScrollView>        <FilterPopup
-          visible={showFilter}
-          onClose={() => setShowFilter(false)}
-          onApply={handleApplyFilters}
-          initialFilters={filters}
-        />    </View>
+function CategoryGrid({ categories, onPress, fallbackText }) {
+  if (!categories.length) {
+    return <Text style={styles.fallbackText}>{fallbackText}</Text>;
+  }
+
+  return (
+    <View style={styles.categoriesGrid}>
+      {categories.map((category) => (
+        <CategoryTile key={category.id} category={category} onPress={() => onPress(category)} />
+      ))}
+    </View>
+  );
+}
+
+function CategoryTile({ category, onPress }) {
+  const hasImage = !!category.image_url;
+  const content = (
+    <View style={styles.categoryOverlay}>
+      <Text style={styles.categoryName}>{category.name}</Text>
+      <Text style={styles.categoryCount}>{category.count || 0} bookings</Text>
+    </View>
+  );
+
+  return (
+    <TouchableOpacity style={styles.categoryTile} onPress={onPress} activeOpacity={0.85}>
+      {hasImage ? (
+        <ImageBackground
+          source={{ uri: category.image_url }}
+          style={styles.categoryImage}
+          imageStyle={styles.categoryImageStyle}
+        >
+          {content}
+        </ImageBackground>
+      ) : (
+        <View style={[styles.categoryImage, styles.categoryFallback]}>
+          {content}
+        </View>
+      )}
+    </TouchableOpacity>
   );
 }
 
 const styles = StyleSheet.create({
-  page: { flex: 1, backgroundColor: '#FFF' },
-  topSearch: { flexDirection: 'row', padding: 12, gap: 8 },
+  page: {
+    flex: 1,
+    backgroundColor: '#FFF',
+  },
+  topSearch: {
+    flexDirection: 'row',
+    padding: 12,
+    gap: 8,
+  },
   searchInput: {
     flex: 1,
     height: 44,
@@ -274,26 +238,71 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     borderRadius: 8,
   },
-  searchBtnText: { color: '#FFF', fontWeight: '700' },
-  filterBtn: {
-    backgroundColor: '#FFF',
-    borderColor: '#4A90E2',
-    borderWidth: 1,
+  searchBtnText: {
+    color: '#FFF',
+    fontWeight: '700',
+  },
+  content: {
+    flex: 1,
+  },
+  contentContainer: {
+    paddingBottom: 24,
+  },
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    marginTop: 12,
+    marginHorizontal: 12,
+  },
+  loaderRow: {
     paddingHorizontal: 12,
-    justifyContent: 'center',
-    borderRadius: 8,
+    marginTop: 8,
   },
-  filterBtnText: { color: '#4A90E2', fontWeight: '700' },
-  content: { flex: 1 },
-  sectionTitle: { fontSize: 16, fontWeight: '700', marginTop: 12, marginLeft: 12 },
+  categoriesGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    paddingHorizontal: 12,
+    marginTop: 8,
+  },
   categoryTile: {
-    backgroundColor: '#F8FAFF',
-    padding: 12,
-    borderRadius: 8,
-    marginRight: 10,
-    minWidth: 120,
-    alignItems: 'center',
+    width: '48%',
+    aspectRatio: 1.05,
+    borderRadius: 14,
+    marginBottom: 12,
+    overflow: 'hidden',
+    backgroundColor: '#F3F6FB',
   },
-  categoryName: { fontSize: 14, fontWeight: '700' },
-  categoryCount: { fontSize: 12, color: '#666', marginTop: 6 },
+  categoryImage: {
+    flex: 1,
+    justifyContent: 'flex-end',
+  },
+  categoryImageStyle: {
+    borderRadius: 14,
+  },
+  categoryOverlay: {
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    padding: 10,
+  },
+  categoryName: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#FFF',
+  },
+  categoryCount: {
+    fontSize: 12,
+    color: '#FFF',
+    marginTop: 4,
+  },
+  categoryFallback: {
+    padding: 12,
+    justifyContent: 'flex-end',
+    backgroundColor: '#E5E8EF',
+  },
+  fallbackText: {
+    fontSize: 14,
+    color: '#666',
+    paddingHorizontal: 12,
+    marginTop: 8,
+  },
 });
