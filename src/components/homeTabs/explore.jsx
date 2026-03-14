@@ -1,6 +1,6 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, FlatList, StyleSheet, Text, View } from 'react-native';
-import { getListings } from "../../../services/listings.service";
+import { getListingById, getListings } from "../../../services/listings.service";
 import ExploreCard from '../ExploreCard';
 import EventDetail from '../details/EventDetail';
 import OfferingDetail from '../details/OfferingDetail';
@@ -12,6 +12,7 @@ export default function Explore({ onItemClick }) {
 	const [error, setError] = useState(null);
 	const [selectedListing, setSelectedListing] = useState(null);
 	const [detailsType, setDetailsType] = useState(null);
+	const detailRequestRef = useRef(null);
 
 	useEffect(() => {
 		loadListings();
@@ -23,7 +24,6 @@ export default function Explore({ onItemClick }) {
 			setError(null);
 			console.log('Starting to fetch listings...');
 			const data = await getListings();
-      setListings(data || []);
 			console.log('Listings received:', data);
 			if (!data || data.length === 0) {
 				setError('No listings available');
@@ -39,13 +39,24 @@ export default function Explore({ onItemClick }) {
 		}
 	};
 
-	const handleCardPress = (listing) => {
+	const handleCardPress = async (listing) => {
+		detailRequestRef.current = listing.id;
 		setSelectedListing(listing);
 		setDetailsType(listing.listing_type);
 		onItemClick?.(listing);
+
+		try {
+			const detailedListing = await getListingById(listing.id);
+			if (detailRequestRef.current !== listing.id) return;
+			setSelectedListing(detailedListing);
+			onItemClick?.(detailedListing);
+		} catch (error) {
+			console.error('Error loading listing details:', error);
+		}
 	};
 
 	const handleCloseDetails = () => {
+		detailRequestRef.current = null;
 		setSelectedListing(null);
 		setDetailsType(null);
 	};

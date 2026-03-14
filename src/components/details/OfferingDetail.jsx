@@ -1,16 +1,16 @@
 import { Ionicons } from '@expo/vector-icons';
 import React, { useState } from 'react';
 import {
-  Image,
   Modal,
   SafeAreaView,
   ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
-  View,
+  View
 } from 'react-native';
 import OfferingBookingModal from '../booking/OfferingBooking';
+import ImageCarousel from '../shared/ImageCarousel';
 
 export default function OfferingDetail({ listing, onClose }) {
   const [showBooking, setShowBooking] = useState(false);
@@ -39,26 +39,16 @@ export default function OfferingDetail({ listing, onClose }) {
 
         <ScrollView showsVerticalScrollIndicator={false}>
           {/* Images */}
-          <ScrollView
-            horizontal
-            pagingEnabled
-            showsHorizontalScrollIndicator={false}
-            style={styles.imagesContainer}
-          >
-            {listing.images?.length > 0 ? (
-              listing.images.map((image, idx) => (
-                <Image
-                  key={idx}
-                  source={{ uri: image }}
-                  style={styles.image}
-                />
-              ))
-            ) : (
-              <View style={[styles.image, styles.imagePlaceholder]}>
-                <Ionicons name="briefcase" size={60} color="#2ECC71" />
-              </View>
-            )}
-          </ScrollView>
+        <ImageCarousel
+          images={listing.images}
+          containerStyle={styles.imagesContainer}
+          imageStyle={styles.image}
+          placeholder={
+            <View style={[styles.image, styles.imagePlaceholder]}>
+              <Ionicons name="briefcase" size={60} color="#2ECC71" />
+            </View>
+          }
+        />
 
           {/* Title and Rating */}
           <View style={styles.content}>
@@ -170,7 +160,7 @@ export default function OfferingDetail({ listing, onClose }) {
             <View style={styles.bookingSection}>
               <View>
                 <Text style={styles.priceLabel}>Starting from</Text>
-                <Text style={styles.price}>${offeringDetails.price || 0}</Text>
+                <Text style={styles.price}>${listing.price || 0}</Text>
               </View>
               <TouchableOpacity
                 style={styles.bookButton}
@@ -223,8 +213,7 @@ const styles = StyleSheet.create({
   },
   image: {
     width: '100%',
-    height: 300,
-    aspectRatio: 1,
+    height: '100%',
     resizeMode: 'cover',
   },
   imagePlaceholder: {

@@ -11,6 +11,7 @@ import {
   View
 } from 'react-native';
 import StayBookingModal from '../booking/StayBooking';
+import ImageCarousel from '../shared/ImageCarousel';
 
 export default function StayDetail({ listing, onClose }) {
   const [showBooking, setShowBooking] = useState(false);
@@ -35,26 +36,16 @@ export default function StayDetail({ listing, onClose }) {
 
         <ScrollView showsVerticalScrollIndicator={false}>
           {/* Images */}
-          <ScrollView
-            horizontal
-            pagingEnabled
-            showsHorizontalScrollIndicator={false}
-            style={styles.imagesContainer}
-          >
-            {listing.images?.length > 0 ? (
-              listing.images.map((image, idx) => (
-                <Image
-                  key={idx}
-                  source={{ uri: image }}
-                  style={styles.image}
-                />
-              ))
-            ) : (
-              <View style={[styles.image, styles.imagePlaceholder]}>
-                <Ionicons name="home" size={60} color="#4A90E2" />
-              </View>
-            )}
-          </ScrollView>
+        <ImageCarousel
+          images={listing.images}
+          containerStyle={styles.imagesContainer}
+          imageStyle={styles.image}
+          placeholder={
+            <View style={[styles.image, styles.imagePlaceholder]}>
+              <Ionicons name="home" size={60} color="#4A90E2" />
+            </View>
+          }
+        />
 
           {/* Title and Rating */}
           <View style={styles.content}>
@@ -195,8 +186,7 @@ const styles = StyleSheet.create({
   },
   image: {
     width: '100%',
-    height: 300,
-    aspectRatio: 1,
+    height: '100%',
     resizeMode: 'cover',
   },
   imagePlaceholder: {

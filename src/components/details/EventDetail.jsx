@@ -11,6 +11,7 @@ import {
   View,
 } from 'react-native';
 import EventBookingModal from '../booking/EventBooking';
+import ImageCarousel from '../shared/ImageCarousel';
 
 export default function EventDetail({ listing, onClose }) {
   const [showBooking, setShowBooking] = useState(false);
@@ -45,22 +46,16 @@ export default function EventDetail({ listing, onClose }) {
 
         <ScrollView showsVerticalScrollIndicator={false}>
           {/* Images */}
-          <ScrollView
-            horizontal
-            pagingEnabled
-            showsHorizontalScrollIndicator={false}
-            style={styles.imagesContainer}
-          >
-            {listing.images?.length > 0 ? (
-              listing.images.map((imageUrl, idx) => (
-                <Image source={{ uri: imageUrl }} style={styles.image} key={idx} />
-              ))
-            ) : (
-              <View style={[styles.image, styles.imagePlaceholder]}>
-                <Ionicons name="calendar" size={60} color="#FF6B6B" />
-              </View>
-            )}
-          </ScrollView>
+        <ImageCarousel
+          images={listing.images}
+          containerStyle={styles.imagesContainer}
+          imageStyle={styles.image}
+          placeholder={
+            <View style={[styles.image, styles.imagePlaceholder]}>
+              <Ionicons name="calendar" size={60} color="#FF6B6B" />
+            </View>
+          }
+        />
 
           {/* Title and Rating */}
           <View style={styles.content}>
@@ -210,8 +205,7 @@ const styles = StyleSheet.create({
   },
   image: {
     width: '100%',
-    height: 300,
-    aspectRatio: 1,
+    height: '100%',
     resizeMode: 'cover',
   },
   imagePlaceholder: {
