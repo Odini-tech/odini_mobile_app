@@ -192,7 +192,7 @@ function CategoryTile({ category, onPress }) {
   const content = (
     <View style={styles.categoryOverlay}>
       <Text style={styles.categoryName}>{category.name}</Text>
-      <Text style={styles.categoryCount}>{category.count || 0} bookings</Text>
+    
     </View>
   );
 

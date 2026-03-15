@@ -27,8 +27,8 @@ export default function BottomNav({ onHomePress = () => {}, onListingsPress = ()
         accessibilityRole="button"
         accessibilityLabel="Open listings"
       >
-        <Ionicons name="list-outline" size={24} color={isActive('listings') ? '#4A90E2' : '#222'} />
-        <Text style={[styles.label, isActive('listings') && styles.labelActive]}>Listings</Text>
+        <Ionicons name="chat" size={24} color={isActive('listings') ? '#4A90E2' : '#222'} />
+        <Text style={[styles.label, isActive('listings') && styles.labelActive]}>Advisory</Text>
       </Pressable>
 
       <Pressable
