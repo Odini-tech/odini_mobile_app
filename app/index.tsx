@@ -1,8 +1,9 @@
 import { Session } from "@supabase/supabase-js";
 import { useRouter } from "expo-router";
 import { useEffect, useRef, useState } from "react";
-import { ActivityIndicator, View } from "react-native";
+import { ActivityIndicator, StyleSheet, View } from "react-native";
 import { supabase } from "../lib/supabase";
+import burgundyTheme from "../src/theme/burgundyTheme";
 
 import AuthScreen from "./(tabs)/authScreen";
 
@@ -49,11 +50,20 @@ export default function App() {
 
   if (loading) {
     return (
-      <View style={{ flex: 1, justifyContent: "center" }}>
-        <ActivityIndicator />
+      <View style={styles.loadingScreen}>
+        <ActivityIndicator size="large" color={burgundyTheme.colors.primary} />
       </View>
     );
   }
 
   return session ? <></> : <AuthScreen />;
 }
+
+const styles = StyleSheet.create({
+  loadingScreen: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: burgundyTheme.colors.background,
+  },
+});

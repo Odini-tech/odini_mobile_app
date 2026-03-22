@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { ActivityIndicator, FlatList, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { getListings } from "../../../services/listings.service";
+import burgundyTheme from "../../theme/burgundyTheme";
 import ListingCard from "../cards";
 
 export function ForYouPage({ onEventClick }) {
@@ -29,12 +30,10 @@ export function ForYouPage({ onEventClick }) {
   };
 
   const handleFavorite = async (listingId) => {
-    // TODO: Implement favorite toggling when auth context is available
     console.log("Toggle favorite for:", listingId);
   };
 
   const handleCardPress = (listing) => {
-    // TODO: Navigate to detail page
     onEventClick?.(listing);
   };
 
@@ -42,7 +41,7 @@ export function ForYouPage({ onEventClick }) {
     return (
       <View style={styles.container}>
         <View style={styles.loaderContainer}>
-          <ActivityIndicator size="large" color="#4A90E2" />
+          <ActivityIndicator size="large" color={burgundyTheme.colors.primary} />
           <Text style={styles.loadingText}>Loading listings...</Text>
         </View>
       </View>
@@ -55,7 +54,7 @@ export function ForYouPage({ onEventClick }) {
         <View style={styles.errorContainer}>
           <Text style={styles.errorTitle}>Oops!</Text>
           <Text style={styles.errorText}>{error}</Text>
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.retryButton}
             onPress={fetchListings}
           >
@@ -95,10 +94,6 @@ export function ForYouPage({ onEventClick }) {
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Discover</Text>
-        <Text style={styles.headerSubtitle}>Stays, Events & Services</Text>
-      </View>
 
       <FlatList
         data={listings}
@@ -128,23 +123,23 @@ export function ForYouPage({ onEventClick }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#FAFAFA",
+    backgroundColor: burgundyTheme.colors.background,
   },
   header: {
     paddingHorizontal: 12,
     paddingVertical: 16,
-    backgroundColor: "#FFF",
+    backgroundColor: burgundyTheme.colors.surface,
     borderBottomWidth: 1,
-    borderBottomColor: "#F0F0F0",
+    borderBottomColor: burgundyTheme.colors.border,
   },
   headerTitle: {
     fontSize: 24,
     fontWeight: "700",
-    color: "#1A1A1A",
+    color: burgundyTheme.colors.text,
   },
   headerSubtitle: {
     fontSize: 14,
-    color: "#999",
+    color: burgundyTheme.colors.textMuted,
     marginTop: 4,
   },
   loaderContainer: {
@@ -155,7 +150,7 @@ const styles = StyleSheet.create({
   loadingText: {
     marginTop: 12,
     fontSize: 14,
-    color: "#666",
+    color: burgundyTheme.colors.textMuted,
   },
   errorContainer: {
     flex: 1,
@@ -166,23 +161,23 @@ const styles = StyleSheet.create({
   errorTitle: {
     fontSize: 20,
     fontWeight: "700",
-    color: "#1A1A1A",
+    color: burgundyTheme.colors.text,
     marginBottom: 8,
   },
   errorText: {
     fontSize: 14,
-    color: "#666",
+    color: burgundyTheme.colors.textMuted,
     textAlign: "center",
     marginBottom: 24,
   },
   retryButton: {
-    backgroundColor: "#4A90E2",
+    backgroundColor: burgundyTheme.colors.primary,
     paddingHorizontal: 24,
     paddingVertical: 12,
     borderRadius: 8,
   },
   retryText: {
-    color: "#FFF",
+    color: burgundyTheme.colors.white,
     fontWeight: "600",
     fontSize: 14,
   },
@@ -195,12 +190,12 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 18,
     fontWeight: "600",
-    color: "#1A1A1A",
+    color: burgundyTheme.colors.text,
     marginBottom: 8,
   },
   emptyText: {
     fontSize: 14,
-    color: "#999",
+    color: burgundyTheme.colors.textMuted,
     textAlign: "center",
   },
   footer: {
@@ -209,6 +204,6 @@ const styles = StyleSheet.create({
   },
   footerText: {
     fontSize: 14,
-    color: "#999",
+    color: burgundyTheme.colors.textSubtle,
   },
 });

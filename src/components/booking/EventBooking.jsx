@@ -12,13 +12,16 @@ import {
 } from 'react-native';
 import { supabase } from '../../../lib/supabase';
 import bookingService from '../../../src/services/bookingService';
+import burgundyTheme, { getListingTypeColor } from '../../theme/burgundyTheme';
+
+const EVENT_ACCENT = getListingTypeColor('event');
 
 export default function EventBookingModal({ listing, eventDetails, onClose, onConfirm }) {
   const [ticketCount, setTicketCount] = useState('1');
   const [specialRequests, setSpecialRequests] = useState('');
 
   const pricePerTicket = listing.price || 0;
-  const tickets = parseInt(ticketCount) || 1;
+  const tickets = parseInt(ticketCount, 10) || 1;
   const subtotal = tickets * pricePerTicket;
   const serviceFee = Math.round(subtotal * 0.1);
   const total = subtotal + serviceFee;
@@ -59,7 +62,6 @@ export default function EventBookingModal({ listing, eventDetails, onClose, onCo
         return;
       }
 
-      // notify parent and close
       onConfirm && onConfirm(res.data);
       onClose && onClose();
     })();
@@ -82,16 +84,15 @@ export default function EventBookingModal({ listing, eventDetails, onClose, onCo
         <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
           <View style={styles.header}>
             <TouchableOpacity onPress={onClose}>
-              <Ionicons name="close" size={24} color="#1A1A1A" />
+              <Ionicons name="close" size={24} color={burgundyTheme.colors.text} />
             </TouchableOpacity>
             <Text style={styles.title}>Get Event Tickets</Text>
-            <View style={{ width: 24 }} />
+            <View style={styles.headerSpacer} />
           </View>
 
-          {/* Event Info Card */}
           <View style={styles.eventCard}>
             <View style={styles.eventBadge}>
-              <Ionicons name="calendar" size={14} color="#FFF" />
+              <Ionicons name="calendar" size={14} color={burgundyTheme.colors.white} />
               <Text style={styles.badgeText}>
                 {eventDetails.event_type?.toUpperCase() || 'EVENT'}
               </Text>
@@ -99,19 +100,17 @@ export default function EventBookingModal({ listing, eventDetails, onClose, onCo
             <Text style={styles.eventTitle}>{listing.title}</Text>
             <View style={styles.eventInfo}>
               <View style={styles.eventInfoRow}>
-                <Ionicons name="time" size={16} color="#FF6B6B" />
-                <Text style={styles.eventInfoText}>
-                  {formatEventTime(eventDetails.event_time)}
-                </Text>
+                <Ionicons name="time" size={16} color={EVENT_ACCENT} />
+                <Text style={styles.eventInfoText}>{formatEventTime(eventDetails.event_time)}</Text>
               </View>
               <View style={styles.eventInfoRow}>
-                <Ionicons name="location" size={16} color="#FF6B6B" />
+                <Ionicons name="location" size={16} color={EVENT_ACCENT} />
                 <Text style={styles.eventInfoText}>
                   {listing.address_city}, {listing.address_country}
                 </Text>
               </View>
               <View style={styles.eventInfoRow}>
-                <Ionicons name="people" size={16} color="#FF6B6B" />
+                <Ionicons name="people" size={16} color={EVENT_ACCENT} />
                 <Text style={styles.eventInfoText}>
                   Capacity: {eventDetails.capacity || 'Unlimited'}
                 </Text>
@@ -119,40 +118,39 @@ export default function EventBookingModal({ listing, eventDetails, onClose, onCo
             </View>
           </View>
 
-          {/* Ticket Selection */}
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Number of Tickets</Text>
             <View style={styles.counter}>
-              <TouchableOpacity onPress={() => setTicketCount(Math.max('1', (parseInt(ticketCount) - 1).toString()))}>
-                <Ionicons name="remove" size={24} color="#FF6B6B" />
+              <TouchableOpacity
+                onPress={() => setTicketCount(Math.max('1', (parseInt(ticketCount, 10) - 1).toString()))}
+              >
+                <Ionicons name="remove" size={24} color={EVENT_ACCENT} />
               </TouchableOpacity>
               <Text style={styles.counterValue}>{ticketCount}</Text>
-              <TouchableOpacity 
-                onPress={() => setTicketCount((parseInt(ticketCount) + 1).toString())}
-                disabled={parseInt(ticketCount) >= (eventDetails.capacity || 1000)}
+              <TouchableOpacity
+                onPress={() => setTicketCount((parseInt(ticketCount, 10) + 1).toString())}
+                disabled={parseInt(ticketCount, 10) >= (eventDetails.capacity || 1000)}
               >
-                <Ionicons name="add" size={24} color="#FF6B6B" />
+                <Ionicons name="add" size={24} color={EVENT_ACCENT} />
               </TouchableOpacity>
             </View>
           </View>
 
-          {/* Attendee Info */}
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Attendee Information</Text>
             <TextInput
               style={styles.input}
               placeholder="Full Name"
-              placeholderTextColor="#999"
+              placeholderTextColor={burgundyTheme.colors.textSubtle}
             />
             <TextInput
-              style={[styles.input, { marginTop: 10 }]}
+              style={[styles.input, styles.spacedInput]}
               placeholder="Email"
-              placeholderTextColor="#999"
+              placeholderTextColor={burgundyTheme.colors.textSubtle}
               keyboardType="email-address"
             />
           </View>
 
-          {/* Special Requests */}
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Special Requirements</Text>
             <TextInput
@@ -162,16 +160,17 @@ export default function EventBookingModal({ listing, eventDetails, onClose, onCo
               onChangeText={setSpecialRequests}
               multiline
               numberOfLines={4}
-              placeholderTextColor="#999"
+              placeholderTextColor={burgundyTheme.colors.textSubtle}
             />
           </View>
 
-          {/* Price Breakdown */}
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Price Summary</Text>
             <View style={styles.priceBreakdown}>
               <View style={styles.priceRow}>
-                <Text style={styles.priceLabel}>${pricePerTicket} × {tickets} ticket{tickets !== 1 ? 's' : ''}</Text>
+                <Text style={styles.priceLabel}>
+                  ${pricePerTicket} x {tickets} ticket{tickets !== 1 ? 's' : ''}
+                </Text>
                 <Text style={styles.priceValue}>${subtotal}</Text>
               </View>
               <View style={styles.priceRow}>
@@ -185,20 +184,15 @@ export default function EventBookingModal({ listing, eventDetails, onClose, onCo
             </View>
           </View>
 
-          {/* Terms */}
           <View style={styles.termsContainer}>
             <Text style={styles.termsText}>
-              By booking, you agree to the event's terms and conditions.
+              By booking, you agree to the event&apos;s terms and conditions.
             </Text>
           </View>
         </ScrollView>
 
-        {/* Book Button */}
         <View style={styles.footer}>
-          <TouchableOpacity
-            style={styles.button}
-            onPress={handleConfirm}
-          >
+          <TouchableOpacity style={styles.button} onPress={handleConfirm}>
             <Text style={styles.buttonText}>Get Tickets - ${total}</Text>
           </TouchableOpacity>
         </View>
@@ -210,7 +204,7 @@ export default function EventBookingModal({ listing, eventDetails, onClose, onCo
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFF',
+    backgroundColor: burgundyTheme.colors.background,
   },
   content: {
     flex: 1,
@@ -222,24 +216,30 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 24,
   },
+  headerSpacer: {
+    width: 24,
+  },
   title: {
     fontSize: 20,
     fontWeight: '700',
-    color: '#1A1A1A',
+    color: burgundyTheme.colors.text,
   },
   eventCard: {
-    backgroundColor: '#FFF0F0',
-    borderRadius: 12,
+    backgroundColor: burgundyTheme.colors.surface,
+    borderRadius: 16,
     padding: 16,
     marginBottom: 24,
     borderLeftWidth: 4,
-    borderLeftColor: '#FF6B6B',
+    borderLeftColor: EVENT_ACCENT,
+    borderWidth: 1,
+    borderColor: burgundyTheme.colors.border,
+    ...burgundyTheme.shadow,
   },
   eventBadge: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    backgroundColor: '#FF6B6B',
+    backgroundColor: EVENT_ACCENT,
     alignSelf: 'flex-start',
     paddingHorizontal: 10,
     paddingVertical: 4,
@@ -249,12 +249,12 @@ const styles = StyleSheet.create({
   badgeText: {
     fontSize: 11,
     fontWeight: '700',
-    color: '#FFF',
+    color: burgundyTheme.colors.white,
   },
   eventTitle: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#1A1A1A',
+    color: burgundyTheme.colors.text,
     marginBottom: 12,
   },
   eventInfo: {
@@ -267,7 +267,7 @@ const styles = StyleSheet.create({
   },
   eventInfoText: {
     fontSize: 13,
-    color: '#666',
+    color: burgundyTheme.colors.textMuted,
     flex: 1,
   },
   section: {
@@ -276,7 +276,7 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#1A1A1A',
+    color: burgundyTheme.colors.text,
     marginBottom: 12,
   },
   counter: {
@@ -284,38 +284,46 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-around',
     borderWidth: 1,
-    borderColor: '#FFD9D9',
-    borderRadius: 8,
+    borderColor: burgundyTheme.colors.border,
+    borderRadius: 14,
     paddingVertical: 16,
+    backgroundColor: burgundyTheme.colors.surface,
   },
   counterValue: {
     fontSize: 24,
     fontWeight: '700',
-    color: '#1A1A1A',
+    color: burgundyTheme.colors.text,
   },
   input: {
     borderWidth: 1,
-    borderColor: '#E5E5EA',
-    borderRadius: 8,
+    borderColor: burgundyTheme.colors.border,
+    borderRadius: 12,
     paddingHorizontal: 12,
     paddingVertical: 10,
     fontSize: 14,
-    color: '#1A1A1A',
+    color: burgundyTheme.colors.text,
+    backgroundColor: burgundyTheme.colors.surface,
+  },
+  spacedInput: {
+    marginTop: 10,
   },
   textArea: {
     borderWidth: 1,
-    borderColor: '#E5E5EA',
-    borderRadius: 8,
+    borderColor: burgundyTheme.colors.border,
+    borderRadius: 12,
     paddingHorizontal: 12,
     paddingVertical: 10,
     fontSize: 14,
-    color: '#1A1A1A',
+    color: burgundyTheme.colors.text,
     textAlignVertical: 'top',
+    backgroundColor: burgundyTheme.colors.surface,
   },
   priceBreakdown: {
-    backgroundColor: '#F9F9F9',
-    borderRadius: 12,
+    backgroundColor: burgundyTheme.colors.surfaceAlt,
+    borderRadius: 16,
     padding: 12,
+    borderWidth: 1,
+    borderColor: burgundyTheme.colors.border,
   },
   priceRow: {
     flexDirection: 'row',
@@ -324,53 +332,54 @@ const styles = StyleSheet.create({
   },
   priceLabel: {
     fontSize: 13,
-    color: '#666',
+    color: burgundyTheme.colors.textMuted,
   },
   priceValue: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#1A1A1A',
+    color: burgundyTheme.colors.text,
   },
   totalRow: {
     borderTopWidth: 1,
-    borderTopColor: '#E5E5EA',
-    paddingTopY: 12,
+    borderTopColor: burgundyTheme.colors.border,
+    paddingTop: 12,
     marginTop: 12,
     marginBottom: 0,
   },
   totalLabel: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#1A1A1A',
+    color: burgundyTheme.colors.text,
   },
   totalValue: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#FF6B6B',
+    color: EVENT_ACCENT,
   },
   termsContainer: {
     paddingVertical: 12,
   },
   termsText: {
     fontSize: 12,
-    color: '#999',
+    color: burgundyTheme.colors.textSubtle,
     textAlign: 'center',
     lineHeight: 16,
   },
   footer: {
     padding: 16,
     borderTopWidth: 1,
-    borderTopColor: '#F0F0F0',
+    borderTopColor: burgundyTheme.colors.border,
+    backgroundColor: burgundyTheme.colors.surface,
   },
   button: {
-    backgroundColor: '#FF6B6B',
+    backgroundColor: EVENT_ACCENT,
     padding: 16,
-    borderRadius: 8,
+    borderRadius: 12,
     alignItems: 'center',
   },
   buttonText: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#FFF',
+    color: burgundyTheme.colors.white,
   },
 });

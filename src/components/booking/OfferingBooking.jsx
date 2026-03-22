@@ -12,6 +12,9 @@ import {
 } from 'react-native';
 import { supabase } from '../../../lib/supabase';
 import bookingService from '../../../src/services/bookingService';
+import burgundyTheme, { getListingTypeColor } from '../../theme/burgundyTheme';
+
+const OFFERING_ACCENT = getListingTypeColor('offering');
 
 export default function OfferingBookingModal({ listing, offeringDetails, onClose, onConfirm }) {
   const [serviceDate, setServiceDate] = useState(new Date().toISOString().split('T')[0]);
@@ -20,7 +23,7 @@ export default function OfferingBookingModal({ listing, offeringDetails, onClose
   const [specialRequests, setSpecialRequests] = useState('');
 
   const priceRange = offeringDetails.price_range || 'Contact for price';
-  const estimatedPrice = 100; // Default estimate
+  const estimatedPrice = 100;
 
   const handleConfirm = () => {
     if (!serviceDate || !serviceTime) {
@@ -58,13 +61,12 @@ export default function OfferingBookingModal({ listing, offeringDetails, onClose
     })();
   };
 
-  const formatDate = (dateString) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
+  const formatDate = (dateString) =>
+    new Date(dateString).toLocaleDateString('en-US', {
       weekday: 'short',
       month: 'short',
       day: 'numeric',
     });
-  };
 
   return (
     <Modal visible transparent animationType="slide">
@@ -72,16 +74,15 @@ export default function OfferingBookingModal({ listing, offeringDetails, onClose
         <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
           <View style={styles.header}>
             <TouchableOpacity onPress={onClose}>
-              <Ionicons name="close" size={24} color="#1A1A1A" />
+              <Ionicons name="close" size={24} color={burgundyTheme.colors.text} />
             </TouchableOpacity>
             <Text style={styles.title}>Book Service</Text>
-            <View style={{ width: 24 }} />
+            <View style={styles.headerSpacer} />
           </View>
 
-          {/* Service Info Card */}
           <View style={styles.serviceCard}>
             <View style={styles.serviceBadge}>
-              <Ionicons name="briefcase" size={14} color="#FFF" />
+              <Ionicons name="briefcase" size={14} color={burgundyTheme.colors.white} />
               <Text style={styles.badgeText}>
                 {offeringDetails.service_type?.toUpperCase() || 'SERVICE'}
               </Text>
@@ -91,8 +92,8 @@ export default function OfferingBookingModal({ listing, offeringDetails, onClose
               {listing.description}
             </Text>
             <View style={styles.serviceProvider}>
-              <Ionicons name="person-circle" size={36} color="#2ECC71" />
-              <View style={{ flex: 1 }}>
+              <Ionicons name="person-circle" size={36} color={OFFERING_ACCENT} />
+              <View style={styles.providerCopy}>
                 <Text style={styles.providerName}>
                   {listing.profiles?.firstname || 'Service Provider'}
                 </Text>
@@ -101,7 +102,6 @@ export default function OfferingBookingModal({ listing, offeringDetails, onClose
             </View>
           </View>
 
-          {/* Service Date & Time */}
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Schedule Service</Text>
             <View style={styles.dateTimeRow}>
@@ -112,6 +112,7 @@ export default function OfferingBookingModal({ listing, offeringDetails, onClose
                   value={serviceDate}
                   onChangeText={setServiceDate}
                   placeholder="YYYY-MM-DD"
+                  placeholderTextColor={burgundyTheme.colors.textSubtle}
                 />
               </View>
               <View style={styles.timeField}>
@@ -121,6 +122,7 @@ export default function OfferingBookingModal({ listing, offeringDetails, onClose
                   value={serviceTime}
                   onChangeText={setServiceTime}
                   placeholder="HH:MM"
+                  placeholderTextColor={burgundyTheme.colors.textSubtle}
                 />
               </View>
             </View>
@@ -129,56 +131,52 @@ export default function OfferingBookingModal({ listing, offeringDetails, onClose
             </Text>
           </View>
 
-          {/* Quantity */}
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Quantity/Duration</Text>
             <View style={styles.counter}>
-              <TouchableOpacity onPress={() => setQuantity(Math.max('1', (parseInt(quantity) - 1).toString()))}>
-                <Ionicons name="remove" size={24} color="#2ECC71" />
+              <TouchableOpacity
+                onPress={() => setQuantity(Math.max('1', (parseInt(quantity, 10) - 1).toString()))}
+              >
+                <Ionicons name="remove" size={24} color={OFFERING_ACCENT} />
               </TouchableOpacity>
               <Text style={styles.counterValue}>{quantity}</Text>
-              <TouchableOpacity 
-                onPress={() => setQuantity((parseInt(quantity) + 1).toString())}
-              >
-                <Ionicons name="add" size={24} color="#2ECC71" />
+              <TouchableOpacity onPress={() => setQuantity((parseInt(quantity, 10) + 1).toString())}>
+                <Ionicons name="add" size={24} color={OFFERING_ACCENT} />
               </TouchableOpacity>
             </View>
           </View>
 
-          {/* Client Information */}
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Your Information</Text>
             <TextInput
               style={styles.input}
               placeholder="Full Name"
-              placeholderTextColor="#999"
+              placeholderTextColor={burgundyTheme.colors.textSubtle}
             />
             <TextInput
-              style={[styles.input, { marginTop: 10 }]}
+              style={[styles.input, styles.spacedInput]}
               placeholder="Email"
-              placeholderTextColor="#999"
+              placeholderTextColor={burgundyTheme.colors.textSubtle}
               keyboardType="email-address"
             />
             <TextInput
-              style={[styles.input, { marginTop: 10 }]}
+              style={[styles.input, styles.spacedInput]}
               placeholder="Phone Number"
-              placeholderTextColor="#999"
+              placeholderTextColor={burgundyTheme.colors.textSubtle}
               keyboardType="phone-pad"
             />
           </View>
 
-          {/* Location */}
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Service Location</Text>
             <View style={styles.locationRow}>
-              <Ionicons name="location" size={16} color="#666" />
+              <Ionicons name="location" size={16} color={burgundyTheme.colors.primary} />
               <Text style={styles.locationText}>
                 {listing.address_city}, {listing.address_country}
               </Text>
             </View>
           </View>
 
-          {/* Special Requests */}
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Special Requests</Text>
             <TextInput
@@ -188,11 +186,10 @@ export default function OfferingBookingModal({ listing, offeringDetails, onClose
               onChangeText={setSpecialRequests}
               multiline
               numberOfLines={4}
-              placeholderTextColor="#999"
+              placeholderTextColor={burgundyTheme.colors.textSubtle}
             />
           </View>
 
-          {/* Price Info */}
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Pricing</Text>
             <View style={styles.priceBreakdown}>
@@ -210,20 +207,16 @@ export default function OfferingBookingModal({ listing, offeringDetails, onClose
             </View>
           </View>
 
-          {/* Terms */}
           <View style={styles.termsContainer}>
             <Text style={styles.termsText}>
-              By requesting this service, you agree to the service provider's terms and conditions.
+              By requesting this service, you agree to the service provider&apos;s terms and
+              conditions.
             </Text>
           </View>
         </ScrollView>
 
-        {/* Book Button */}
         <View style={styles.footer}>
-          <TouchableOpacity
-            style={styles.button}
-            onPress={handleConfirm}
-          >
+          <TouchableOpacity style={styles.button} onPress={handleConfirm}>
             <Text style={styles.buttonText}>Request Service</Text>
           </TouchableOpacity>
         </View>
@@ -235,7 +228,7 @@ export default function OfferingBookingModal({ listing, offeringDetails, onClose
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFF',
+    backgroundColor: burgundyTheme.colors.background,
   },
   content: {
     flex: 1,
@@ -247,24 +240,30 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 24,
   },
+  headerSpacer: {
+    width: 24,
+  },
   title: {
     fontSize: 20,
     fontWeight: '700',
-    color: '#1A1A1A',
+    color: burgundyTheme.colors.text,
   },
   serviceCard: {
-    backgroundColor: '#F0FFF6',
-    borderRadius: 12,
+    backgroundColor: burgundyTheme.colors.surface,
+    borderRadius: 16,
     padding: 16,
     marginBottom: 24,
     borderLeftWidth: 4,
-    borderLeftColor: '#2ECC71',
+    borderLeftColor: OFFERING_ACCENT,
+    borderWidth: 1,
+    borderColor: burgundyTheme.colors.border,
+    ...burgundyTheme.shadow,
   },
   serviceBadge: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    backgroundColor: '#2ECC71',
+    backgroundColor: OFFERING_ACCENT,
     alignSelf: 'flex-start',
     paddingHorizontal: 10,
     paddingVertical: 4,
@@ -274,17 +273,17 @@ const styles = StyleSheet.create({
   badgeText: {
     fontSize: 11,
     fontWeight: '700',
-    color: '#FFF',
+    color: burgundyTheme.colors.white,
   },
   serviceTitle: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#1A1A1A',
+    color: burgundyTheme.colors.text,
     marginBottom: 8,
   },
   serviceDescription: {
     fontSize: 13,
-    color: '#666',
+    color: burgundyTheme.colors.textMuted,
     marginBottom: 12,
     lineHeight: 18,
   },
@@ -292,18 +291,21 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    paddingTopY: 12,
+    paddingTop: 12,
     borderTopWidth: 1,
-    borderTopColor: '#E0F5E9',
+    borderTopColor: burgundyTheme.colors.border,
+  },
+  providerCopy: {
+    flex: 1,
   },
   providerName: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#1A1A1A',
+    color: burgundyTheme.colors.text,
   },
   providerRole: {
     fontSize: 11,
-    color: '#999',
+    color: burgundyTheme.colors.textSubtle,
     marginTop: 2,
   },
   section: {
@@ -312,7 +314,7 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#1A1A1A',
+    color: burgundyTheme.colors.text,
     marginBottom: 12,
   },
   dateTimeRow: {
@@ -327,22 +329,26 @@ const styles = StyleSheet.create({
   },
   label: {
     fontSize: 12,
-    color: '#999',
+    color: burgundyTheme.colors.textSubtle,
     marginBottom: 6,
     fontWeight: '500',
   },
   input: {
     borderWidth: 1,
-    borderColor: '#E5E5EA',
-    borderRadius: 8,
+    borderColor: burgundyTheme.colors.border,
+    borderRadius: 12,
     paddingHorizontal: 12,
     paddingVertical: 10,
     fontSize: 14,
-    color: '#1A1A1A',
+    color: burgundyTheme.colors.text,
+    backgroundColor: burgundyTheme.colors.surface,
+  },
+  spacedInput: {
+    marginTop: 10,
   },
   dateInfo: {
     fontSize: 12,
-    color: '#2ECC71',
+    color: OFFERING_ACCENT,
     marginTop: 8,
     fontWeight: '600',
   },
@@ -351,14 +357,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-around',
     borderWidth: 1,
-    borderColor: '#D0F0E0',
-    borderRadius: 8,
+    borderColor: burgundyTheme.colors.border,
+    borderRadius: 12,
     paddingVertical: 16,
+    backgroundColor: burgundyTheme.colors.surface,
   },
   counterValue: {
     fontSize: 24,
     fontWeight: '700',
-    color: '#1A1A1A',
+    color: burgundyTheme.colors.text,
   },
   locationRow: {
     flexDirection: 'row',
@@ -366,27 +373,32 @@ const styles = StyleSheet.create({
     gap: 8,
     paddingHorizontal: 12,
     paddingVertical: 10,
-    backgroundColor: '#F9F9F9',
-    borderRadius: 8,
+    backgroundColor: burgundyTheme.colors.surfaceAlt,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: burgundyTheme.colors.border,
   },
   locationText: {
     fontSize: 13,
-    color: '#666',
+    color: burgundyTheme.colors.textMuted,
   },
   textArea: {
     borderWidth: 1,
-    borderColor: '#E5E5EA',
-    borderRadius: 8,
+    borderColor: burgundyTheme.colors.border,
+    borderRadius: 12,
     paddingHorizontal: 12,
     paddingVertical: 10,
     fontSize: 14,
-    color: '#1A1A1A',
+    color: burgundyTheme.colors.text,
     textAlignVertical: 'top',
+    backgroundColor: burgundyTheme.colors.surface,
   },
   priceBreakdown: {
-    backgroundColor: '#F9F9F9',
-    borderRadius: 12,
+    backgroundColor: burgundyTheme.colors.surfaceAlt,
+    borderRadius: 16,
     padding: 12,
+    borderWidth: 1,
+    borderColor: burgundyTheme.colors.border,
   },
   priceRow: {
     flexDirection: 'row',
@@ -396,16 +408,16 @@ const styles = StyleSheet.create({
   },
   priceLabel: {
     fontSize: 13,
-    color: '#666',
+    color: burgundyTheme.colors.textMuted,
   },
   priceValue: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#1A1A1A',
+    color: burgundyTheme.colors.text,
   },
   priceNote: {
     fontSize: 11,
-    color: '#999',
+    color: burgundyTheme.colors.textSubtle,
     marginTop: 8,
     fontStyle: 'italic',
   },
@@ -414,24 +426,25 @@ const styles = StyleSheet.create({
   },
   termsText: {
     fontSize: 12,
-    color: '#999',
+    color: burgundyTheme.colors.textSubtle,
     textAlign: 'center',
     lineHeight: 16,
   },
   footer: {
     padding: 16,
     borderTopWidth: 1,
-    borderTopColor: '#F0F0F0',
+    borderTopColor: burgundyTheme.colors.border,
+    backgroundColor: burgundyTheme.colors.surface,
   },
   button: {
-    backgroundColor: '#2ECC71',
+    backgroundColor: OFFERING_ACCENT,
     padding: 16,
-    borderRadius: 8,
+    borderRadius: 12,
     alignItems: 'center',
   },
   buttonText: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#FFF',
+    color: burgundyTheme.colors.white,
   },
 });

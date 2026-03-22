@@ -12,6 +12,9 @@ import {
 } from 'react-native';
 import { supabase } from '../../../lib/supabase';
 import bookingService from '../../../src/services/bookingService';
+import burgundyTheme, { getListingTypeColor } from '../../theme/burgundyTheme';
+
+const STAY_ACCENT = getListingTypeColor('stay');
 
 export default function StayBookingModal({ listing, stayDetails, onClose, onConfirm }) {
   const [checkInDate, setCheckInDate] = useState(new Date().toISOString().split('T')[0]);
@@ -79,13 +82,12 @@ export default function StayBookingModal({ listing, stayDetails, onClose, onConf
         <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
           <View style={styles.header}>
             <TouchableOpacity onPress={onClose}>
-              <Ionicons name="close" size={24} color="#1A1A1A" />
+              <Ionicons name="close" size={24} color={burgundyTheme.colors.text} />
             </TouchableOpacity>
             <Text style={styles.title}>Book Your Stay</Text>
-            <View style={{ width: 24 }} />
+            <View style={styles.headerSpacer} />
           </View>
 
-          {/* Check-in & Check-out */}
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Dates</Text>
             <View style={styles.dateRow}>
@@ -96,6 +98,7 @@ export default function StayBookingModal({ listing, stayDetails, onClose, onConf
                   value={checkInDate}
                   onChangeText={setCheckInDate}
                   placeholder="YYYY-MM-DD"
+                  placeholderTextColor={burgundyTheme.colors.textSubtle}
                 />
               </View>
               <View style={styles.dateField}>
@@ -105,50 +108,55 @@ export default function StayBookingModal({ listing, stayDetails, onClose, onConf
                   value={checkOutDate}
                   onChangeText={setCheckOutDate}
                   placeholder="YYYY-MM-DD"
+                  placeholderTextColor={burgundyTheme.colors.textSubtle}
                 />
               </View>
             </View>
             <Text style={styles.nightsInfo}>{nights} night{nights !== 1 ? 's' : ''}</Text>
           </View>
 
-          {/* Guests & Rooms */}
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Guests & Rooms</Text>
             <View style={styles.counterRow}>
               <View style={styles.counterField}>
                 <Text style={styles.label}>Guests</Text>
                 <View style={styles.counter}>
-                  <TouchableOpacity onPress={() => setGuestCount(Math.max('1', (parseInt(guestCount) - 1).toString()))}>
-                    <Ionicons name="remove" size={20} color="#4A90E2" />
+                  <TouchableOpacity
+                    onPress={() =>
+                      setGuestCount(Math.max('1', (parseInt(guestCount, 10) - 1).toString()))
+                    }
+                  >
+                    <Ionicons name="remove" size={20} color={STAY_ACCENT} />
                   </TouchableOpacity>
                   <Text style={styles.counterValue}>{guestCount}</Text>
-                  <TouchableOpacity 
-                    onPress={() => setGuestCount((parseInt(guestCount) + 1).toString())}
-                    disabled={parseInt(guestCount) >= (stayDetails.max_guests || 10)}
+                  <TouchableOpacity
+                    onPress={() => setGuestCount((parseInt(guestCount, 10) + 1).toString())}
+                    disabled={parseInt(guestCount, 10) >= (stayDetails.max_guests || 10)}
                   >
-                    <Ionicons name="add" size={20} color="#4A90E2" />
+                    <Ionicons name="add" size={20} color={STAY_ACCENT} />
                   </TouchableOpacity>
                 </View>
               </View>
               <View style={styles.counterField}>
                 <Text style={styles.label}>Rooms</Text>
                 <View style={styles.counter}>
-                  <TouchableOpacity onPress={() => setRooms(Math.max('1', (parseInt(rooms) - 1).toString()))}>
-                    <Ionicons name="remove" size={20} color="#4A90E2" />
+                  <TouchableOpacity
+                    onPress={() => setRooms(Math.max('1', (parseInt(rooms, 10) - 1).toString()))}
+                  >
+                    <Ionicons name="remove" size={20} color={STAY_ACCENT} />
                   </TouchableOpacity>
                   <Text style={styles.counterValue}>{rooms}</Text>
-                  <TouchableOpacity 
-                    onPress={() => setRooms((parseInt(rooms) + 1).toString())}
-                    disabled={parseInt(rooms) >= (stayDetails.available_rooms || 10)}
+                  <TouchableOpacity
+                    onPress={() => setRooms((parseInt(rooms, 10) + 1).toString())}
+                    disabled={parseInt(rooms, 10) >= (stayDetails.available_rooms || 10)}
                   >
-                    <Ionicons name="add" size={20} color="#4A90E2" />
+                    <Ionicons name="add" size={20} color={STAY_ACCENT} />
                   </TouchableOpacity>
                 </View>
               </View>
             </View>
           </View>
 
-          {/* Special Requests */}
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Special Requests</Text>
             <TextInput
@@ -158,15 +166,17 @@ export default function StayBookingModal({ listing, stayDetails, onClose, onConf
               onChangeText={setSpecialRequests}
               multiline
               numberOfLines={4}
+              placeholderTextColor={burgundyTheme.colors.textSubtle}
             />
           </View>
 
-          {/* Price Breakdown */}
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Price Breakdown</Text>
             <View style={styles.priceBreakdown}>
               <View style={styles.priceRow}>
-                <Text style={styles.priceLabel}>${pricePerNight} × {nights} night{nights !== 1 ? 's' : ''}</Text>
+                <Text style={styles.priceLabel}>
+                  ${pricePerNight} x {nights} night{nights !== 1 ? 's' : ''}
+                </Text>
                 <Text style={styles.priceValue}>${subtotal}</Text>
               </View>
               <View style={styles.priceRow}>
@@ -181,13 +191,9 @@ export default function StayBookingModal({ listing, stayDetails, onClose, onConf
           </View>
         </ScrollView>
 
-        {/* Book Button */}
         <View style={styles.footer}>
-          <TouchableOpacity
-            style={styles.button}
-            onPress={handleConfirm}
-          >
-            <Text style={styles.buttonText}>Book Now - $ {total}</Text>
+          <TouchableOpacity style={styles.button} onPress={handleConfirm}>
+            <Text style={styles.buttonText}>Book Now - ${total}</Text>
           </TouchableOpacity>
         </View>
       </SafeAreaView>
@@ -198,7 +204,7 @@ export default function StayBookingModal({ listing, stayDetails, onClose, onConf
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFF',
+    backgroundColor: burgundyTheme.colors.background,
   },
   content: {
     flex: 1,
@@ -210,10 +216,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 24,
   },
+  headerSpacer: {
+    width: 24,
+  },
   title: {
     fontSize: 20,
     fontWeight: '700',
-    color: '#1A1A1A',
+    color: burgundyTheme.colors.text,
   },
   section: {
     marginBottom: 24,
@@ -221,7 +230,7 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#1A1A1A',
+    color: burgundyTheme.colors.text,
     marginBottom: 12,
   },
   dateRow: {
@@ -233,22 +242,23 @@ const styles = StyleSheet.create({
   },
   label: {
     fontSize: 12,
-    color: '#999',
+    color: burgundyTheme.colors.textSubtle,
     marginBottom: 6,
     fontWeight: '500',
   },
   input: {
     borderWidth: 1,
-    borderColor: '#E5E5EA',
-    borderRadius: 8,
+    borderColor: burgundyTheme.colors.border,
+    borderRadius: 12,
     paddingHorizontal: 12,
     paddingVertical: 10,
     fontSize: 14,
-    color: '#1A1A1A',
+    color: burgundyTheme.colors.text,
+    backgroundColor: burgundyTheme.colors.surface,
   },
   nightsInfo: {
     fontSize: 12,
-    color: '#4A90E2',
+    color: STAY_ACCENT,
     marginTop: 8,
     fontWeight: '600',
   },
@@ -264,29 +274,33 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-around',
     borderWidth: 1,
-    borderColor: '#E5E5EA',
-    borderRadius: 8,
+    borderColor: burgundyTheme.colors.border,
+    borderRadius: 12,
     paddingVertical: 10,
+    backgroundColor: burgundyTheme.colors.surface,
   },
   counterValue: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#1A1A1A',
+    color: burgundyTheme.colors.text,
   },
   textArea: {
     borderWidth: 1,
-    borderColor: '#E5E5EA',
-    borderRadius: 8,
+    borderColor: burgundyTheme.colors.border,
+    borderRadius: 12,
     paddingHorizontal: 12,
     paddingVertical: 10,
     fontSize: 14,
-    color: '#1A1A1A',
+    color: burgundyTheme.colors.text,
     textAlignVertical: 'top',
+    backgroundColor: burgundyTheme.colors.surface,
   },
   priceBreakdown: {
-    backgroundColor: '#F9F9F9',
-    borderRadius: 12,
+    backgroundColor: burgundyTheme.colors.surfaceAlt,
+    borderRadius: 16,
     padding: 12,
+    borderWidth: 1,
+    borderColor: burgundyTheme.colors.border,
   },
   priceRow: {
     flexDirection: 'row',
@@ -295,44 +309,45 @@ const styles = StyleSheet.create({
   },
   priceLabel: {
     fontSize: 13,
-    color: '#666',
+    color: burgundyTheme.colors.textMuted,
   },
   priceValue: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#1A1A1A',
+    color: burgundyTheme.colors.text,
   },
   totalRow: {
     borderTopWidth: 1,
-    borderTopColor: '#E5E5EA',
-    paddingTopY: 12,
+    borderTopColor: burgundyTheme.colors.border,
+    paddingTop: 12,
     marginTop: 12,
     marginBottom: 0,
   },
   totalLabel: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#1A1A1A',
+    color: burgundyTheme.colors.text,
   },
   totalValue: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#4A90E2',
+    color: STAY_ACCENT,
   },
   footer: {
     padding: 16,
     borderTopWidth: 1,
-    borderTopColor: '#F0F0F0',
+    borderTopColor: burgundyTheme.colors.border,
+    backgroundColor: burgundyTheme.colors.surface,
   },
   button: {
-    backgroundColor: '#4A90E2',
+    backgroundColor: STAY_ACCENT,
     padding: 16,
-    borderRadius: 8,
+    borderRadius: 12,
     alignItems: 'center',
   },
   buttonText: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#FFF',
+    color: burgundyTheme.colors.white,
   },
 });

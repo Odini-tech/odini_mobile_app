@@ -1,14 +1,15 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useState } from "react";
 import { ActivityIndicator, Image, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import burgundyTheme, { getListingTypeColor } from "../theme/burgundyTheme";
 import EventDetail from "./details/EventDetail";
 import OfferingDetail from "./details/OfferingDetail";
 import StayDetail from "./details/StayDetail";
 
 const LISTING_TYPE_ICONS = {
-  stay: { name: "home", color: "#4A90E2" },
-  event: { name: "calendar", color: "#FF6B6B" },
-  offering: { name: "briefcase", color: "#2ECC71" },
+  stay: { name: "home", color: getListingTypeColor("stay") },
+  event: { name: "calendar", color: getListingTypeColor("event") },
+  offering: { name: "briefcase", color: getListingTypeColor("offering") },
 };
 
 export default function ListingCard({ item, onPress, onFavoritePress, favoriteLoading, styles: externalStyles }) {
@@ -52,110 +53,106 @@ export default function ListingCard({ item, onPress, onFavoritePress, favoriteLo
   return (
     <>
       <TouchableOpacity style={styles.postContainer} activeOpacity={0.9} onPress={handleDetails}>
-      {/* Header */}
-      <View style={styles.postHeader}>
-        <View style={styles.userInfo}>
-          <View style={[styles.avatar, { backgroundColor: typeIcon.color }]}>
-            <Ionicons name={typeIcon.name} size={20} color="#FFF" />
+        <View style={styles.postHeader}>
+          <View style={styles.userInfo}>
+            <View style={[styles.avatar, { backgroundColor: typeIcon.color }]}>
+              <Ionicons name={typeIcon.name} size={20} color={burgundyTheme.colors.white} />
+            </View>
+            <View style={styles.userDetails}>
+              <Text style={styles.username} numberOfLines={1}>{item.title}</Text>
+              <Text style={styles.location} numberOfLines={1}>
+                {item.profiles?.location || "Location not specified"}
+              </Text>
+            </View>
           </View>
-          <View style={styles.userDetails}>
-            <Text style={styles.username} numberOfLines={1}>{item.title}</Text>
-            <Text style={styles.location} numberOfLines={1}>
-              {item.profiles?.location || "Location not specified"}
-            </Text>
-          </View>
+          <Ionicons name="ellipsis-horizontal" size={20} color={burgundyTheme.colors.textMuted} />
         </View>
-        <Ionicons name="ellipsis-horizontal" size={20} color="#666" />
-      </View>
 
-      {/* Image */}
-      <TouchableOpacity 
-        style={styles.imageContainer}
-        activeOpacity={0.9}
-        onPress={handleDetails}
-      >
-        {item.image_url ? (
-          <Image
-            source={{ uri: item.image_url }}
-            style={styles.image}
-          />
-        ) : (
-          <View style={styles.imagePlaceholder}>
-            <Ionicons name={typeIcon.name} size={60} color={typeIcon.color} />
-          </View>
-        )}
-      </TouchableOpacity>
-
-      {/* Interactions */}
-      <View style={styles.interactions}>
-        <TouchableOpacity 
-          style={styles.interactionButton}
-          onPress={onFavoritePress}
-          disabled={favoriteLoading}
+        <TouchableOpacity
+          style={styles.imageContainer}
+          activeOpacity={0.9}
+          onPress={handleDetails}
         >
-          {favoriteLoading ? (
-            <ActivityIndicator size="small" color="#FF3B30" />
-          ) : (
-            <Ionicons
-              name={item.is_favorited ? "heart" : "heart-outline"}
-              size={24}
-              color={item.is_favorited ? "#FF3B30" : "#1A1A1A"}
+          {item.image_url ? (
+            <Image
+              source={{ uri: item.image_url }}
+              style={styles.image}
             />
+          ) : (
+            <View style={styles.imagePlaceholder}>
+              <Ionicons name={typeIcon.name} size={60} color={typeIcon.color} />
+            </View>
           )}
         </TouchableOpacity>
-        <TouchableOpacity style={styles.interactionButton} onPress={handleDetails}>
-          <Ionicons name="chatbubble-outline" size={24} color="#1A1A1A" />
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.interactionButton}>
-          <Ionicons name="share-social-outline" size={24} color="#1A1A1A" />
-        </TouchableOpacity>
-      </View>
 
-      {/* Caption */}
-      <View style={styles.caption}>
-        <View style={styles.captionHeader}>
-          <Text style={[styles.captionBadge, { backgroundColor: typeIcon.color + "20", borderColor: typeIcon.color }]}>
-            <Text style={{ color: typeIcon.color }}>{item.listing_type.toUpperCase()}</Text>
-          </Text>
-          <Text style={styles.captionMeta}>by {hostName}</Text>
+        <View style={styles.interactions}>
+          <TouchableOpacity
+            style={styles.interactionButton}
+            onPress={onFavoritePress}
+            disabled={favoriteLoading}
+          >
+            {favoriteLoading ? (
+              <ActivityIndicator size="small" color={burgundyTheme.colors.danger} />
+            ) : (
+              <Ionicons
+                name={item.is_favorited ? "heart" : "heart-outline"}
+                size={24}
+                color={item.is_favorited ? burgundyTheme.colors.danger : burgundyTheme.colors.text}
+              />
+            )}
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.interactionButton} onPress={handleDetails}>
+            <Ionicons name="chatbubble-outline" size={24} color={burgundyTheme.colors.text} />
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.interactionButton}>
+            <Ionicons name="share-social-outline" size={24} color={burgundyTheme.colors.text} />
+          </TouchableOpacity>
         </View>
 
-        <Text style={styles.captionTitle}>
-          {getListingMetaText(item)}
-        </Text>
+        <View style={styles.caption}>
+          <View style={styles.captionHeader}>
+            <Text style={[styles.captionBadge, { backgroundColor: `${typeIcon.color}20`, borderColor: typeIcon.color }]}>
+              <Text style={{ color: typeIcon.color }}>{item.listing_type.toUpperCase()}</Text>
+            </Text>
+            <Text style={styles.captionMeta}>by {hostName}</Text>
+          </View>
 
-        {item.description && (
-          <Text style={styles.captionText} numberOfLines={2}>
-            {item.description}
+          <Text style={styles.captionTitle}>
+            {getListingMetaText(item)}
           </Text>
-        )}
-        <TouchableOpacity onPress={handleDetails}>
-          <Text style={styles.viewMore}>View Details</Text>
-        </TouchableOpacity>
-      </View>
+
+          {item.description && (
+            <Text style={styles.captionText} numberOfLines={2}>
+              {item.description}
+            </Text>
+          )}
+          <TouchableOpacity onPress={handleDetails}>
+            <Text style={styles.viewMore}>View Details</Text>
+          </TouchableOpacity>
+        </View>
       </TouchableOpacity>
       {renderDetailModal()}
     </>
   );
 }
 
-/**
- * Get listing-type specific metadata text
- */
 function getListingMetaText(item) {
   switch (item.listing_type) {
-    case "stay":
+    case "stay": {
       const rooms = item.stays?.[0]?.available_rooms || 0;
       const guests = item.stays?.[0]?.max_guests || 0;
-      return `${rooms} room${rooms !== 1 ? "s" : ""} • ${guests} guest${guests !== 1 ? "s" : ""}`;
-    case "event":
+      return `${rooms} room${rooms !== 1 ? "s" : ""} - ${guests} guest${guests !== 1 ? "s" : ""}`;
+    }
+    case "event": {
       const capacity = item.events?.[0]?.capacity || 0;
       const eventType = item.events?.[0]?.event_type || "Event";
-      return `${eventType} • ${capacity} capacity`;
-    case "offering":
+      return `${eventType} - ${capacity} capacity`;
+    }
+    case "offering": {
       const serviceType = item.offering?.[0]?.service_type || "Service";
       const priceRange = item.offering?.[0]?.price_range || "Price TBD";
-      return `${serviceType} • ${priceRange}`;
+      return `${serviceType} - ${priceRange}`;
+    }
     default:
       return "Listing";
   }
@@ -163,10 +160,14 @@ function getListingMetaText(item) {
 
 const localStyles = StyleSheet.create({
   postContainer: {
-    backgroundColor: "#FFF",
-    marginBottom: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: "#F0F0F0",
+    backgroundColor: burgundyTheme.colors.surface,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: burgundyTheme.colors.border,
+    borderRadius: 24,
+    overflow: "hidden",
+    marginHorizontal: 12,
+    ...burgundyTheme.shadow,
   },
   postHeader: {
     flexDirection: "row",
@@ -175,7 +176,7 @@ const localStyles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 10,
     borderBottomWidth: 1,
-    borderBottomColor: "#F5F5F5",
+    borderBottomColor: burgundyTheme.colors.border,
   },
   userInfo: {
     flexDirection: "row",
@@ -196,17 +197,17 @@ const localStyles = StyleSheet.create({
   username: {
     fontSize: 14,
     fontWeight: "600",
-    color: "#1A1A1A",
+    color: burgundyTheme.colors.text,
   },
   location: {
     fontSize: 12,
-    color: "#666",
+    color: burgundyTheme.colors.textMuted,
     marginTop: 2,
   },
   imageContainer: {
     width: "100%",
     aspectRatio: 1,
-    backgroundColor: "#F0F7FF",
+    backgroundColor: burgundyTheme.colors.surfaceAlt,
     justifyContent: "center",
     alignItems: "center",
     overflow: "hidden",
@@ -225,7 +226,7 @@ const localStyles = StyleSheet.create({
     paddingVertical: 8,
     gap: 12,
     borderBottomWidth: 1,
-    borderBottomColor: "#F5F5F5",
+    borderBottomColor: burgundyTheme.colors.border,
   },
   interactionButton: {
     padding: 8,
@@ -250,23 +251,23 @@ const localStyles = StyleSheet.create({
   },
   captionMeta: {
     fontSize: 12,
-    color: "#999",
+    color: burgundyTheme.colors.textSubtle,
   },
   captionTitle: {
     fontSize: 13,
     fontWeight: "600",
-    color: "#1A1A1A",
+    color: burgundyTheme.colors.text,
     marginBottom: 4,
   },
   captionText: {
     fontSize: 13,
-    color: "#1A1A1A",
+    color: burgundyTheme.colors.text,
     lineHeight: 18,
     marginBottom: 6,
   },
   viewMore: {
     fontSize: 13,
-    color: "#4A90E2",
-    fontWeight: "500",
+    color: burgundyTheme.colors.primary,
+    fontWeight: "600",
   },
 });

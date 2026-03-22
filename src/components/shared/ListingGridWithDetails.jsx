@@ -5,6 +5,7 @@ import ExploreCard from '../ExploreCard';
 import EventDetail from '../details/EventDetail';
 import OfferingDetail from '../details/OfferingDetail';
 import StayDetail from '../details/StayDetail';
+import burgundyTheme from '../../theme/burgundyTheme';
 
 export default function ListingGridWithDetails({
   listings = [],
@@ -45,7 +46,7 @@ export default function ListingGridWithDetails({
   if (loading) {
     body = (
       <View style={styles.centerContainer}>
-        <ActivityIndicator size="large" color="#4A90E2" />
+        <ActivityIndicator size="large" color={burgundyTheme.colors.primary} />
       </View>
     );
   } else if (error) {
@@ -98,7 +99,7 @@ const styles = StyleSheet.create({
   },
   messageText: {
     fontSize: 16,
-    color: '#666',
+    color: burgundyTheme.colors.textMuted,
     marginTop: 20,
     paddingHorizontal: 16,
     alignSelf: 'center',

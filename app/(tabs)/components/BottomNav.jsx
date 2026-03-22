@@ -1,6 +1,7 @@
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { useSegments } from 'expo-router';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
+import burgundyTheme from '../../../src/theme/burgundyTheme';
 
 export default function BottomNav({ onHomePress = () => {}, onListingsPress = () => {}, onSearchPress = () => {}, onProfilePress = () => {}, onSignOutPress = () => {} }) {
   const segments = useSegments();
@@ -17,7 +18,7 @@ export default function BottomNav({ onHomePress = () => {}, onListingsPress = ()
         accessibilityRole="button"
         accessibilityLabel="Open home"
       >
-        <Ionicons name="home-outline" size={24} color={isActive('home') ? '#4A90E2' : '#222'} />
+        <Ionicons name="home-outline" size={24} color={isActive('home') ? burgundyTheme.colors.primary : burgundyTheme.colors.textMuted} />
         <Text style={[styles.label, isActive('home') && styles.labelActive]}>Home</Text>
       </Pressable>
 
@@ -27,7 +28,7 @@ export default function BottomNav({ onHomePress = () => {}, onListingsPress = ()
         accessibilityRole="button"
         accessibilityLabel="Open listings"
       >
-        <Ionicons name="chat" size={24} color={isActive('listings') ? '#4A90E2' : '#222'} />
+        <Ionicons name="chat" size={24} color={isActive('listings') ? burgundyTheme.colors.primary : burgundyTheme.colors.textMuted} />
         <Text style={[styles.label, isActive('listings') && styles.labelActive]}>Advisory</Text>
       </Pressable>
 
@@ -37,7 +38,7 @@ export default function BottomNav({ onHomePress = () => {}, onListingsPress = ()
         accessibilityRole="button"
         accessibilityLabel="Open search"
       >
-        <Ionicons name="search-outline" size={24} color={isActive('search') ? '#4A90E2' : '#222'} />
+        <Ionicons name="search-outline" size={24} color={isActive('search') ? burgundyTheme.colors.primary : burgundyTheme.colors.textMuted} />
         <Text style={[styles.label, isActive('search') && styles.labelActive]}>Search</Text>
       </Pressable>
 
@@ -47,7 +48,7 @@ export default function BottomNav({ onHomePress = () => {}, onListingsPress = ()
         accessibilityRole="button"
         accessibilityLabel="Open profile"
       >
-        <Ionicons name="person" size={24} color={isActive('profile') ? '#4A90E2' : '#222'} />
+        <Ionicons name="person" size={24} color={isActive('profile') ? burgundyTheme.colors.primary : burgundyTheme.colors.textMuted} />
         <Text style={[styles.label, isActive('profile') && styles.labelActive]}>Profile</Text>
       </Pressable>
 
@@ -57,7 +58,7 @@ export default function BottomNav({ onHomePress = () => {}, onListingsPress = ()
         accessibilityRole="button"
         accessibilityLabel="Sign out"
       >
-        <MaterialIcons name="logout" size={24} color="#222" />
+        <MaterialIcons name="logout" size={24} color={burgundyTheme.colors.textMuted} />
         <Text style={styles.label}>Sign out</Text>
       </Pressable>
     </View>
@@ -69,29 +70,29 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-around',
     alignItems: 'center',
-    paddingVertical: 10,
+    paddingVertical: 12,
     paddingHorizontal: 24,
     borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: '#ddd',
-    backgroundColor: '#fff',
+    borderTopColor: burgundyTheme.colors.border,
+    backgroundColor: burgundyTheme.colors.surface,
   },
   button: {
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  buttonActive: {
-    backgroundColor: '#E8F4FF',
-    borderRadius: 12,
+    borderRadius: 14,
     paddingVertical: 6,
     paddingHorizontal: 10,
   },
+  buttonActive: {
+    backgroundColor: burgundyTheme.colors.primaryTint,
+  },
   label: {
     fontSize: 12,
-    color: '#333',
+    color: burgundyTheme.colors.textMuted,
     marginTop: 4,
   },
   labelActive: {
-    color: '#4A90E2',
+    color: burgundyTheme.colors.primary,
     fontWeight: '700',
   },
 });

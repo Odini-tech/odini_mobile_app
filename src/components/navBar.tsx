@@ -2,11 +2,10 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import {
-    ActivityIndicator,
-    Dimensions,
-    Modal,
-    SafeAreaView,
-    ScrollView,
+	ActivityIndicator,
+	Modal,
+	SafeAreaView,
+	ScrollView,
     StyleSheet,
     Text,
     TextInput,
@@ -14,8 +13,7 @@ import {
     View
 } from 'react-native';
 import { searchService } from '../../src/services/searchService';
-
-const { width } = Dimensions.get('window');
+import burgundyTheme, { getListingTypeColor } from '../theme/burgundyTheme';
 
 interface NavBarProps {
 	showSearch?: boolean;
@@ -27,7 +25,6 @@ export default function NavBar({ showSearch = true, onSearchPress, searchPlaceho
 	const router = useRouter();
 	const [searchQuery, setSearchQuery] = useState('');
 	const [showSearchModal, setShowSearchModal] = useState(false);
-	const [searchResults, setSearchResults] = useState([]);
 	const [isSearching, setIsSearching] = useState(false);
 	const [searchSuggestions, setSearchSuggestions] = useState<any[]>([]);
 
@@ -96,7 +93,7 @@ export default function NavBar({ showSearch = true, onSearchPress, searchPlaceho
 							onPress={handleSearchFocus}
 							activeOpacity={0.8}
 						>
-							<Ionicons name="search" size={18} color="#999" />
+							<Ionicons name="search" size={18} color={burgundyTheme.colors.textSubtle} />
 							<Text style={styles.searchPlaceholder}>{searchPlaceholder}</Text>
 						</TouchableOpacity>
 					)}
@@ -104,17 +101,17 @@ export default function NavBar({ showSearch = true, onSearchPress, searchPlaceho
 					{/* Right Icons */}
 					<View style={styles.rightIcons}>
 						<TouchableOpacity style={styles.iconButton} onPress={() => router.push('/search')}>
-							<Ionicons name="search-outline" size={22} color="#1A1A1A" />
+							<Ionicons name="search-outline" size={22} color={burgundyTheme.colors.text} />
 						</TouchableOpacity>
 						<TouchableOpacity style={styles.iconButton} onPress={() => router.push('/notifications')}>
-							<Ionicons name="notifications-outline" size={24} color="#1A1A1A" />
+							<Ionicons name="notifications-outline" size={24} color={burgundyTheme.colors.text} />
 							<View style={styles.badge}>
 								<Text style={styles.badgeText}>3</Text>
 							</View>
 						</TouchableOpacity>
 
 						<TouchableOpacity style={styles.iconButton} onPress={() => router.push('/profile')}>
-							<Ionicons name="person-circle-outline" size={24} color="#1A1A1A" />
+							<Ionicons name="person-circle-outline" size={24} color={burgundyTheme.colors.text} />
 						</TouchableOpacity>
 					</View>
 				</View>
@@ -135,22 +132,22 @@ export default function NavBar({ showSearch = true, onSearchPress, searchPlaceho
 								onPress={() => setShowSearchModal(false)}
 								style={styles.closeButton}
 							>
-								<Ionicons name="close" size={24} color="#1A1A1A" />
+								<Ionicons name="close" size={24} color={burgundyTheme.colors.text} />
 							</TouchableOpacity>
 
 							<View style={styles.modalSearchInput}>
-								<Ionicons name="search" size={20} color="#4A90E2" />
+								<Ionicons name="search" size={20} color={burgundyTheme.colors.primary} />
 								<TextInput
 									style={styles.textInput}
 									placeholder="Search listings, events, offerings..."
 									value={searchQuery}
 									onChangeText={handleSearchInput}
-									placeholderTextColor="#CCC"
+									placeholderTextColor={burgundyTheme.colors.textSubtle}
 									autoFocus
 								/>
 								{searchQuery.length > 0 && (
 									<TouchableOpacity onPress={() => setSearchQuery('')}>
-										<Ionicons name="close-circle" size={20} color="#999" />
+										<Ionicons name="close-circle" size={20} color={burgundyTheme.colors.textSubtle} />
 									</TouchableOpacity>
 								)}
 							</View>
@@ -167,7 +164,7 @@ export default function NavBar({ showSearch = true, onSearchPress, searchPlaceho
 						{/* Search Suggestions */}
 						{isSearching ? (
 							<View style={styles.loadingContainer}>
-								<ActivityIndicator size="large" color="#4A90E2" />
+								<ActivityIndicator size="large" color={burgundyTheme.colors.primary} />
 							</View>
 						) : searchSuggestions.length > 0 ? (
 							<ScrollView
@@ -192,7 +189,7 @@ export default function NavBar({ showSearch = true, onSearchPress, searchPlaceho
 															: 'briefcase'
 												}
 												size={16}
-												color="#4A90E2"
+												color={getListingTypeColor(listing.listing_type)}
 											/>
 										</View>
 										<View style={styles.suggestionContent}>
@@ -231,9 +228,9 @@ export default function NavBar({ showSearch = true, onSearchPress, searchPlaceho
 
 const styles = StyleSheet.create({
 	container: {
-		backgroundColor: '#FFF',
+		backgroundColor: burgundyTheme.colors.surface,
 		borderBottomWidth: 1,
-		borderBottomColor: '#E0E0E0',
+		borderBottomColor: burgundyTheme.colors.border,
 	},
 	navContent: {
 		flexDirection: 'row',
@@ -245,22 +242,24 @@ const styles = StyleSheet.create({
 	logo: {
 		fontSize: 24,
 		fontWeight: '700',
-		color: '#4A90E2',
+		color: burgundyTheme.colors.primary,
 		width: 60,
 	},
 	searchBarContainer: {
 		flex: 1,
 		flexDirection: 'row',
 		alignItems: 'center',
-		backgroundColor: '#F5F5F5',
+		backgroundColor: burgundyTheme.colors.surfaceAlt,
 		borderRadius: 24,
 		paddingHorizontal: 14,
 		height: 40,
 		gap: 8,
+		borderWidth: 1,
+		borderColor: burgundyTheme.colors.border,
 	},
 	searchPlaceholder: {
 		fontSize: 14,
-		color: '#999',
+		color: burgundyTheme.colors.textSubtle,
 		flex: 1,
 	},
 	rightIcons: {
@@ -275,7 +274,7 @@ const styles = StyleSheet.create({
 		position: 'absolute',
 		top: 0,
 		right: 0,
-		backgroundColor: '#FF6B6B',
+		backgroundColor: burgundyTheme.colors.primarySoft,
 		borderRadius: 10,
 		width: 20,
 		height: 20,
@@ -283,7 +282,7 @@ const styles = StyleSheet.create({
 		alignItems: 'center',
 	},
 	badgeText: {
-		color: '#FFF',
+		color: burgundyTheme.colors.white,
 		fontSize: 10,
 		fontWeight: '700',
 	},
@@ -294,7 +293,7 @@ const styles = StyleSheet.create({
 	},
 	modalContent: {
 		flex: 1,
-		backgroundColor: '#FFF',
+		backgroundColor: burgundyTheme.colors.surface,
 		marginTop: 0,
 	},
 	modalSearchContainer: {
@@ -303,9 +302,9 @@ const styles = StyleSheet.create({
 		paddingHorizontal: 12,
 		paddingVertical: 12,
 		gap: 8,
-		backgroundColor: '#FFF',
+		backgroundColor: burgundyTheme.colors.surface,
 		borderBottomWidth: 1,
-		borderBottomColor: '#E0E0E0',
+		borderBottomColor: burgundyTheme.colors.border,
 	},
 	closeButton: {
 		padding: 8,
@@ -314,28 +313,30 @@ const styles = StyleSheet.create({
 		flex: 1,
 		flexDirection: 'row',
 		alignItems: 'center',
-		backgroundColor: '#F5F5F5',
+		backgroundColor: burgundyTheme.colors.surfaceAlt,
 		borderRadius: 8,
 		paddingHorizontal: 12,
 		height: 40,
 		gap: 8,
+		borderWidth: 1,
+		borderColor: burgundyTheme.colors.border,
 	},
 	textInput: {
 		flex: 1,
 		fontSize: 16,
-		color: '#1A1A1A',
+		color: burgundyTheme.colors.text,
 	},
 	searchButton: {
-		backgroundColor: '#4A90E2',
+		backgroundColor: burgundyTheme.colors.primary,
 		paddingHorizontal: 16,
 		paddingVertical: 10,
 		borderRadius: 6,
 	},
 	searchButtonDisabled: {
-		backgroundColor: '#DDD',
+		backgroundColor: burgundyTheme.colors.primaryTintStrong,
 	},
 	searchButtonText: {
-		color: '#FFF',
+		color: burgundyTheme.colors.white,
 		fontSize: 14,
 		fontWeight: '600',
 	},
@@ -347,7 +348,7 @@ const styles = StyleSheet.create({
 	suggestionsTitle: {
 		fontSize: 14,
 		fontWeight: '600',
-		color: '#999',
+		color: burgundyTheme.colors.textSubtle,
 		marginBottom: 12,
 	},
 	suggestionItem: {
@@ -355,14 +356,14 @@ const styles = StyleSheet.create({
 		alignItems: 'center',
 		paddingVertical: 12,
 		borderBottomWidth: 1,
-		borderBottomColor: '#F0F0F0',
+		borderBottomColor: burgundyTheme.colors.border,
 		gap: 12,
 	},
 	suggestionIcon: {
 		width: 32,
 		height: 32,
 		borderRadius: 16,
-		backgroundColor: '#F0F7FF',
+		backgroundColor: burgundyTheme.colors.primaryTint,
 		justifyContent: 'center',
 		alignItems: 'center',
 	},
@@ -372,17 +373,17 @@ const styles = StyleSheet.create({
 	suggestionTitle: {
 		fontSize: 14,
 		fontWeight: '500',
-		color: '#1A1A1A',
+		color: burgundyTheme.colors.text,
 	},
 	suggestionType: {
 		fontSize: 12,
-		color: '#999',
+		color: burgundyTheme.colors.textSubtle,
 		marginTop: 4,
 	},
 	suggestionPrice: {
 		fontSize: 14,
 		fontWeight: '600',
-		color: '#4A90E2',
+		color: burgundyTheme.colors.primary,
 	},
 	loadingContainer: {
 		flex: 1,
@@ -398,12 +399,12 @@ const styles = StyleSheet.create({
 	emptyTitle: {
 		fontSize: 18,
 		fontWeight: '600',
-		color: '#1A1A1A',
+		color: burgundyTheme.colors.text,
 		marginTop: 12,
 	},
 	emptySubtitle: {
 		fontSize: 14,
-		color: '#999',
+		color: burgundyTheme.colors.textSubtle,
 		marginTop: 8,
 	},
 });

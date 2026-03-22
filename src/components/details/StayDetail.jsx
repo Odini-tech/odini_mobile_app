@@ -1,53 +1,48 @@
 import { Ionicons } from '@expo/vector-icons';
 import React, { useState } from 'react';
 import {
-  Image,
   Modal,
   SafeAreaView,
   ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
-  View
+  View,
 } from 'react-native';
 import StayBookingModal from '../booking/StayBooking';
 import ImageCarousel from '../shared/ImageCarousel';
+import burgundyTheme, { getListingTypeColor } from '../../theme/burgundyTheme';
+
+const STAY_ACCENT = getListingTypeColor('stay');
 
 export default function StayDetail({ listing, onClose }) {
   const [showBooking, setShowBooking] = useState(false);
-  const [loading, setLoading] = useState(false);
 
   const stayDetails = listing.stays?.[0] || {};
-
-  const handleBook = () => {
-    setShowBooking(true);
-  };
 
   return (
     <Modal visible animationType="slide">
       <SafeAreaView style={styles.container}>
         <View style={styles.header}>
           <TouchableOpacity onPress={onClose}>
-            <Ionicons name="chevron-back" size={28} color="#1A1A1A" />
+            <Ionicons name="chevron-back" size={28} color={burgundyTheme.colors.text} />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Stay Details</Text>
-          <View style={{ width: 28 }} />
+          <View style={styles.headerSpacer} />
         </View>
 
         <ScrollView showsVerticalScrollIndicator={false}>
-          {/* Images */}
-        <ImageCarousel
-          images={listing.images}
-          containerStyle={styles.imagesContainer}
-          imageStyle={styles.image}
-          placeholder={
-            <View style={[styles.image, styles.imagePlaceholder]}>
-              <Ionicons name="home" size={60} color="#4A90E2" />
-            </View>
-          }
-        />
+          <ImageCarousel
+            images={listing.images}
+            containerStyle={styles.imagesContainer}
+            imageStyle={styles.image}
+            placeholder={
+              <View style={[styles.image, styles.imagePlaceholder]}>
+                <Ionicons name="home" size={60} color={STAY_ACCENT} />
+              </View>
+            }
+          />
 
-          {/* Title and Rating */}
           <View style={styles.content}>
             <Text style={styles.title}>{listing.title}</Text>
             <View style={styles.ratingRow}>
@@ -58,58 +53,52 @@ export default function StayDetail({ listing, onClose }) {
               <Text style={styles.reviews}>({listing.review_count || 0} reviews)</Text>
             </View>
 
-            {/* Host Info */}
             <View style={styles.hostSection}>
               <View style={styles.hostInfo}>
                 <View style={styles.hostAvatar}>
-                  <Ionicons name="person" size={24} color="#FFF" />
+                  <Ionicons name="person" size={24} color={burgundyTheme.colors.white} />
                 </View>
                 <View>
-                  <Text style={styles.hostName}>
-                    {listing.profiles?.firstname || 'Host'}
-                  </Text>
+                  <Text style={styles.hostName}>{listing.profiles?.firstname || 'Host'}</Text>
                   <Text style={styles.hostRole}>Verified Host</Text>
                 </View>
               </View>
               <TouchableOpacity style={styles.contactButton}>
-                <Ionicons name="chatbubble-outline" size={20} color="#4A90E2" />
+                <Ionicons name="chatbubble-outline" size={20} color={STAY_ACCENT} />
               </TouchableOpacity>
             </View>
 
-            {/* Location */}
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Location</Text>
               <View style={styles.locationRow}>
-                <Ionicons name="location" size={16} color="#666" />
+                <Ionicons name="location" size={16} color={burgundyTheme.colors.primary} />
                 <Text style={styles.locationText}>
                   {listing.address_city}, {listing.address_country}
                 </Text>
               </View>
             </View>
 
-            {/* Stay Details */}
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Accommodation Details</Text>
               <View style={styles.detailsGrid}>
                 <View style={styles.detailCard}>
-                  <Ionicons name="door-open" size={24} color="#4A90E2" />
+                  <Ionicons name="door-open" size={24} color={STAY_ACCENT} />
                   <Text style={styles.detailValue}>{stayDetails.available_rooms || 0}</Text>
                   <Text style={styles.detailLabel}>Rooms</Text>
                 </View>
                 <View style={styles.detailCard}>
-                  <Ionicons name="people" size={24} color="#4A90E2" />
+                  <Ionicons name="people" size={24} color={STAY_ACCENT} />
                   <Text style={styles.detailValue}>{stayDetails.max_guests || 0}</Text>
                   <Text style={styles.detailLabel}>Guests</Text>
                 </View>
                 <View style={styles.detailCard}>
-                  <Ionicons name="moon" size={24} color="#4A90E2" />
+                  <Ionicons name="moon" size={24} color={STAY_ACCENT} />
                   <Text style={styles.detailValue}>{stayDetails.durations_nights || 0}</Text>
                   <Text style={styles.detailLabel}>Nights Min</Text>
                 </View>
               </View>
             </View>
 
-            {/* Amenities */}
             {listing.amenities && listing.amenities.length > 0 && (
               <View style={styles.section}>
                 <Text style={styles.sectionTitle}>Amenities</Text>
@@ -123,22 +112,17 @@ export default function StayDetail({ listing, onClose }) {
               </View>
             )}
 
-            {/* Description */}
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>About this place</Text>
               <Text style={styles.description}>{listing.description}</Text>
             </View>
 
-            {/* Price and Book Button */}
             <View style={styles.bookingSection}>
               <View>
                 <Text style={styles.priceLabel}>Price per night</Text>
-                <Text style={styles.price}>${listing.price|| 0}</Text>
+                <Text style={styles.price}>${listing.price || 0}</Text>
               </View>
-              <TouchableOpacity
-                style={styles.bookButton}
-                onPress={handleBook}
-              >
+              <TouchableOpacity style={styles.bookButton} onPress={() => setShowBooking(true)}>
                 <Text style={styles.bookButtonText}>Book Now</Text>
               </TouchableOpacity>
             </View>
@@ -152,7 +136,6 @@ export default function StayDetail({ listing, onClose }) {
             onClose={() => setShowBooking(false)}
             onConfirm={() => {
               setShowBooking(false);
-              // Handle booking confirmation
             }}
           />
         )}
@@ -164,7 +147,7 @@ export default function StayDetail({ listing, onClose }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFF',
+    backgroundColor: burgundyTheme.colors.background,
   },
   header: {
     flexDirection: 'row',
@@ -173,16 +156,20 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#F0F0F0',
+    borderBottomColor: burgundyTheme.colors.border,
+    backgroundColor: burgundyTheme.colors.surface,
+  },
+  headerSpacer: {
+    width: 28,
   },
   headerTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#1A1A1A',
+    color: burgundyTheme.colors.text,
   },
   imagesContainer: {
     height: 300,
-    backgroundColor: '#F0F7FF',
+    backgroundColor: burgundyTheme.colors.surfaceAlt,
   },
   image: {
     width: '100%',
@@ -199,7 +186,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 24,
     fontWeight: '700',
-    color: '#1A1A1A',
+    color: burgundyTheme.colors.text,
     marginBottom: 12,
   },
   ratingRow: {
@@ -216,21 +203,24 @@ const styles = StyleSheet.create({
   rating: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#1A1A1A',
+    color: burgundyTheme.colors.text,
   },
   reviews: {
     fontSize: 12,
-    color: '#999',
+    color: burgundyTheme.colors.textSubtle,
   },
   hostSection: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 14,
     marginBottom: 16,
-    borderTopWidth: 1,
-    borderBottomWidth: 1,
-    borderColor: '#F0F0F0',
+    borderWidth: 1,
+    borderColor: burgundyTheme.colors.border,
+    borderRadius: 16,
+    backgroundColor: burgundyTheme.colors.surface,
+    ...burgundyTheme.shadow,
   },
   hostInfo: {
     flexDirection: 'row',
@@ -241,18 +231,18 @@ const styles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: '#4A90E2',
+    backgroundColor: STAY_ACCENT,
     justifyContent: 'center',
     alignItems: 'center',
   },
   hostName: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#1A1A1A',
+    color: burgundyTheme.colors.text,
   },
   hostRole: {
     fontSize: 12,
-    color: '#999',
+    color: burgundyTheme.colors.textSubtle,
     marginTop: 2,
   },
   contactButton: {
@@ -261,7 +251,7 @@ const styles = StyleSheet.create({
     borderRadius: 22,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#F0F7FF',
+    backgroundColor: burgundyTheme.colors.surfaceAlt,
   },
   section: {
     marginBottom: 24,
@@ -269,17 +259,23 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#1A1A1A',
+    color: burgundyTheme.colors.text,
     marginBottom: 12,
   },
   locationRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    borderRadius: 14,
+    backgroundColor: burgundyTheme.colors.surface,
+    borderWidth: 1,
+    borderColor: burgundyTheme.colors.border,
   },
   locationText: {
     fontSize: 14,
-    color: '#666',
+    color: burgundyTheme.colors.textMuted,
   },
   detailsGrid: {
     flexDirection: 'row',
@@ -288,20 +284,22 @@ const styles = StyleSheet.create({
   },
   detailCard: {
     flex: 1,
-    backgroundColor: '#F9F9F9',
-    borderRadius: 12,
+    backgroundColor: burgundyTheme.colors.surface,
+    borderRadius: 16,
     padding: 12,
     alignItems: 'center',
     gap: 8,
+    borderWidth: 1,
+    borderColor: burgundyTheme.colors.border,
   },
   detailValue: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#1A1A1A',
+    color: burgundyTheme.colors.text,
   },
   detailLabel: {
     fontSize: 12,
-    color: '#999',
+    color: burgundyTheme.colors.textSubtle,
   },
   amenitiesGrid: {
     flexDirection: 'row',
@@ -309,19 +307,21 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   amenityTag: {
-    backgroundColor: '#F0F7FF',
+    backgroundColor: burgundyTheme.colors.surfaceAlt,
     borderRadius: 20,
     paddingHorizontal: 12,
     paddingVertical: 6,
+    borderWidth: 1,
+    borderColor: burgundyTheme.colors.border,
   },
   amenityText: {
     fontSize: 12,
-    color: '#4A90E2',
+    color: burgundyTheme.colors.textMuted,
     fontWeight: '500',
   },
   description: {
     fontSize: 14,
-    color: '#666',
+    color: burgundyTheme.colors.textMuted,
     lineHeight: 20,
   },
   bookingSection: {
@@ -329,29 +329,30 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingVertical: 16,
+    paddingTop: 18,
     borderTopWidth: 1,
-    borderTopColor: '#F0F0F0',
+    borderTopColor: burgundyTheme.colors.border,
     marginBottom: 20,
   },
   priceLabel: {
     fontSize: 12,
-    color: '#999',
+    color: burgundyTheme.colors.textSubtle,
     marginBottom: 4,
   },
   price: {
     fontSize: 24,
     fontWeight: '700',
-    color: '#1A1A1A',
+    color: burgundyTheme.colors.text,
   },
   bookButton: {
-    backgroundColor: '#4A90E2',
+    backgroundColor: STAY_ACCENT,
     paddingHorizontal: 32,
     paddingVertical: 14,
-    borderRadius: 8,
+    borderRadius: 12,
   },
   bookButtonText: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#FFF',
+    color: burgundyTheme.colors.white,
   },
 });

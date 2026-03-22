@@ -12,6 +12,7 @@ import {
   View
 } from 'react-native';
 import { supabase } from '../../lib/supabase';
+import burgundyTheme from '../../src/theme/burgundyTheme';
 
 interface Profile {
   id: string;
@@ -118,7 +119,7 @@ export default function ProfileScreen() {
   if (loading) {
     return (
       <View style={styles.centered}>
-        <ActivityIndicator size="large" color="#4A90E2" />
+        <ActivityIndicator size="large" color={burgundyTheme.colors.primary} />
       </View>
     );
   }
@@ -131,7 +132,7 @@ export default function ProfileScreen() {
             <Ionicons name="person" size={40} color="#FFF" />
           </View>
           <TouchableOpacity style={styles.editAvatarButton}>
-            <Ionicons name="camera" size={16} color="#4A90E2" />
+            <Ionicons name="camera" size={16} color={burgundyTheme.colors.primary} />
           </TouchableOpacity>
         </View>
         
@@ -187,26 +188,26 @@ export default function ProfileScreen() {
         
         <TouchableOpacity style={styles.actionButton}>
           <View style={styles.actionIcon}>
-            <Ionicons name="settings-outline" size={24} color="#4A90E2" />
+            <Ionicons name="settings-outline" size={24} color={burgundyTheme.colors.primary} />
           </View>
           <Text style={styles.actionText}>Account Settings</Text>
-          <Ionicons name="chevron-forward" size={20} color="#999" />
+          <Ionicons name="chevron-forward" size={20} color={burgundyTheme.colors.textSubtle} />
         </TouchableOpacity>
         
         <TouchableOpacity style={styles.actionButton}>
           <View style={styles.actionIcon}>
-            <Ionicons name="card-outline" size={24} color="#4A90E2" />
+            <Ionicons name="card-outline" size={24} color={burgundyTheme.colors.primary} />
           </View>
           <Text style={styles.actionText}>Payment Methods</Text>
-          <Ionicons name="chevron-forward" size={20} color="#999" />
+          <Ionicons name="chevron-forward" size={20} color={burgundyTheme.colors.textSubtle} />
         </TouchableOpacity>
         
         <TouchableOpacity style={styles.actionButton}>
           <View style={styles.actionIcon}>
-            <Ionicons name="help-circle-outline" size={24} color="#4A90E2" />
+            <Ionicons name="help-circle-outline" size={24} color={burgundyTheme.colors.primary} />
           </View>
           <Text style={styles.actionText}>Help & Support</Text>
-          <Ionicons name="chevron-forward" size={20} color="#999" />
+          <Ionicons name="chevron-forward" size={20} color={burgundyTheme.colors.textSubtle} />
         </TouchableOpacity>
       </View>
 
@@ -229,18 +230,19 @@ export default function ProfileScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F5F7FA',
+    backgroundColor: burgundyTheme.colors.background,
   },
   centered: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: burgundyTheme.colors.background,
   },
   header: {
     alignItems: 'center',
     paddingVertical: 40,
     paddingHorizontal: 20,
-    backgroundColor: '#FFF',
+    backgroundColor: burgundyTheme.colors.surface,
     borderBottomLeftRadius: 30,
     borderBottomRightRadius: 30,
     shadowColor: '#000',
@@ -258,7 +260,7 @@ const styles = StyleSheet.create({
     width: 100,
     height: 100,
     borderRadius: 50,
-    backgroundColor: '#4A90E2',
+    backgroundColor: burgundyTheme.colors.primary,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -266,34 +268,34 @@ const styles = StyleSheet.create({
     position: 'absolute',
     right: 0,
     bottom: 0,
-    backgroundColor: '#FFF',
+    backgroundColor: burgundyTheme.colors.surface,
     width: 36,
     height: 36,
     borderRadius: 18,
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 2,
-    borderColor: '#F5F7FA',
+    borderColor: burgundyTheme.colors.background,
   },
   name: {
     fontSize: 24,
     fontWeight: '700',
-    color: '#1A1A1A',
+    color: burgundyTheme.colors.text,
     marginBottom: 4,
   },
   email: {
     fontSize: 16,
-    color: '#666',
+    color: burgundyTheme.colors.textMuted,
     marginBottom: 12,
   },
   badge: {
-    backgroundColor: '#E8F4FF',
+    backgroundColor: burgundyTheme.colors.primaryTint,
     paddingHorizontal: 16,
     paddingVertical: 6,
     borderRadius: 20,
   },
   badgeText: {
-    color: '#4A90E2',
+    color: burgundyTheme.colors.primary,
     fontSize: 14,
     fontWeight: '600',
   },
@@ -304,11 +306,11 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#1A1A1A',
+    color: burgundyTheme.colors.text,
     marginBottom: 16,
   },
   infoCard: {
-    backgroundColor: '#FFF',
+    backgroundColor: burgundyTheme.colors.surface,
     borderRadius: 16,
     padding: 20,
     shadowColor: '#000',
@@ -322,18 +324,18 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#F0F0F0',
+    borderBottomColor: burgundyTheme.colors.border,
   },
   infoLabel: {
     flex: 1,
     fontSize: 14,
-    color: '#666',
+    color: burgundyTheme.colors.textMuted,
     marginLeft: 12,
   },
   infoValue: {
     fontSize: 14,
     fontWeight: '500',
-    color: '#1A1A1A',
+    color: burgundyTheme.colors.text,
   },
   statusBadge: {
     backgroundColor: '#E8F7ED',
@@ -349,7 +351,7 @@ const styles = StyleSheet.create({
   actionButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFF',
+    backgroundColor: burgundyTheme.colors.surface,
     borderRadius: 12,
     padding: 16,
     marginBottom: 12,
@@ -363,7 +365,7 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: '#F0F7FF',
+    backgroundColor: burgundyTheme.colors.primaryTint,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 16,
@@ -372,28 +374,28 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 16,
     fontWeight: '500',
-    color: '#1A1A1A',
+    color: burgundyTheme.colors.text,
   },
   signOutButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#FFF',
+    backgroundColor: burgundyTheme.colors.surface,
     borderRadius: 12,
     padding: 16,
     borderWidth: 1,
-    borderColor: '#FFE5E5',
+    borderColor: '#F0D4DE',
   },
   signOutText: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#FF3B30',
+    color: burgundyTheme.colors.danger,
     marginLeft: 8,
   },
   versionText: {
     textAlign: 'center',
     fontSize: 12,
-    color: '#999',
+    color: burgundyTheme.colors.textSubtle,
     marginTop: 20,
     marginBottom: 40,
   },

@@ -13,6 +13,7 @@ import {
   View,
 } from 'react-native';
 import { supabase } from '../../lib/supabase';
+import burgundyTheme from '../../src/theme/burgundyTheme';
 
 export default function AuthScreen() {
   const [email, setEmail] = useState('');
@@ -162,12 +163,14 @@ export default function AuthScreen() {
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.header}>
-          <Ionicons 
-            name="home-outline" 
-            size={60} 
-            color="#4A90E2" 
-            style={styles.logo}
-          />
+          <View style={styles.logoBadge}>
+            <Ionicons
+              name="home-outline"
+              size={60}
+              color={burgundyTheme.colors.primary}
+              style={styles.logo}
+            />
+          </View>
           <Text style={styles.title}>
             {isSignUp ? 'Create Account' : 'Welcome Back'}
           </Text>
@@ -318,7 +321,7 @@ export default function AuthScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F5F7FA',
+    backgroundColor: burgundyTheme.colors.background,
   },
   scrollContainer: {
     flexGrow: 1,
@@ -330,22 +333,38 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 40,
   },
-  logo: {
+  logoBadge: {
+    width: 112,
+    height: 112,
+    borderRadius: 56,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: burgundyTheme.colors.primaryTint,
+    borderWidth: 1,
+    borderColor: burgundyTheme.colors.primaryTintStrong,
     marginBottom: 20,
+  },
+  logo: {
   },
   title: {
     fontSize: 28,
     fontWeight: '700',
-    color: '#1A1A1A',
+    color: burgundyTheme.colors.text,
     marginBottom: 8,
   },
   subtitle: {
     fontSize: 16,
-    color: '#666',
+    color: burgundyTheme.colors.textMuted,
     textAlign: 'center',
   },
   form: {
     width: '100%',
+    backgroundColor: burgundyTheme.colors.surface,
+    borderRadius: 24,
+    padding: 20,
+    borderWidth: 1,
+    borderColor: burgundyTheme.colors.border,
+    ...burgundyTheme.shadow,
   },
   inputContainer: {
     marginBottom: 20,
@@ -353,21 +372,21 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#333',
+    color: burgundyTheme.colors.text,
     marginBottom: 8,
   },
   inputWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFF',
+    backgroundColor: burgundyTheme.colors.surfaceAlt,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#E1E5E9',
+    borderColor: burgundyTheme.colors.border,
     paddingHorizontal: 16,
     height: 56,
   },
   inputError: {
-    borderColor: '#FF3B30',
+    borderColor: burgundyTheme.colors.danger,
   },
   inputIcon: {
     marginRight: 12,
@@ -375,26 +394,26 @@ const styles = StyleSheet.create({
   input: {
     flex: 1,
     fontSize: 16,
-    color: '#333',
+    color: burgundyTheme.colors.text,
     height: '100%',
   },
   eyeIcon: {
     padding: 8,
   },
   errorText: {
-    color: '#FF3B30',
+    color: burgundyTheme.colors.danger,
     fontSize: 12,
     marginTop: 4,
     marginLeft: 4,
   },
   authButton: {
-    backgroundColor: '#4A90E2',
+    backgroundColor: burgundyTheme.colors.primary,
     borderRadius: 12,
     height: 56,
     justifyContent: 'center',
     alignItems: 'center',
     marginTop: 8,
-    shadowColor: '#4A90E2',
+    shadowColor: burgundyTheme.colors.primary,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.2,
     shadowRadius: 8,
@@ -404,7 +423,7 @@ const styles = StyleSheet.create({
     opacity: 0.7,
   },
   authButtonText: {
-    color: '#FFF',
+    color: burgundyTheme.colors.white,
     fontSize: 16,
     fontWeight: '600',
   },
@@ -416,31 +435,31 @@ const styles = StyleSheet.create({
   dividerLine: {
     flex: 1,
     height: 1,
-    backgroundColor: '#E1E5E9',
+    backgroundColor: burgundyTheme.colors.border,
   },
   dividerText: {
     paddingHorizontal: 16,
-    color: '#999',
+    color: burgundyTheme.colors.textSubtle,
     fontSize: 14,
   },
   toggleButton: {
     paddingVertical: 16,
   },
   toggleButtonText: {
-    color: '#4A90E2',
+    color: burgundyTheme.colors.primary,
     fontSize: 16,
     fontWeight: '600',
     textAlign: 'center',
   },
   termsText: {
     fontSize: 12,
-    color: '#999',
+    color: burgundyTheme.colors.textSubtle,
     textAlign: 'center',
     marginTop: 30,
     lineHeight: 18,
   },
   termsLink: {
-    color: '#4A90E2',
+    color: burgundyTheme.colors.primary,
     fontWeight: '600',
   },
 });

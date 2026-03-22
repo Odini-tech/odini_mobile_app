@@ -10,6 +10,7 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import FilterPopup from '../../src/components/FilterPopup';
 import ListingGridWithDetails from '../../src/components/shared/ListingGridWithDetails';
 import { searchService } from '../../src/services/searchService';
+import burgundyTheme from '../../src/theme/burgundyTheme';
 
 export default function SearchResultsPage() {
   const router = useRouter();
@@ -124,6 +125,7 @@ export default function SearchResultsPage() {
           onChangeText={setQueryInput}
           returnKeyType="search"
           onSubmitEditing={handleSearchSubmit}
+          placeholderTextColor={burgundyTheme.colors.textSubtle}
         />
         <TouchableOpacity style={styles.searchBtn} onPress={handleSearchSubmit}>
           <Text style={styles.searchBtnText}>Search</Text>
@@ -177,43 +179,53 @@ function applyClientFilters(items, filters) {
 const styles = StyleSheet.create({
   page: {
     flex: 1,
-    backgroundColor: '#FFF',
+    backgroundColor: burgundyTheme.colors.background,
   },
   topSearch: {
     flexDirection: 'row',
     padding: 12,
     gap: 8,
     alignItems: 'center',
+    backgroundColor: burgundyTheme.colors.surface,
+    margin: 12,
+    marginBottom: 8,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: burgundyTheme.colors.border,
+    ...burgundyTheme.shadow,
   },
   searchInput: {
     flex: 1,
     height: 44,
-    borderRadius: 8,
-    backgroundColor: '#F5F5F5',
+    borderRadius: 12,
+    backgroundColor: burgundyTheme.colors.surfaceAlt,
     paddingHorizontal: 12,
+    color: burgundyTheme.colors.text,
+    borderWidth: 1,
+    borderColor: burgundyTheme.colors.border,
   },
   searchBtn: {
-    backgroundColor: '#4A90E2',
+    backgroundColor: burgundyTheme.colors.primary,
     paddingHorizontal: 16,
     justifyContent: 'center',
-    borderRadius: 8,
+    borderRadius: 12,
     height: 44,
   },
   searchBtnText: {
-    color: '#FFF',
+    color: burgundyTheme.colors.white,
     fontWeight: '700',
   },
   filterBtn: {
-    backgroundColor: '#FFF',
-    borderColor: '#4A90E2',
+    backgroundColor: burgundyTheme.colors.primaryTint,
+    borderColor: burgundyTheme.colors.primary,
     borderWidth: 1,
     paddingHorizontal: 12,
     justifyContent: 'center',
-    borderRadius: 8,
+    borderRadius: 12,
     height: 44,
   },
   filterBtnText: {
-    color: '#4A90E2',
+    color: burgundyTheme.colors.primary,
     fontWeight: '700',
   },
   headerRow: {
@@ -226,10 +238,11 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 18,
     fontWeight: '700',
+    color: burgundyTheme.colors.text,
   },
   resultsMeta: {
     fontSize: 12,
-    color: '#666',
+    color: burgundyTheme.colors.textMuted,
   },
   gridContent: {
     paddingHorizontal: 6,
