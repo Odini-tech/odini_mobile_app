@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react';
 import { ActivityIndicator, FlatList, StyleSheet, Text, View } from 'react-native';
 import { getListingById } from '../../../services/listings.service';
+import { useBottomNavScroll } from '../../context/BottomNavVisibilityContext';
 import ExploreCard from '../ExploreCard';
 import EventDetail from '../details/EventDetail';
 import OfferingDetail from '../details/OfferingDetail';
@@ -18,6 +19,7 @@ export default function ListingGridWithDetails({
   const [selectedListing, setSelectedListing] = useState(null);
   const [detailsType, setDetailsType] = useState(null);
   const detailRequestRef = useRef(null);
+  const bottomNavScroll = useBottomNavScroll();
 
   const handleCardPress = async (listing) => {
     detailRequestRef.current = listing.id;
@@ -64,6 +66,7 @@ export default function ListingGridWithDetails({
         numColumns={2}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={contentContainerStyle || styles.gridContent}
+        {...bottomNavScroll}
       />
     );
   }

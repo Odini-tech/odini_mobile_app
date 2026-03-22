@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { ActivityIndicator, FlatList, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { getListings } from "../../../services/listings.service";
+import { useBottomNavScroll } from "../../context/BottomNavVisibilityContext";
 import burgundyTheme from "../../theme/burgundyTheme";
 import ListingCard from "../cards";
 
@@ -9,6 +10,7 @@ export function ForYouPage({ onEventClick }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [favoriteLoading, setFavoriteLoading] = useState({});
+  const bottomNavScroll = useBottomNavScroll();
 
   useEffect(() => {
     fetchListings();
@@ -108,6 +110,7 @@ export function ForYouPage({ onEventClick }) {
         )}
         style={{ flex: 1 }}
         contentContainerStyle={{ paddingBottom: 80 }}
+        showsVerticalScrollIndicator={false}
         ListFooterComponent={
           listings.length > 0 ? (
             <View style={styles.footer}>
@@ -115,6 +118,7 @@ export function ForYouPage({ onEventClick }) {
             </View>
           ) : null
         }
+        {...bottomNavScroll}
       />
     </View>
   );

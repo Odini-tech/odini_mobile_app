@@ -1,12 +1,23 @@
-import { Slot, useRouter } from "expo-router";
-import { useEffect, useState } from "react";
-import { StyleSheet, View } from "react-native";
+import { Slot, useRouter, useSegments } from "expo-router";
+import { useEffect, useRef, useState } from "react";
+import { Animated, Easing, StyleSheet, View } from "react-native";
 import { supabase } from "../lib/supabase";
+import {
+  BottomNavVisibilityProvider,
+  useBottomNavVisibility,
+} from "../src/context/BottomNavVisibilityContext";
 import BottomNav from "./(tabs)/components/BottomNav";
 
-export default function RootLayout() {
+const DEFAULT_NAV_HEIGHT = 88;
+
+function RootLayoutContent() {
   const router = useRouter();
+  const segments = useSegments();
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [navHeight, setNavHeight] = useState(DEFAULT_NAV_HEIGHT);
+  const { isBottomNavVisible, resetBottomNavScroll } = useBottomNavVisibility();
+  const navAnimation = useRef(new Animated.Value(1)).current;
+  const currentRouteKey = segments.join("/");
 
   useEffect(() => {
     let mounted = true;
@@ -38,7 +49,7 @@ export default function RootLayout() {
 
   const handleSearch = () => {
     router.push("/search" as any);
-  }
+  };
 
   const handleSignOut = async () => {
     try {
@@ -49,24 +60,82 @@ export default function RootLayout() {
     }
   };
 
+  useEffect(() => {
+    resetBottomNavScroll();
+  }, [currentRouteKey, resetBottomNavScroll]);
+
+  useEffect(() => {
+    Animated.timing(navAnimation, {
+      toValue: isBottomNavVisible ? 1 : 0,
+      duration: 220,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: false,
+    }).start();
+  }, [isBottomNavVisible, navAnimation]);
+
+  const animatedHeight = navAnimation.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0, navHeight],
+  });
+
+  const animatedTranslateY = navAnimation.interpolate({
+    inputRange: [0, 1],
+    outputRange: [Math.max(24, navHeight * 0.35), 0],
+  });
+
   return (
     <View style={styles.container}>
       <View style={styles.content}>
         <Slot />
       </View>
       {isAuthenticated ? (
-        <BottomNav
-          onHomePress={handleHome}
-          onProfilePress={handleProfile}
-          onSignOutPress={handleSignOut}
-          onSearchPress={handleSearch}
-        />
+        <Animated.View
+          pointerEvents={isBottomNavVisible ? "auto" : "none"}
+          style={[styles.navShell, { height: animatedHeight, opacity: navAnimation }]}
+        >
+          <Animated.View
+            onLayout={({ nativeEvent }) => {
+              const nextHeight = Math.ceil(nativeEvent.layout.height);
+              if (nextHeight && Math.abs(nextHeight - navHeight) > 1) {
+                setNavHeight(nextHeight);
+              }
+            }}
+            style={[
+              styles.navInner,
+              { transform: [{ translateY: animatedTranslateY }] },
+            ]}
+          >
+            <BottomNav
+              onHomePress={handleHome}
+              onProfilePress={handleProfile}
+              onSignOutPress={handleSignOut}
+              onSearchPress={handleSearch}
+            />
+          </Animated.View>
+        </Animated.View>
       ) : null}
     </View>
+  );
+}
+
+export default function RootLayout() {
+  return (
+    <BottomNavVisibilityProvider>
+      <RootLayoutContent />
+    </BottomNavVisibilityProvider>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
   content: { flex: 1 },
+  navShell: {
+    overflow: "hidden",
+  },
+  navInner: {
+    left: 0,
+    right: 0,
+    bottom: 0,
+    position: "absolute",
+  },
 });

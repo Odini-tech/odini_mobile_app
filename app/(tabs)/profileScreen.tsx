@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Session } from '@supabase/supabase-js';
 import { useRouter } from 'expo-router';
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -12,6 +12,7 @@ import {
   View
 } from 'react-native';
 import { supabase } from '../../lib/supabase';
+import { useBottomNavScroll } from '../../src/context/BottomNavVisibilityContext';
 import burgundyTheme from '../../src/theme/burgundyTheme';
 
 interface Profile {
@@ -25,12 +26,31 @@ export default function ProfileScreen() {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
   const [session, setSession] = useState<Session | null>(null);
+  const bottomNavScroll = useBottomNavScroll();
 
-  useEffect(() => {
-    fetchSessionAndProfile();
+  const createProfile = useCallback(async (userId: string, email?: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .insert([
+          {
+            id: userId,
+            username: email?.split('@')[0] || 'user',
+            role: 'user',
+          },
+        ])
+        .select()
+        .single();
+
+      if (error) throw error;
+      setProfile(data);
+    } catch (error: any) {
+      console.error('Error creating profile:', error);
+      throw error;
+    }
   }, []);
 
-  const fetchSessionAndProfile = async () => {
+  const fetchSessionAndProfile = useCallback(async () => {
     try {
       const { data: { session } } = await supabase.auth.getSession();
       setSession(session);
@@ -43,9 +63,8 @@ export default function ProfileScreen() {
           .single();
 
         if (error) {
-          // If profile doesn't exist, create one
           if (error.code === 'PGRST116') {
-            await createProfile(session.user.id);
+            await createProfile(session.user.id, session.user.email);
           } else {
             throw error;
           }
@@ -59,29 +78,11 @@ export default function ProfileScreen() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [createProfile]);
 
-  const createProfile = async (userId: string) => {
-    try {
-      const { data, error } = await supabase
-        .from('profiles')
-        .insert([
-          {
-            id: userId,
-            username: session?.user?.email?.split('@')[0] || 'user',
-            role: 'user',
-          },
-        ])
-        .select()
-        .single();
-
-      if (error) throw error;
-      setProfile(data);
-    } catch (error: any) {
-      console.error('Error creating profile:', error);
-      throw error;
-    }
-  };
+  useEffect(() => {
+    fetchSessionAndProfile();
+  }, [fetchSessionAndProfile]);
 
   const router = useRouter();
 
@@ -125,7 +126,11 @@ export default function ProfileScreen() {
   }
 
   return (
-    <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
+    <ScrollView
+      style={styles.container}
+      showsVerticalScrollIndicator={false}
+      {...bottomNavScroll}
+    >
       <View style={styles.header}>
         <View style={styles.avatarContainer}>
           <View style={styles.avatar}>
