@@ -161,12 +161,12 @@ function getListingMetaText(item) {
 const localStyles = StyleSheet.create({
   postContainer: {
     backgroundColor: burgundyTheme.colors.surface,
-    marginBottom: 16,
+    marginTop: 16,
     borderWidth: 1,
     borderColor: burgundyTheme.colors.border,
-    borderRadius: 24,
+    borderRadius: 0,
     overflow: "hidden",
-    marginHorizontal: 12,
+    marginHorizontal: 0,
     ...burgundyTheme.shadow,
   },
   postHeader: {
