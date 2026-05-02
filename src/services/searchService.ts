@@ -1,4 +1,5 @@
 import { supabase } from '../../lib/supabase';
+import { callRecommendationApi, recommendationApiPath, runDualMode } from './recommendationGateway';
 
 /**
  * Category interface
@@ -63,6 +64,7 @@ export interface SearchParams {
 }
 
 type ListingRow = Omit<SearchListing, 'categories' | 'tags'>;
+type RecommendationApiListing = Partial<ListingRow> & { hostId?: string };
 
 type CategoryJoinRow = {
   listing_id: string;
@@ -99,6 +101,20 @@ const toArrayValue = <T>(value: T | T[] | null): T[] => {
   if (!value) return [];
   return Array.isArray(value) ? value : [value];
 };
+
+const normalizeApiListingRows = (rows: RecommendationApiListing[]): ListingRow[] =>
+  rows
+    .filter(row => !!row.id)
+    .map(row => ({
+      id: String(row.id),
+      host_id: String(row.host_id || row.hostId || ''),
+      listing_type: (row.listing_type as ListingRow['listing_type']) || 'stay',
+      title: row.title || 'Untitled listing',
+      description: row.description || '',
+      is_active: row.is_active ?? true,
+      price: typeof row.price === 'number' ? row.price : Number(row.price || 0),
+      created_at: row.created_at || new Date().toISOString(),
+    }));
 
 async function fetchListingIdsByTaxonomy(categoryIds: string[], tagIds: string[]): Promise<Set<string> | null> {
   let categorySet: Set<string> | null = null;
@@ -203,7 +219,7 @@ export const searchService = {
    * Comprehensive search across listings with categories and tags
    */
   async searchListings(params: SearchParams = {}): Promise<SearchResults> {
-    try {
+    const runBasic = async (): Promise<SearchResults> => {
       const {
         query = '',
         listing_type,
@@ -268,6 +284,67 @@ export const searchService = {
         ...combined,
         total_count: count || 0,
       };
+    };
+
+    try {
+      const {
+        query = '',
+        listing_type,
+        category_ids = [],
+        tag_ids = [],
+        min_price,
+        max_price,
+        is_active = true,
+        page = 1,
+        page_size = 20,
+      } = params;
+      const offset = (page - 1) * page_size;
+
+      return await runDualMode<SearchResults>({
+        context: 'searchService.searchListings',
+        recEng: async () => {
+          const filteredIdSet = await fetchListingIdsByTaxonomy(category_ids, tag_ids);
+
+          let path = '/v1/listings';
+          if (query.trim()) {
+            path = recommendationApiPath('/v1/listings/search', { q: query });
+          } else if (listing_type) {
+            path = `/v1/listings/type/${listing_type}`;
+          }
+
+          const envelope = await callRecommendationApi<RecommendationApiListing[]>(path, { method: 'GET' });
+          let rows = normalizeApiListingRows(envelope.data || []);
+
+          if (listing_type) {
+            rows = rows.filter(row => row.listing_type === listing_type);
+          }
+
+          rows = rows.filter(row => row.is_active === is_active);
+
+          if (filteredIdSet) {
+            rows = rows.filter(row => filteredIdSet.has(row.id));
+          }
+
+          if (min_price !== undefined) {
+            rows = rows.filter(row => Number(row.price) >= min_price);
+          }
+
+          if (max_price !== undefined) {
+            rows = rows.filter(row => Number(row.price) <= max_price);
+          }
+
+          rows.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+          const total = rows.length;
+          const pagedRows = rows.slice(offset, offset + page_size);
+
+          const combined = await attachCategoriesAndTags(pagedRows);
+          return {
+            ...combined,
+            total_count: total,
+          };
+        },
+        basic: runBasic,
+      });
     } catch (error) {
       console.error('Error in searchListings:', error);
       throw error;

@@ -1,4 +1,5 @@
 import { supabase } from '../../lib/supabase';
+import { callRecommendationApi, runDualMode } from './recommendationGateway';
 
 /**
  * Booking service to create and manage bookings for stays, events, and offerings.
@@ -143,6 +144,42 @@ export async function createBooking({ userId, hostId, listingId, listingType, pr
 
   try {
     const { data, error } = await supabase.from(BOOKINGS_TABLE).insert(row).select().single();
+    if (!error && data) {
+      await runDualMode({
+        context: 'bookingService.createBooking',
+        recEng: async () => {
+          await callRecommendationApi('/v1/listings/interactions', {
+            method: 'POST',
+            body: JSON.stringify({
+              userId,
+              listingId,
+              interactionType: 'book',
+              score: 7,
+              metadata: {
+                bookingId: data.id,
+                listingType: normalizedType,
+              },
+            }),
+          });
+        },
+        basic: async () => {
+          await supabase.functions.invoke('recommendations', {
+            body: {
+              action: 'record_interaction',
+              userId,
+              listingId,
+              interactionType: 'book',
+              context: 'booking',
+              metadata: {
+                bookingId: data.id,
+                listingType: normalizedType,
+              },
+              timestamp: new Date().toISOString(),
+            },
+          });
+        },
+      });
+    }
     return { data, error };
   } catch (e) {
     return { data: null, error: e };

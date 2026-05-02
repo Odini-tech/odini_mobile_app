@@ -1,6 +1,7 @@
 // src/services/recommendationService.ts
 
 import { supabase } from '../../lib/supabase';
+import { callRecommendationApi, recommendationApiPath, runDualMode } from './recommendationGateway';
 
 /**
  * Recommendation context types
@@ -68,6 +69,18 @@ interface RecommendationResponse {
     hasMore: boolean;
   };
 }
+
+type RecommendationApiListing = {
+  id: string;
+  title?: string;
+  description?: string;
+  price?: number;
+  host_id?: string;
+  hostId?: string;
+  score?: number;
+  explanation?: string;
+  metadata?: Record<string, any>;
+};
 
 /**
  * Acts as the ONLY frontend gateway to the recommendation system.
@@ -158,37 +171,99 @@ export const RecommendationService = {
   async _callRecommendationFunction(
     request: RecommendationRequest
   ): Promise<RecommendationResponse> {
+    const runBasic = () => this._callSupabaseRecommendationFunction(request);
+
     try {
-      // Call Supabase Edge Function with standardized payload
-      const { data, error } = await supabase.functions.invoke<RecommendationResponse>(
-        'recommendations',
-        {
-          body: {
-            context: request.context,
+      return await runDualMode<RecommendationResponse>({
+        context: `recommendationService._callRecommendationFunction:${request.context}`,
+        recEng: async () => {
+          const path = recommendationApiPath('/v1/listings/recommendations', {
             userId: request.userId,
-            ...(request.params && { params: request.params }),
-          },
-        }
-      );
-
-      if (error) {
-        throw new Error(`Recommendation Edge Function error: ${error.message}`);
-      }
-
-      if (!data) {
-        throw new Error('No data returned from recommendation service');
-      }
-
-      // Validate response structure
-      if (!Array.isArray(data.listings)) {
-        throw new Error('Invalid response format: listings must be an array');
-      }
-
-      return data;
+            context: request.context,
+            seedListingId: request.params?.seedListingId,
+            tripId: request.params?.tripId,
+            page: request.params?.page,
+            limit: request.params?.limit,
+            excludeSeen: request.params?.excludeSeen,
+            lat: request.params?.location?.lat,
+            lng: request.params?.location?.lng,
+          });
+          const envelope = await callRecommendationApi<RecommendationApiListing[]>(path, { method: 'GET' });
+          return this._normalizeApiRecommendationResponse(request.context, envelope.data || [], request.params);
+        },
+        basic: runBasic,
+      });
     } catch (error) {
       console.error(`Error in _callRecommendationFunction for context ${request.context}:`, error);
       throw error;
     }
+  },
+
+  async _callSupabaseRecommendationFunction(request: RecommendationRequest): Promise<RecommendationResponse> {
+    const { data, error } = await supabase.functions.invoke<RecommendationResponse>(
+      'recommendations',
+      {
+        body: {
+          context: request.context,
+          userId: request.userId,
+          ...(request.params && { params: request.params }),
+        },
+      }
+    );
+
+    if (error) {
+      throw new Error(`Recommendation Edge Function error: ${error.message}`);
+    }
+
+    if (!data) {
+      throw new Error('No data returned from recommendation service');
+    }
+
+    if (!Array.isArray(data.listings)) {
+      throw new Error('Invalid response format: listings must be an array');
+    }
+
+    return data;
+  },
+
+  _normalizeApiRecommendationResponse(
+    context: RecommendationContext,
+    listings: RecommendationApiListing[],
+    params?: RecommendationRequest['params']
+  ): RecommendationResponse {
+    const normalizedListings: ListingCard[] = listings.map(item => ({
+      id: item.id,
+      title: item.title || 'Untitled listing',
+      description: item.description || '',
+      imageUrls: [],
+      pricePerNight: Number(item.price || 0),
+      averageRating: 0,
+      reviewCount: 0,
+      location: {
+        city: '',
+        country: '',
+      },
+      amenities: [],
+      isAvailable: true,
+      hostId: item.hostId || item.host_id || '',
+      score: item.score,
+      explanation: item.explanation,
+      metadata: item.metadata,
+    }));
+
+    const page = params?.page || 1;
+    const limit = params?.limit || normalizedListings.length;
+
+    return {
+      listings: normalizedListings,
+      metadata: {
+        context,
+        generatedAt: new Date().toISOString(),
+        totalCount: normalizedListings.length,
+        page,
+        hasMore: normalizedListings.length >= limit,
+      },
+    };
   },
 
   /**
@@ -203,19 +278,37 @@ export const RecommendationService = {
     metadata?: Record<string, any>
   ): Promise<void> {
     try {
-      // Non-blocking call - we don't want to break UX if analytics fails
-      supabase.functions.invoke('recommendations', {
-        body: {
-          action: 'record_interaction',
-          userId,
-          listingId,
-          interactionType,
-          context,
-          metadata,
-          timestamp: new Date().toISOString(),
+      await runDualMode({
+        context: 'recommendationService.recordInteraction',
+        recEng: async () => {
+          await callRecommendationApi('/v1/listings/interactions', {
+            method: 'POST',
+            body: JSON.stringify({
+              userId,
+              listingId,
+              interactionType,
+              context,
+              metadata,
+              timestamp: new Date().toISOString(),
+            }),
+          });
         },
-      }).catch(error => {
-        console.error('Failed to record interaction:', error);
+        basic: async () => {
+          // Non-blocking call - we don't want to break UX if analytics fails
+          supabase.functions.invoke('recommendations', {
+            body: {
+              action: 'record_interaction',
+              userId,
+              listingId,
+              interactionType,
+              context,
+              metadata,
+              timestamp: new Date().toISOString(),
+            },
+          }).catch(error => {
+            console.error('Failed to record interaction:', error);
+          });
+        },
       });
     } catch (error) {
       // Swallow errors for analytics calls

@@ -1,4 +1,5 @@
 import { supabase } from '../../lib/supabase';
+import { callRecommendationApi, recommendationApiPath, runDualMode } from './recommendationGateway';
 
 export interface Listing {
   id: string;
@@ -85,6 +86,22 @@ const listingSelect = `
   offering(service_type, location, opening_hours, duration_minutes, max_bookings)
 `;
 
+type RecommendationApiListing = Partial<Listing> & { hostId?: string };
+
+const normalizeApiListing = (row: RecommendationApiListing): Listing => ({
+  id: String(row.id || ''),
+  host_id: String(row.host_id || row.hostId || ''),
+  listing_type: (row.listing_type as Listing['listing_type']) || 'stay',
+  title: row.title || 'Untitled listing',
+  description: row.description || null,
+  is_active: row.is_active ?? true,
+  created_at: row.created_at || new Date().toISOString(),
+  price: typeof row.price === 'number' ? row.price : Number(row.price || 0),
+  events: row.events || null,
+  stays: row.stays || null,
+  offering: row.offering || null,
+});
+
 /**
  * Main listing service - handles all listing-related operations
  */
@@ -103,7 +120,7 @@ export const listingService = {
       availability?: { start: string; end: string };
     }
   ): Promise<Listing[]> {
-    try {
+    const runBasic = async (): Promise<Listing[]> => {
       const page = params?.pagination?.page || 1;
       const pageSize = params?.pagination?.pageSize || 20;
       const start = (page - 1) * pageSize;
@@ -152,7 +169,6 @@ export const listingService = {
         query = query.in('id', categoryListingIds);
       }
 
-      // Proximity and amenities are no longer modeled in current schema.
       if (params?.proximity || (params?.amenities && params.amenities.length > 0)) {
         console.debug('Ignoring proximity/amenities filters: columns were removed from listings schema.');
       }
@@ -166,6 +182,33 @@ export const listingService = {
       }
 
       return (data || []) as Listing[];
+    };
+
+    try {
+      return await runDualMode<Listing[]>({
+        context: 'listingService.fetchListings',
+        recEng: async () => {
+          const page = params?.pagination?.page || 1;
+          const pageSize = params?.pagination?.pageSize || 20;
+          const path = recommendationApiPath('/v1/listings', {
+            page,
+            limit: pageSize,
+            type: params?.category || undefined,
+          });
+          const envelope = await callRecommendationApi<RecommendationApiListing[]>(path, { method: 'GET' });
+          let rows = (envelope.data || []).map(normalizeApiListing).filter(row => row.is_active);
+
+          if (params?.minPrice !== undefined) {
+            rows = rows.filter(row => Number(row.price || 0) >= params.minPrice!);
+          }
+          if (params?.maxPrice !== undefined) {
+            rows = rows.filter(row => Number(row.price || 0) <= params.maxPrice!);
+          }
+
+          return rows;
+        },
+        basic: runBasic,
+      });
     } catch (error) {
       console.error('Error in fetchListings:', error);
       throw error;
@@ -300,12 +343,30 @@ export const listingService = {
     }
   ): Promise<void> {
     try {
-      await supabase.functions.invoke('recommendations', {
-        body: {
-          action: 'user_interaction',
-          userId,
-          timestamp: new Date().toISOString(),
-          ...context,
+      await runDualMode({
+        context: 'listingService.triggerRecommendationUpdate',
+        recEng: async () => {
+          await callRecommendationApi('/v1/listings/interactions', {
+            method: 'POST',
+            body: JSON.stringify({
+              userId,
+              listingId: context?.listingId,
+              interactionType: context?.action || 'view',
+              rating: context?.rating,
+              metadata: context || {},
+              timestamp: new Date().toISOString(),
+            }),
+          });
+        },
+        basic: async () => {
+          await supabase.functions.invoke('recommendations', {
+            body: {
+              action: 'user_interaction',
+              userId,
+              timestamp: new Date().toISOString(),
+              ...context,
+            },
+          });
         },
       });
     } catch (error) {

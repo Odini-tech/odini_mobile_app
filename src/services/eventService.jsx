@@ -1,4 +1,5 @@
 import { supabase } from '../../lib/supabase';
+import { callRecommendationApi, recommendationApiPath, runDualMode } from './recommendationGateway';
 
 async function getCurrentUserId() {
   try {
@@ -49,31 +50,52 @@ async function resolveListingIdsFromTags(tags) {
 
 export async function fetchEvents({ limit = 50, offset = 0, tags = null, orderBy = 'created_at', eventType = null } = {}) {
   try {
-    const listingIds = await resolveListingIdsFromTags(tags);
-    if (Array.isArray(listingIds) && listingIds.length === 0) {
-      return [];
-    }
+    return await runDualMode({
+      context: 'eventService.fetchEvents',
+      recEng: async () => {
+        const path = recommendationApiPath('/v1/listings/type/event', {
+          limit,
+          offset,
+          tags: Array.isArray(tags) ? tags.join(',') : undefined,
+          orderBy,
+          eventType,
+        });
+        const envelope = await callRecommendationApi(path, { method: 'GET' });
+        const rows = Array.isArray(envelope.data) ? envelope.data : [];
+        return rows.map(item => ({
+          ...item,
+          listing_type: 'event',
+          event: item.event || null,
+        }));
+      },
+      basic: async () => {
+        const listingIds = await resolveListingIdsFromTags(tags);
+        if (Array.isArray(listingIds) && listingIds.length === 0) {
+          return [];
+        }
 
-    let query = supabase
-      .from('listings')
-      .select('id, host_id, listing_type, title, description, is_active, price, created_at, events!inner(event_time, event_type, capacity, available_slots, location, end_time)')
-      .eq('listing_type', 'event')
-      .eq('is_active', true)
-      .range(offset, offset + limit - 1)
-      .order(orderBy, { ascending: false });
+        let query = supabase
+          .from('listings')
+          .select('id, host_id, listing_type, title, description, is_active, price, created_at, events!inner(event_time, event_type, capacity, available_slots, location, end_time)')
+          .eq('listing_type', 'event')
+          .eq('is_active', true)
+          .range(offset, offset + limit - 1)
+          .order(orderBy, { ascending: false });
 
-    if (eventType) {
-      query = query.eq('events.event_type', eventType);
-    }
+        if (eventType) {
+          query = query.eq('events.event_type', eventType);
+        }
 
-    if (Array.isArray(listingIds)) {
-      query = query.in('id', listingIds);
-    }
+        if (Array.isArray(listingIds)) {
+          query = query.in('id', listingIds);
+        }
 
-    const { data, error } = await query;
-    if (error) throw error;
+        const { data, error } = await query;
+        if (error) throw error;
 
-    return (data || []).map(normalizeEventRow);
+        return (data || []).map(normalizeEventRow);
+      },
+    });
   } catch (err) {
     console.error('fetchEvents error', err);
     throw err;
@@ -84,17 +106,30 @@ export async function getEventById(eventId) {
   if (!eventId) throw new Error('eventId is required');
 
   try {
-    const { data, error } = await supabase
-      .from('listings')
-      .select('id, host_id, listing_type, title, description, is_active, price, created_at, events!inner(event_time, event_type, capacity, available_slots, location, end_time)')
-      .eq('id', eventId)
-      .eq('listing_type', 'event')
-      .maybeSingle();
+    return await runDualMode({
+      context: 'eventService.getEventById',
+      recEng: async () => {
+        const envelope = await callRecommendationApi(`/v1/listings/${eventId}`, { method: 'GET' });
+        if (!envelope.data) return null;
+        return normalizeEventRow({
+          ...envelope.data,
+          listing_type: 'event',
+        });
+      },
+      basic: async () => {
+        const { data, error } = await supabase
+          .from('listings')
+          .select('id, host_id, listing_type, title, description, is_active, price, created_at, events!inner(event_time, event_type, capacity, available_slots, location, end_time)')
+          .eq('id', eventId)
+          .eq('listing_type', 'event')
+          .maybeSingle();
 
-    if (error) throw error;
-    if (!data) return null;
+        if (error) throw error;
+        if (!data) return null;
 
-    return normalizeEventRow(data);
+        return normalizeEventRow(data);
+      },
+    });
   } catch (err) {
     console.error('getEventById error', err);
     throw err;
@@ -148,32 +183,49 @@ export async function addRating({ userId = null, eventId, rating, comment = null
   if (!uid) throw new Error('user not authenticated');
 
   try {
-    const score = mapRatingToScore(rating);
+    await runDualMode({
+      context: 'eventService.addRating',
+      recEng: async () => {
+        await callRecommendationApi('/v1/listings/interactions', {
+          method: 'POST',
+          body: JSON.stringify({
+            userId: uid,
+            listingId: eventId,
+            interactionType: 'rate',
+            rating,
+            metadata: { comment },
+          }),
+        });
+      },
+      basic: async () => {
+        const score = mapRatingToScore(rating);
 
-    const { error } = await supabase
-      .from('interactions')
-      .insert({
-        user_id: uid,
-        listing_id: eventId,
-        score,
-        last_action: JSON.stringify({ action: 'event_rating', rating, comment }),
-      });
+        const { error } = await supabase
+          .from('interactions')
+          .insert({
+            user_id: uid,
+            listing_id: eventId,
+            score,
+            last_action: JSON.stringify({ action: 'event_rating', rating, comment }),
+          });
 
-    if (error) throw error;
+        if (error) throw error;
 
-    const { data: tagLinks } = await supabase
-      .from('tag_listings')
-      .select('tags!inner(name)')
-      .eq('listing_id', eventId);
+        const { data: tagLinks } = await supabase
+          .from('tag_listings')
+          .select('tags!inner(name)')
+          .eq('listing_id', eventId);
 
-    const tags = (tagLinks || []).map(link => link.tags?.name).filter(Boolean);
-    const delta = computePreferenceDelta(rating, 1.0);
+        const tags = (tagLinks || []).map(link => link.tags?.name).filter(Boolean);
+        const delta = computePreferenceDelta(rating, 1.0);
 
-    if (tags.length > 0) {
-      await updateUserPreferences(uid, tags, delta);
-    }
+        if (tags.length > 0) {
+          await updateUserPreferences(uid, tags, delta);
+        }
+      },
+    });
 
-    return await getEventById(eventId);
+    return getEventById(eventId);
   } catch (err) {
     console.error('addRating error', err);
     throw err;
@@ -187,35 +239,54 @@ export async function addToTrip({ userId = null, eventId, tripId = null } = {}) 
   if (!uid) throw new Error('user not authenticated');
 
   try {
-    const { data: eventListing, error: listingErr } = await supabase
-      .from('listings')
-      .select('id, host_id, listing_type, price')
-      .eq('id', eventId)
-      .eq('listing_type', 'event')
-      .single();
+    await runDualMode({
+      context: 'eventService.addToTrip',
+      recEng: async () => {
+        await callRecommendationApi('/v1/listings/interactions', {
+          method: 'POST',
+          body: JSON.stringify({
+            userId: uid,
+            listingId: eventId,
+            interactionType: 'save',
+            metadata: {
+              tripId,
+              source: 'event_add_to_trip',
+            },
+          }),
+        });
+      },
+      basic: async () => {
+        const { data: eventListing, error: listingErr } = await supabase
+          .from('listings')
+          .select('id, host_id, listing_type, price')
+          .eq('id', eventId)
+          .eq('listing_type', 'event')
+          .single();
 
-    if (listingErr || !eventListing) {
-      throw listingErr || new Error('Event listing not found');
-    }
+        if (listingErr || !eventListing) {
+          throw listingErr || new Error('Event listing not found');
+        }
 
-    const { error: insertErr } = await supabase
-      .from('bookings')
-      .insert({
-        booking_ref: tripId || `EVT-${Date.now()}-${Math.random().toString(36).slice(2, 8).toUpperCase()}`,
-        host_id: eventListing.host_id,
-        user_id: uid,
-        listing_id: eventId,
-        listing_type: 'event',
-        guests: 1,
-        price_at_booking: eventListing.price || 0,
-        total_price: eventListing.price || 0,
-        quantity: 1,
-        reservation_time: new Date().toISOString(),
-        status: 'pending',
-        notes: tripId ? `Trip ${tripId}` : 'Added to trip',
-      });
+        const { error: insertErr } = await supabase
+          .from('bookings')
+          .insert({
+            booking_ref: tripId || `EVT-${Date.now()}-${Math.random().toString(36).slice(2, 8).toUpperCase()}`,
+            host_id: eventListing.host_id,
+            user_id: uid,
+            listing_id: eventId,
+            listing_type: 'event',
+            guests: 1,
+            price_at_booking: eventListing.price || 0,
+            total_price: eventListing.price || 0,
+            quantity: 1,
+            reservation_time: new Date().toISOString(),
+            status: 'pending',
+            notes: tripId ? `Trip ${tripId}` : 'Added to trip',
+          });
 
-    if (insertErr) throw insertErr;
+        if (insertErr) throw insertErr;
+      },
+    });
 
     return true;
   } catch (err) {
@@ -229,19 +300,32 @@ export async function getUserTripEvents(userId = null) {
   if (!uid) throw new Error('user not authenticated');
 
   try {
-    const { data, error } = await supabase
-      .from('bookings')
-      .select('listing:listings(id, host_id, listing_type, title, description, is_active, price, created_at, events!inner(event_time, event_type, capacity, available_slots, location, end_time))')
-      .eq('user_id', uid)
-      .eq('listing_type', 'event')
-      .in('status', ['pending', 'confirmed', 'completed']);
+    return await runDualMode({
+      context: 'eventService.getUserTripEvents',
+      recEng: async () => {
+        const envelope = await callRecommendationApi(`/v1/listings/user/${uid}/bookings`, { method: 'GET' });
+        const rows = Array.isArray(envelope.data) ? envelope.data : [];
+        return rows
+          .map(row => row.listing || row)
+          .filter(Boolean)
+          .map(listing => normalizeEventRow({ ...listing, listing_type: 'event' }));
+      },
+      basic: async () => {
+        const { data, error } = await supabase
+          .from('bookings')
+          .select('listing:listings(id, host_id, listing_type, title, description, is_active, price, created_at, events!inner(event_time, event_type, capacity, available_slots, location, end_time))')
+          .eq('user_id', uid)
+          .eq('listing_type', 'event')
+          .in('status', ['pending', 'confirmed', 'completed']);
 
-    if (error) throw error;
+        if (error) throw error;
 
-    return (data || [])
-      .map(row => row.listing)
-      .filter(Boolean)
-      .map(normalizeEventRow);
+        return (data || [])
+          .map(row => row.listing)
+          .filter(Boolean)
+          .map(normalizeEventRow);
+      },
+    });
   } catch (err) {
     console.error('getUserTripEvents error', err);
     throw err;

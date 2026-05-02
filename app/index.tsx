@@ -5,6 +5,7 @@ import { ActivityIndicator, StyleSheet, View } from "react-native";
 import { supabase } from "../lib/supabase";
 import RoleLanding from "../src/components/auth/RoleLanding";
 import { useAppMode } from "../src/context/AppModeContext";
+import { announceRecommendationMode, onRecommendationModeChange } from "../src/services/recommendationGateway";
 
 import AuthScreen from "./(tabs)/authScreen";
 
@@ -14,6 +15,14 @@ export default function App() {
   const router = useRouter();
   const prevSessionRef = useRef<Session | null>(null);
   const { clearMode, isReady, mode, setMode, theme } = useAppMode();
+
+  useEffect(() => {
+    announceRecommendationMode();
+    const unsubscribe = onRecommendationModeChange(() => {
+      // Mode updates are announced from recommendationGateway.
+    });
+    return unsubscribe;
+  }, []);
 
   useEffect(() => {
     let mounted = true;

@@ -1,5 +1,6 @@
 import { supabase } from '../../lib/supabase';
 import { Category, SearchListing, Tag } from './searchService';
+import { callRecommendationApi, recommendationApiPath, runDualMode } from './recommendationGateway';
 
 /**
  * Popular listing with interaction score
@@ -22,6 +23,7 @@ export interface PopularTodayResults {
 }
 
 type ListingRow = Omit<SearchListing, 'categories' | 'tags'>;
+type RecommendationPopularRow = Partial<ListingRow> & { id: string; interaction_score?: number; booking_count?: number };
 
 type CategoryJoinRow = { listing_id: string; category: Category | Category[] | null };
 type TagJoinRow = { listing_id: string; tag: Tag | Tag[] | null };
@@ -98,6 +100,62 @@ function extractMeta(listings: PopularListing[]): { categories: Category[]; tags
   };
 }
 
+const normalizeRecommendationRows = (rows: RecommendationPopularRow[]): ListingRow[] =>
+  rows.map(row => ({
+    id: row.id,
+    host_id: String(row.host_id || ''),
+    listing_type: (row.listing_type as ListingRow['listing_type']) || 'stay',
+    title: row.title || 'Untitled listing',
+    description: row.description || '',
+    is_active: row.is_active ?? true,
+    price: typeof row.price === 'number' ? row.price : Number(row.price || 0),
+    created_at: row.created_at || new Date().toISOString(),
+  }));
+
+async function fetchPopularFromRecommendationApi(
+  period: 'today' | 'this_week',
+  pagination?: { page?: number; page_size?: number }
+): Promise<PopularTodayResults> {
+  const page = pagination?.page || 1;
+  const page_size = pagination?.page_size || 20;
+  const offset = (page - 1) * page_size;
+  const path = recommendationApiPath('/v1/listings/popular', { page, limit: page_size, period });
+  const envelope = await callRecommendationApi<RecommendationPopularRow[]>(path, { method: 'GET' });
+  const apiRows = envelope.data || [];
+  if (apiRows.length === 0) {
+    return {
+      listings: [],
+      categories: [],
+      tags: [],
+      total_count: 0,
+      period,
+    };
+  }
+
+  const normalizedRows = normalizeRecommendationRows(apiRows);
+  const listingIds = normalizedRows.map(row => row.id);
+  const listings = await fetchListingsWithTaxonomy(listingIds);
+
+  const interactionMap = new Map(apiRows.map(row => [row.id, Number(row.interaction_score || 0)]));
+  const bookingMap = new Map(apiRows.map(row => [row.id, Number(row.booking_count || 0)]));
+
+  const merged: PopularListing[] = listings.map((listing, index) => ({
+    ...listing,
+    interaction_score: interactionMap.get(listing.id) || undefined,
+    booking_count: bookingMap.get(listing.id) || undefined,
+    trending_rank: offset + index + 1,
+  }));
+
+  const meta = extractMeta(merged);
+  return {
+    listings: merged,
+    categories: meta.categories,
+    tags: meta.tags,
+    total_count: envelope.count || merged.length,
+    period,
+  };
+}
+
 async function getInteractionScores(sinceIso: string, untilIso?: string): Promise<Record<string, number>> {
   let query = supabase
     .from('interactions')
@@ -132,7 +190,7 @@ export const popularTodayService = {
   async getPopularToday(
     pagination?: { page?: number; page_size?: number }
   ): Promise<PopularTodayResults> {
-    try {
+    const runBasic = async (): Promise<PopularTodayResults> => {
       const page = pagination?.page || 1;
       const page_size = pagination?.page_size || 20;
       const offset = (page - 1) * page_size;
@@ -168,6 +226,14 @@ export const popularTodayService = {
         total_count: rankedIds.length,
         period: 'today',
       };
+    };
+
+    try {
+      return await runDualMode({
+        context: 'popularTodayService.getPopularToday',
+        recEng: () => fetchPopularFromRecommendationApi('today', pagination),
+        basic: runBasic,
+      });
     } catch (error) {
       console.error('Error in getPopularToday:', error);
       throw error;
@@ -180,7 +246,7 @@ export const popularTodayService = {
   async getPopularThisWeek(
     pagination?: { page?: number; page_size?: number }
   ): Promise<PopularTodayResults> {
-    try {
+    const runBasic = async (): Promise<PopularTodayResults> => {
       const page = pagination?.page || 1;
       const page_size = pagination?.page_size || 20;
       const offset = (page - 1) * page_size;
@@ -220,6 +286,14 @@ export const popularTodayService = {
         total_count: rankedIds.length,
         period: 'this_week',
       };
+    };
+
+    try {
+      return await runDualMode({
+        context: 'popularTodayService.getPopularThisWeek',
+        recEng: () => fetchPopularFromRecommendationApi('this_week', pagination),
+        basic: runBasic,
+      });
     } catch (error) {
       console.error('Error in getPopularThisWeek:', error);
       throw error;
