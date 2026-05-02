@@ -1,12 +1,9 @@
-// src/services/interactionService.ts
-
-import { supabase } from '../config/supabaseclient';
-import type { Database } from '../types/database.types';
+import { supabase } from '../../lib/supabase';
 
 /**
- * Types for interaction tracking
+ * Allowed interaction actions used in app logic.
  */
-export type InteractionType = 
+export type InteractionType =
   | 'view'
   | 'save'
   | 'book'
@@ -18,155 +15,84 @@ export type InteractionType =
 
 export type SwipeDirection = 'left' | 'right';
 
-/**
- * Base interaction payload
- */
-interface BaseInteraction {
-  userId: string;
-  listingId: string;
-  propertyId?: string;
-  metadata?: Record<string, any>;
+export interface InteractionRow {
+  id: string;
+  user_id: string;
+  listing_id: string;
+  score: -1 | 0 | 1 | 3 | 5 | 7;
+  last_action: string | null;
+  created_at: string;
+  updated_at: string;
 }
 
-/**
- * Service for tracking user interactions.
- * All data collected here feeds into the recommendation system via the Edge Function.
- */
+const ACTION_SCORE: Record<InteractionType, InteractionRow['score']> = {
+  view: 1,
+  click: 3,
+  save: 5,
+  share: 5,
+  message: 5,
+  swipe_right: 3,
+  swipe_left: -1,
+  book: 7,
+};
+
+const clampAllowedScore = (score: number): InteractionRow['score'] => {
+  const allowed: InteractionRow['score'][] = [-1, 0, 1, 3, 5, 7];
+  const closest = allowed.reduce((prev, curr) =>
+    Math.abs(curr - score) < Math.abs(prev - score) ? curr : prev
+  );
+  return closest;
+};
+
+const stringifyAction = (
+  interactionType: InteractionType,
+  metadata?: Record<string, unknown>,
+  propertyId?: string
+): string => {
+  const payload = {
+    action: interactionType,
+    propertyId,
+    metadata: metadata || null,
+  };
+  return JSON.stringify(payload);
+};
+
 export const InteractionService = {
-  /**
-   * Track when a user views a listing
-   * Weight: 1 - indicates passive interest
-   */
-  async trackView(
-    userId: string,
-    listingId: string,
-    propertyId?: string
-  ): Promise<boolean> {
-    return this._insertInteraction({
-      userId,
-      listingId,
-      propertyId,
-      interactionType: 'view',
-      weight: 1,
-    });
+  async trackView(userId: string, listingId: string, propertyId?: string): Promise<boolean> {
+    return this._insertInteraction({ userId, listingId, propertyId, interactionType: 'view', weight: ACTION_SCORE.view });
   },
 
-  /**
-   * Track when a user saves/booksmarks a listing
-   * Weight: 3 - indicates strong interest
-   */
-  async trackSave(
-    userId: string,
-    listingId: string,
-    propertyId?: string
-  ): Promise<boolean> {
-    return this._insertInteraction({
-      userId,
-      listingId,
-      propertyId,
-      interactionType: 'save',
-      weight: 3,
-    });
+  async trackSave(userId: string, listingId: string, propertyId?: string): Promise<boolean> {
+    return this._insertInteraction({ userId, listingId, propertyId, interactionType: 'save', weight: ACTION_SCORE.save });
   },
 
-  /**
-   * Track when a user books a listing
-   * Weight: 10 - indicates highest level of interest
-   */
-  async trackBooking(
-    userId: string,
-    listingId: string,
-    propertyId?: string
-  ): Promise<boolean> {
-    return this._insertInteraction({
-      userId,
-      listingId,
-      propertyId,
-      interactionType: 'book',
-      weight: 10,
-    });
+  async trackBooking(userId: string, listingId: string, propertyId?: string): Promise<boolean> {
+    return this._insertInteraction({ userId, listingId, propertyId, interactionType: 'book', weight: ACTION_SCORE.book });
   },
 
-  /**
-   * Track swipe interactions (Tinder-style)
-   * Weight: -2 for left (dislike), +1 for right (like)
-   */
-  async trackSwipe(
-    userId: string,
-    listingId: string,
-    direction: SwipeDirection,
-    propertyId?: string
-  ): Promise<boolean> {
-    const interactionType = direction === 'left' ? 'swipe_left' : 'swipe_right';
-    const weight = direction === 'left' ? -2 : 1;
-
+  async trackSwipe(userId: string, listingId: string, direction: SwipeDirection, propertyId?: string): Promise<boolean> {
+    const interactionType: InteractionType = direction === 'left' ? 'swipe_left' : 'swipe_right';
     return this._insertInteraction({
       userId,
       listingId,
       propertyId,
       interactionType,
-      weight,
+      weight: ACTION_SCORE[interactionType],
     });
   },
 
-  /**
-   * Track click-through to listing details
-   * Weight: 2 - indicates active exploration
-   */
-  async trackClick(
-    userId: string,
-    listingId: string,
-    propertyId?: string
-  ): Promise<boolean> {
-    return this._insertInteraction({
-      userId,
-      listingId,
-      propertyId,
-      interactionType: 'click',
-      weight: 2,
-    });
+  async trackClick(userId: string, listingId: string, propertyId?: string): Promise<boolean> {
+    return this._insertInteraction({ userId, listingId, propertyId, interactionType: 'click', weight: ACTION_SCORE.click });
   },
 
-  /**
-   * Track when user shares a listing
-   * Weight: 5 - indicates strong endorsement
-   */
-  async trackShare(
-    userId: string,
-    listingId: string,
-    propertyId?: string
-  ): Promise<boolean> {
-    return this._insertInteraction({
-      userId,
-      listingId,
-      propertyId,
-      interactionType: 'share',
-      weight: 5,
-    });
+  async trackShare(userId: string, listingId: string, propertyId?: string): Promise<boolean> {
+    return this._insertInteraction({ userId, listingId, propertyId, interactionType: 'share', weight: ACTION_SCORE.share });
   },
 
-  /**
-   * Track when user messages a host about a listing
-   * Weight: 4 - indicates serious interest
-   */
-  async trackMessage(
-    userId: string,
-    listingId: string,
-    propertyId?: string
-  ): Promise<boolean> {
-    return this._insertInteraction({
-      userId,
-      listingId,
-      propertyId,
-      interactionType: 'message',
-      weight: 4,
-    });
+  async trackMessage(userId: string, listingId: string, propertyId?: string): Promise<boolean> {
+    return this._insertInteraction({ userId, listingId, propertyId, interactionType: 'message', weight: ACTION_SCORE.message });
   },
 
-  /**
-   * Batch track multiple interactions at once
-   * Useful for offline syncing or bulk operations
-   */
   async trackBatch(
     interactions: Array<{
       userId: string;
@@ -174,28 +100,32 @@ export const InteractionService = {
       propertyId?: string;
       interactionType: InteractionType;
       weight: number;
-      metadata?: Record<string, any>;
+      metadata?: Record<string, unknown>;
     }>
   ): Promise<boolean> {
     try {
-      const formattedInteractions = interactions.map((interaction) => ({
+      if (interactions.length === 0) return true;
+
+      const formattedInteractions = interactions.map(interaction => ({
         user_id: interaction.userId,
         listing_id: interaction.listingId,
-        property_id: interaction.propertyId,
-        interaction_type: interaction.interactionType,
-        weight: interaction.weight,
-        metadata: interaction.metadata || null,
-        created_at: new Date().toISOString(),
+        score: clampAllowedScore(interaction.weight),
+        last_action: stringifyAction(interaction.interactionType, interaction.metadata, interaction.propertyId),
       }));
 
       const { error } = await supabase
-        .from('user_interactions')
+        .from('interactions')
         .insert(formattedInteractions);
 
       if (error) {
         console.error('Error tracking batch interactions:', error);
         return false;
       }
+
+      const uniqueUsers = Array.from(new Set(interactions.map(i => i.userId)));
+      uniqueUsers.forEach(userId => {
+        this._triggerRecommendationUpdate(userId).catch(() => undefined);
+      });
 
       return true;
     } catch (error) {
@@ -204,17 +134,10 @@ export const InteractionService = {
     }
   },
 
-  /**
-   * Get recent interactions for a user (optional utility)
-   * Useful for debugging or showing recent activity
-   */
-  async getUserRecentInteractions(
-    userId: string,
-    limit: number = 50
-  ): Promise<Array<Database['public']['Tables']['user_interactions']['Row']>> {
+  async getUserRecentInteractions(userId: string, limit = 50): Promise<InteractionRow[]> {
     try {
       const { data, error } = await supabase
-        .from('user_interactions')
+        .from('interactions')
         .select('*')
         .eq('user_id', userId)
         .order('created_at', { ascending: false })
@@ -225,21 +148,17 @@ export const InteractionService = {
         return [];
       }
 
-      return data || [];
+      return (data || []) as InteractionRow[];
     } catch (error) {
       console.error('Error in getUserRecentInteractions:', error);
       return [];
     }
   },
 
-  /**
-   * Clear interaction history for a user (GDPR compliance)
-   * Note: This should be used carefully, as it affects recommendation quality
-   */
   async clearUserInteractions(userId: string): Promise<boolean> {
     try {
       const { error } = await supabase
-        .from('user_interactions')
+        .from('interactions')
         .delete()
         .eq('user_id', userId);
 
@@ -255,11 +174,7 @@ export const InteractionService = {
     }
   },
 
-  /**
-   * Private method to insert a single interaction
-   * Centralizes the database insertion logic
-   */
-  private async _insertInteraction({
+  async _insertInteraction({
     userId,
     listingId,
     propertyId,
@@ -272,19 +187,16 @@ export const InteractionService = {
     propertyId?: string;
     interactionType: InteractionType;
     weight: number;
-    metadata?: Record<string, any>;
+    metadata?: Record<string, unknown>;
   }): Promise<boolean> {
     try {
       const { error } = await supabase
-        .from('user_interactions')
+        .from('interactions')
         .insert({
           user_id: userId,
           listing_id: listingId,
-          property_id: propertyId,
-          interaction_type: interactionType,
-          weight: weight,
-          metadata: metadata || null,
-          created_at: new Date().toISOString(),
+          score: clampAllowedScore(weight),
+          last_action: stringifyAction(interactionType, metadata, propertyId),
         });
 
       if (error) {
@@ -292,12 +204,7 @@ export const InteractionService = {
         return false;
       }
 
-      // Optionally trigger a background refresh of recommendations
-      // This is non-blocking and doesn't affect user experience
-      this._triggerRecommendationUpdate(userId).catch(() => {
-        // Silent fail - this is just an optimization
-      });
-
+      this._triggerRecommendationUpdate(userId).catch(() => undefined);
       return true;
     } catch (error) {
       console.error(`Error in _insertInteraction for ${interactionType}:`, error);
@@ -305,21 +212,16 @@ export const InteractionService = {
     }
   },
 
-  /**
-   * Private method to trigger recommendation updates in background
-   * This helps keep recommendations fresh without blocking the UI
-   */
-  private async _triggerRecommendationUpdate(userId: string): Promise<void> {
+  async _triggerRecommendationUpdate(userId: string): Promise<void> {
     try {
-      // Non-blocking call to refresh recommendations
       await supabase.functions.invoke('recommendations', {
         body: {
           action: 'refresh_user',
           userId,
         },
       });
-    } catch (error) {
-      // Silent fail - this is just an optimization
+    } catch (_) {
+      // silent fail
     }
   },
 };

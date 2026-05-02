@@ -1,5 +1,3 @@
-// src/services/popularTodayService.ts
-
 import { supabase } from '../../lib/supabase';
 import { Category, SearchListing, Tag } from './searchService';
 
@@ -20,7 +18,108 @@ export interface PopularTodayResults {
   categories: Category[];
   tags: Tag[];
   total_count: number;
-  period: string; // 'today', 'this_week', 'this_month'
+  period: string;
+}
+
+type ListingRow = Omit<SearchListing, 'categories' | 'tags'>;
+
+type CategoryJoinRow = { listing_id: string; category: Category | Category[] | null };
+type TagJoinRow = { listing_id: string; tag: Tag | Tag[] | null };
+
+const uniqueById = <T extends { id: string }>(items: T[]): T[] => {
+  const seen = new Set<string>();
+  return items.filter(item => {
+    if (seen.has(item.id)) return false;
+    seen.add(item.id);
+    return true;
+  });
+};
+
+const toArrayValue = <T>(value: T | T[] | null): T[] => {
+  if (!value) return [];
+  return Array.isArray(value) ? value : [value];
+};
+
+async function fetchListingsWithTaxonomy(listingIds: string[]): Promise<PopularListing[]> {
+  if (listingIds.length === 0) return [];
+
+  const { data: listings, error: listingsError } = await supabase
+    .from('listings')
+    .select('id, host_id, listing_type, title, description, is_active, price, created_at')
+    .in('id', listingIds)
+    .eq('is_active', true);
+
+  if (listingsError) {
+    throw new Error(`Failed to fetch listings: ${listingsError.message}`);
+  }
+
+  const [{ data: categoryRows }, { data: tagRows }] = await Promise.all([
+    supabase
+      .from('category_listings')
+      .select('listing_id, category:categories(id, name, description, image_url, parent_id, created_at)')
+      .in('listing_id', listingIds),
+    supabase
+      .from('tag_listings')
+      .select('listing_id, tag:tags(id, name, created_at)')
+      .in('listing_id', listingIds),
+  ]);
+
+  const listingCategoriesMap: Record<string, Category[]> = {};
+  ((categoryRows || []) as CategoryJoinRow[]).forEach(row => {
+    const categories = toArrayValue(row.category);
+    if (categories.length === 0) return;
+    if (!listingCategoriesMap[row.listing_id]) listingCategoriesMap[row.listing_id] = [];
+    listingCategoriesMap[row.listing_id].push(...categories);
+  });
+
+  const listingTagsMap: Record<string, Tag[]> = {};
+  ((tagRows || []) as TagJoinRow[]).forEach(row => {
+    const tags = toArrayValue(row.tag);
+    if (tags.length === 0) return;
+    if (!listingTagsMap[row.listing_id]) listingTagsMap[row.listing_id] = [];
+    listingTagsMap[row.listing_id].push(...tags);
+  });
+
+  const orderMap = new Map(listingIds.map((id, index) => [id, index]));
+
+  return ((listings || []) as ListingRow[])
+    .sort((a, b) => (orderMap.get(a.id) ?? 0) - (orderMap.get(b.id) ?? 0))
+    .map(listing => ({
+      ...listing,
+      categories: uniqueById(listingCategoriesMap[listing.id] || []),
+      tags: uniqueById(listingTagsMap[listing.id] || []),
+    }));
+}
+
+function extractMeta(listings: PopularListing[]): { categories: Category[]; tags: Tag[] } {
+  return {
+    categories: uniqueById(listings.flatMap(listing => listing.categories)),
+    tags: uniqueById(listings.flatMap(listing => listing.tags)),
+  };
+}
+
+async function getInteractionScores(sinceIso: string, untilIso?: string): Promise<Record<string, number>> {
+  let query = supabase
+    .from('interactions')
+    .select('listing_id, score')
+    .gte('created_at', sinceIso);
+
+  if (untilIso) {
+    query = query.lt('created_at', untilIso);
+  }
+
+  const { data, error } = await query;
+
+  if (error) {
+    throw new Error(`Failed to fetch interactions: ${error.message}`);
+  }
+
+  const scores: Record<string, number> = {};
+  (data || []).forEach(row => {
+    scores[row.listing_id] = (scores[row.listing_id] || 0) + Number(row.score || 0);
+  });
+
+  return scores;
 }
 
 /**
@@ -38,121 +137,36 @@ export const popularTodayService = {
       const page_size = pagination?.page_size || 20;
       const offset = (page - 1) * page_size;
 
-      // Get today's date range
       const today = new Date();
       today.setHours(0, 0, 0, 0);
       const tomorrow = new Date(today);
       tomorrow.setDate(tomorrow.getDate() + 1);
 
-      // Get interactions from today and calculate scores
-      const { data: interactions, error: interactionError } = await supabase
-        .from('interactions')
-        .select('listing_id, score')
-        .gte('created_at', today.toISOString())
-        .lt('created_at', tomorrow.toISOString());
-
-      if (interactionError) {
-        console.error('Interaction fetch error:', interactionError);
-      }
-
-      // Calculate interaction scores per listing
-      const interactionScores: Record<string, number> = {};
-      interactions?.forEach(interaction => {
-        if (!interactionScores[interaction.listing_id]) {
-          interactionScores[interaction.listing_id] = 0;
-        }
-        interactionScores[interaction.listing_id] += interaction.score || 0;
-      });
-
-      // Get listings that have interactions today, sorted by score
-      const topListingIds = Object.entries(interactionScores)
+      const scores = await getInteractionScores(today.toISOString(), tomorrow.toISOString());
+      const rankedIds = Object.entries(scores)
         .sort((a, b) => b[1] - a[1])
-        .slice(offset, offset + page_size)
         .map(([id]) => id);
 
-      if (topListingIds.length === 0) {
-        // Fallback: get recent active listings if no interactions today
-        return await popularTodayService.getRecentPopular(pagination);
+      const pageIds = rankedIds.slice(offset, offset + page_size);
+      if (pageIds.length === 0) {
+        return this.getRecentPopular(pagination);
       }
 
-      // Fetch full listing details
-      const { data: listings, error: listingError, count } = await supabase
-        .from('listings')
-        .select('*')
-        .in('id', topListingIds)
-        .eq('is_active', true)
-        .order('created_at', { ascending: false });
-
-      if (listingError) {
-        throw new Error(`Failed to fetch popular listings: ${listingError.message}`);
-      }
-
-      if (!listings || listings.length === 0) {
-        return {
-          listings: [],
-          categories: [],
-          tags: [],
-          total_count: 0,
-          period: 'today'
-        };
-      }
-
-      // Fetch categories and tags
-      const { data: categoryListings } = await supabase
-        .from('category_listings')
-        .select('listing_id, categories(id, name, description, image_url, parent_id, created_at)')
-        .in('listing_id', topListingIds);
-
-      const { data: tagListings } = await supabase
-        .from('tag_listings')
-        .select('listing_id, tags(id, name, created_at)')
-        .in('listing_id', topListingIds);
-
-      // Build maps
-      const listingCategoriesMap: Record<string, Category[]> = {};
-      categoryListings?.forEach((cl: any) => {
-        if (!listingCategoriesMap[cl.listing_id]) {
-          listingCategoriesMap[cl.listing_id] = [];
-        }
-        if (cl.categories) {
-          listingCategoriesMap[cl.listing_id].push(cl.categories);
-        }
-      });
-
-      const listingTagsMap: Record<string, Tag[]> = {};
-      tagListings?.forEach((tl: any) => {
-        if (!listingTagsMap[tl.listing_id]) {
-          listingTagsMap[tl.listing_id] = [];
-        }
-        if (tl.tags) {
-          listingTagsMap[tl.listing_id].push(tl.tags);
-        }
-      });
-
-      // Build popular listings with scores
+      const listings = await fetchListingsWithTaxonomy(pageIds);
       const popularListings: PopularListing[] = listings.map((listing, index) => ({
         ...listing,
-        categories: listingCategoriesMap[listing.id] || [],
-        tags: listingTagsMap[listing.id] || [],
-        interaction_score: interactionScores[listing.id] || 0,
-        trending_rank: offset + index + 1
+        interaction_score: scores[listing.id] || 0,
+        trending_rank: offset + index + 1,
       }));
 
-      // Get unique categories and tags
-      const categoriesSet = new Set<string>();
-      const tagsSet = new Set<string>();
-
-      popularListings.forEach(listing => {
-        listing.categories.forEach(cat => categoriesSet.add(JSON.stringify(cat)));
-        listing.tags.forEach(tag => tagsSet.add(JSON.stringify(tag)));
-      });
+      const meta = extractMeta(popularListings);
 
       return {
         listings: popularListings,
-        categories: Array.from(categoriesSet).map(c => JSON.parse(c)),
-        tags: Array.from(tagsSet).map(t => JSON.parse(t)),
-        total_count: count || 0,
-        period: 'today'
+        categories: meta.categories,
+        tags: meta.tags,
+        total_count: rankedIds.length,
+        period: 'today',
       };
     } catch (error) {
       console.error('Error in getPopularToday:', error);
@@ -171,118 +185,40 @@ export const popularTodayService = {
       const page_size = pagination?.page_size || 20;
       const offset = (page - 1) * page_size;
 
-      // Get week date range (last 7 days)
       const weekAgo = new Date();
       weekAgo.setDate(weekAgo.getDate() - 7);
 
-      // Get interactions from this week
-      const { data: interactions } = await supabase
-        .from('interactions')
-        .select('listing_id, score')
-        .gte('created_at', weekAgo.toISOString());
-
-      // Calculate scores
-      const interactionScores: Record<string, number> = {};
-      interactions?.forEach(interaction => {
-        if (!interactionScores[interaction.listing_id]) {
-          interactionScores[interaction.listing_id] = 0;
-        }
-        interactionScores[interaction.listing_id] += interaction.score || 0;
-      });
-
-      // Get top listings
-      const topListingIds = Object.entries(interactionScores)
+      const scores = await getInteractionScores(weekAgo.toISOString());
+      const rankedIds = Object.entries(scores)
         .sort((a, b) => b[1] - a[1])
-        .slice(offset, offset + page_size)
         .map(([id]) => id);
 
-      if (topListingIds.length === 0) {
+      const pageIds = rankedIds.slice(offset, offset + page_size);
+      if (pageIds.length === 0) {
         return {
           listings: [],
           categories: [],
           tags: [],
           total_count: 0,
-          period: 'this_week'
+          period: 'this_week',
         };
       }
 
-      // Fetch listings
-      const { data: listings, error, count } = await supabase
-        .from('listings')
-        .select('*')
-        .in('id', topListingIds)
-        .eq('is_active', true)
-        .order('created_at', { ascending: false });
-
-      if (error) {
-        throw error;
-      }
-
-      if (!listings || listings.length === 0) {
-        return {
-          listings: [],
-          categories: [],
-          tags: [],
-          total_count: 0,
-          period: 'this_week'
-        };
-      }
-
-      // Fetch categories and tags
-      const { data: categoryListings } = await supabase
-        .from('category_listings')
-        .select('listing_id, categories(id, name, description, image_url, parent_id, created_at)')
-        .in('listing_id', topListingIds);
-
-      const { data: tagListings } = await supabase
-        .from('tag_listings')
-        .select('listing_id, tags(id, name, created_at)')
-        .in('listing_id', topListingIds);
-
-      // Build maps
-      const listingCategoriesMap: Record<string, Category[]> = {};
-      categoryListings?.forEach((cl: any) => {
-        if (!listingCategoriesMap[cl.listing_id]) {
-          listingCategoriesMap[cl.listing_id] = [];
-        }
-        if (cl.categories) {
-          listingCategoriesMap[cl.listing_id].push(cl.categories);
-        }
-      });
-
-      const listingTagsMap: Record<string, Tag[]> = {};
-      tagListings?.forEach((tl: any) => {
-        if (!listingTagsMap[tl.listing_id]) {
-          listingTagsMap[tl.listing_id] = [];
-        }
-        if (tl.tags) {
-          listingTagsMap[tl.listing_id].push(tl.tags);
-        }
-      });
-
+      const listings = await fetchListingsWithTaxonomy(pageIds);
       const popularListings: PopularListing[] = listings.map((listing, index) => ({
         ...listing,
-        categories: listingCategoriesMap[listing.id] || [],
-        tags: listingTagsMap[listing.id] || [],
-        interaction_score: interactionScores[listing.id] || 0,
-        trending_rank: offset + index + 1
+        interaction_score: scores[listing.id] || 0,
+        trending_rank: offset + index + 1,
       }));
 
-      // Get unique categories and tags
-      const categoriesSet = new Set<string>();
-      const tagsSet = new Set<string>();
-
-      popularListings.forEach(listing => {
-        listing.categories.forEach(cat => categoriesSet.add(JSON.stringify(cat)));
-        listing.tags.forEach(tag => tagsSet.add(JSON.stringify(tag)));
-      });
+      const meta = extractMeta(popularListings);
 
       return {
         listings: popularListings,
-        categories: Array.from(categoriesSet).map(c => JSON.parse(c)),
-        tags: Array.from(tagsSet).map(t => JSON.parse(t)),
-        total_count: count || 0,
-        period: 'this_week'
+        categories: meta.categories,
+        tags: meta.tags,
+        total_count: rankedIds.length,
+        period: 'this_week',
       };
     } catch (error) {
       console.error('Error in getPopularThisWeek:', error);
@@ -301,10 +237,9 @@ export const popularTodayService = {
       const page_size = pagination?.page_size || 20;
       const offset = (page - 1) * page_size;
 
-      // Get recent active listings
       const { data: listings, error, count } = await supabase
         .from('listings')
-        .select('*')
+        .select('id, host_id, listing_type, title, description, is_active, price, created_at', { count: 'exact' })
         .eq('is_active', true)
         .order('created_at', { ascending: false })
         .range(offset, offset + page_size - 1);
@@ -313,72 +248,22 @@ export const popularTodayService = {
         throw error;
       }
 
-      if (!listings || listings.length === 0) {
-        return {
-          listings: [],
-          categories: [],
-          tags: [],
-          total_count: 0,
-          period: 'today'
-        };
-      }
+      const baseListings = (listings || []) as ListingRow[];
+      const fullListings = await fetchListingsWithTaxonomy(baseListings.map(l => l.id));
 
-      const listingIds = listings.map(l => l.id);
-
-      // Fetch categories and tags
-      const { data: categoryListings } = await supabase
-        .from('category_listings')
-        .select('listing_id, categories(id, name, description, image_url, parent_id, created_at)')
-        .in('listing_id', listingIds);
-
-      const { data: tagListings } = await supabase
-        .from('tag_listings')
-        .select('listing_id, tags(id, name, created_at)')
-        .in('listing_id', listingIds);
-
-      // Build maps
-      const listingCategoriesMap: Record<string, Category[]> = {};
-      categoryListings?.forEach((cl: any) => {
-        if (!listingCategoriesMap[cl.listing_id]) {
-          listingCategoriesMap[cl.listing_id] = [];
-        }
-        if (cl.categories) {
-          listingCategoriesMap[cl.listing_id].push(cl.categories);
-        }
-      });
-
-      const listingTagsMap: Record<string, Tag[]> = {};
-      tagListings?.forEach((tl: any) => {
-        if (!listingTagsMap[tl.listing_id]) {
-          listingTagsMap[tl.listing_id] = [];
-        }
-        if (tl.tags) {
-          listingTagsMap[tl.listing_id].push(tl.tags);
-        }
-      });
-
-      const recentListings: PopularListing[] = listings.map((listing, index) => ({
+      const recentListings: PopularListing[] = fullListings.map((listing, index) => ({
         ...listing,
-        categories: listingCategoriesMap[listing.id] || [],
-        tags: listingTagsMap[listing.id] || [],
-        trending_rank: offset + index + 1
+        trending_rank: offset + index + 1,
       }));
 
-      // Get unique categories and tags
-      const categoriesSet = new Set<string>();
-      const tagsSet = new Set<string>();
-
-      recentListings.forEach(listing => {
-        listing.categories.forEach(cat => categoriesSet.add(JSON.stringify(cat)));
-        listing.tags.forEach(tag => tagsSet.add(JSON.stringify(tag)));
-      });
+      const meta = extractMeta(recentListings);
 
       return {
         listings: recentListings,
-        categories: Array.from(categoriesSet).map(c => JSON.parse(c)),
-        tags: Array.from(tagsSet).map(t => JSON.parse(t)),
+        categories: meta.categories,
+        tags: meta.tags,
         total_count: count || 0,
-        period: 'today'
+        period: 'today',
       };
     } catch (error) {
       console.error('Error in getRecentPopular:', error);
@@ -387,7 +272,7 @@ export const popularTodayService = {
   },
 
   /**
-   * Get trending listings by booking count (requires additional data aggregation)
+   * Get trending listings by booking count
    */
   async getTrendingByBookings(
     pagination?: { page?: number; page_size?: number }
@@ -397,116 +282,55 @@ export const popularTodayService = {
       const page_size = pagination?.page_size || 20;
       const offset = (page - 1) * page_size;
 
-      // Get listings with their booking counts
-      const { data: bookingCounts, error: bookingError } = await supabase
-        .rpc('get_trending_listings', {
-          limit: page_size,
-          offset: offset,
-          days: 7
-        })
-        .select('*');
+      const { data: bookings, error } = await supabase
+        .from('bookings')
+        .select('listing_id')
+        .in('status', ['confirmed', 'completed'])
+        .gte('created_at', new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString());
 
-      if (bookingError) {
-        console.warn('Booking trending fetch error, falling back to recent:', bookingError);
-        return await popularTodayService.getRecentPopular(pagination);
+      if (error) {
+        throw error;
       }
 
-      if (!bookingCounts || bookingCounts.length === 0) {
-        return {
-          listings: [],
-          categories: [],
-          tags: [],
-          total_count: 0,
-          period: 'this_week'
-        };
-      }
-
-      const listingIds = bookingCounts.map((bc: any) => bc.listing_id);
-
-      // Fetch full listing details
-      const { data: listings } = await supabase
-        .from('listings')
-        .select('*')
-        .in('id', listingIds)
-        .eq('is_active', true);
-
-      if (!listings) {
-        return {
-          listings: [],
-          categories: [],
-          tags: [],
-          total_count: 0,
-          period: 'this_week'
-        };
-      }
-
-      // Create booking count map
       const bookingCountMap: Record<string, number> = {};
-      bookingCounts.forEach((bc: any) => {
-        bookingCountMap[bc.listing_id] = bc.booking_count || 0;
+      (bookings || []).forEach(row => {
+        bookingCountMap[row.listing_id] = (bookingCountMap[row.listing_id] || 0) + 1;
       });
 
-      // Fetch categories and tags
-      const { data: categoryListings } = await supabase
-        .from('category_listings')
-        .select('listing_id, categories(id, name, description, image_url, parent_id, created_at)')
-        .in('listing_id', listingIds);
+      const rankedIds = Object.entries(bookingCountMap)
+        .sort((a, b) => b[1] - a[1])
+        .map(([id]) => id);
 
-      const { data: tagListings } = await supabase
-        .from('tag_listings')
-        .select('listing_id, tags(id, name, created_at)')
-        .in('listing_id', listingIds);
+      const pageIds = rankedIds.slice(offset, offset + page_size);
+      if (pageIds.length === 0) {
+        return {
+          listings: [],
+          categories: [],
+          tags: [],
+          total_count: 0,
+          period: 'this_week',
+        };
+      }
 
-      // Build maps
-      const listingCategoriesMap: Record<string, Category[]> = {};
-      categoryListings?.forEach((cl: any) => {
-        if (!listingCategoriesMap[cl.listing_id]) {
-          listingCategoriesMap[cl.listing_id] = [];
-        }
-        if (cl.categories) {
-          listingCategoriesMap[cl.listing_id].push(cl.categories);
-        }
-      });
+      const listings = await fetchListingsWithTaxonomy(pageIds);
+      const trendingListings: PopularListing[] = listings.map((listing, index) => ({
+        ...listing,
+        booking_count: bookingCountMap[listing.id] || 0,
+        trending_rank: offset + index + 1,
+      }));
 
-      const listingTagsMap: Record<string, Tag[]> = {};
-      tagListings?.forEach((tl: any) => {
-        if (!listingTagsMap[tl.listing_id]) {
-          listingTagsMap[tl.listing_id] = [];
-        }
-        if (tl.tags) {
-          listingTagsMap[tl.listing_id].push(tl.tags);
-        }
-      });
-
-      const trendingListings: PopularListing[] = listings
-        .sort((a, b) => (bookingCountMap[b.id] || 0) - (bookingCountMap[a.id] || 0))
-        .map((listing, index) => ({
-          ...listing,
-          categories: listingCategoriesMap[listing.id] || [],
-          tags: listingTagsMap[listing.id] || [],
-          booking_count: bookingCountMap[listing.id],
-          trending_rank: offset + index + 1
-        }));
-
-      // Get unique categories and tags
-      const categoriesSet = new Set<string>();
-      const tagsSet = new Set<string>();
-
-      trendingListings.forEach(listing => {
-        listing.categories.forEach(cat => categoriesSet.add(JSON.stringify(cat)));
-        listing.tags.forEach(tag => tagsSet.add(JSON.stringify(tag)));
-      });
+      const meta = extractMeta(trendingListings);
 
       return {
         listings: trendingListings,
-        categories: Array.from(categoriesSet).map(c => JSON.parse(c)),
-        tags: Array.from(tagsSet).map(t => JSON.parse(t)),
-        total_count: bookingCounts.length,
-        period: 'this_week'
+        categories: meta.categories,
+        tags: meta.tags,
+        total_count: rankedIds.length,
+        period: 'this_week',
       };
     } catch (error) {
       console.error('Error in getTrendingByBookings:', error);
       throw error;
     }
-  }
+  },
 };

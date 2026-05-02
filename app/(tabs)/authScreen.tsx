@@ -13,9 +13,13 @@ import {
   View,
 } from 'react-native';
 import { supabase } from '../../lib/supabase';
-import burgundyTheme from '../../src/theme/burgundyTheme';
+import { useAppMode } from '../../src/context/AppModeContext';
 
-export default function AuthScreen() {
+type AuthScreenProps = {
+  onBack?: () => void | Promise<void>;
+};
+
+export default function AuthScreen({ onBack }: AuthScreenProps) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [username, setUsername] = useState('');
@@ -27,6 +31,9 @@ export default function AuthScreen() {
     password?: string;
     username?: string;
   }>({});
+  const { mode, theme } = useAppMode();
+  const styles = getStyles(theme);
+  const isDoctor = mode === 'doctor';
 
   const validateForm = () => {
     const newErrors: typeof errors = {};
@@ -61,13 +68,12 @@ export default function AuthScreen() {
 
     try {
       if (isSignUp) {
-        // Sign up flow
         const { data: authData, error: authError } = await supabase.auth.signUp({
           email,
           password,
           options: {
             data: {
-              username: username,
+              username,
             },
           },
         });
@@ -75,21 +81,16 @@ export default function AuthScreen() {
         if (authError) throw authError;
 
         if (authData.user) {
-          // Create profile in profiles table
-          const { error: profileError } = await supabase
-            .from('profiles')
-            .insert([
-              {
-                id: authData.user.id,
-                username: username,
-                role: 'user', // Default role
-              },
-            ]);
+          const { error: profileError } = await supabase.from('profiles').insert([
+            {
+              id: authData.user.id,
+              username,
+              role: isDoctor ? 'doctor' : 'patient',
+            },
+          ]);
 
           if (profileError) {
-            // If profile creation fails, we might want to handle this
             console.error('Profile creation error:', profileError);
-            // Don't throw - the user is still signed up, they can complete profile later
           }
 
           Alert.alert(
@@ -99,7 +100,6 @@ export default function AuthScreen() {
           );
         }
       } else {
-        // Sign in flow
         const { error } = await supabase.auth.signInWithPassword({
           email,
           password,
@@ -109,8 +109,7 @@ export default function AuthScreen() {
       }
     } catch (error: any) {
       console.error('Auth error:', error);
-      
-      // Handle specific error cases
+
       if (error.message.includes('Email not confirmed')) {
         Alert.alert(
           'Email Not Verified',
@@ -130,11 +129,7 @@ export default function AuthScreen() {
           [{ text: 'OK' }]
         );
       } else {
-        Alert.alert(
-          'Error',
-          error.message || 'An error occurred. Please try again.',
-          [{ text: 'OK' }]
-        );
+        Alert.alert('Error', error.message || 'An error occurred. Please try again.', [{ text: 'OK' }]);
       }
     } finally {
       setLoading(false);
@@ -158,74 +153,73 @@ export default function AuthScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       style={styles.container}
     >
-      <ScrollView 
-        contentContainerStyle={styles.scrollContainer}
-        showsVerticalScrollIndicator={false}
-      >
+      <ScrollView contentContainerStyle={styles.scrollContainer} showsVerticalScrollIndicator={false}>
         <View style={styles.header}>
+          <View style={styles.topRow}>
+            <TouchableOpacity style={styles.backButton} onPress={onBack}>
+              <Ionicons name="chevron-back" size={18} color={theme.colors.primary} />
+              <Text style={styles.backButtonText}>Back</Text>
+            </TouchableOpacity>
+            <View style={styles.modePill}>
+              <Text style={styles.modePillText}>{isDoctor ? 'Doctor Side' : 'Patient Side'}</Text>
+            </View>
+          </View>
+
           <View style={styles.logoBadge}>
             <Ionicons
-              name="home-outline"
+              name={isDoctor ? 'medkit-outline' : 'person-outline'}
               size={60}
-              color={burgundyTheme.colors.primary}
+              color={theme.colors.primary}
               style={styles.logo}
             />
           </View>
-          <Text style={styles.title}>
-            {isSignUp ? 'Create Account' : 'Welcome Back'}
-          </Text>
+
+          <Text style={styles.title}>{isSignUp ? 'Create Account' : 'Welcome Back'}</Text>
           <Text style={styles.subtitle}>
-            {isSignUp 
-              ? 'Sign up to start your journey' 
-              : 'Sign in to your account'
-            }
+            {isSignUp
+              ? `Sign up to enter the ${isDoctor ? 'doctor' : 'patient'} side`
+              : `Sign in to continue on the ${isDoctor ? 'doctor' : 'patient'} side`}
           </Text>
         </View>
 
         <View style={styles.form}>
-          {isSignUp && (
+          {isSignUp ? (
             <View style={styles.inputContainer}>
               <Text style={styles.label}>Username</Text>
-              <View style={[
-                styles.inputWrapper,
-                errors.username && styles.inputError
-              ]}>
-                <Ionicons 
-                  name="person-outline" 
-                  size={20} 
-                  color="#666" 
+              <View style={[styles.inputWrapper, errors.username && styles.inputError]}>
+                <Ionicons
+                  name="person-outline"
+                  size={20}
+                  color={theme.colors.textMuted}
                   style={styles.inputIcon}
                 />
                 <TextInput
                   style={styles.input}
                   placeholder="Choose a username"
+                  placeholderTextColor={theme.colors.textSubtle}
                   value={username}
                   onChangeText={setUsername}
                   autoCapitalize="none"
                   editable={!loading}
                 />
               </View>
-              {errors.username && (
-                <Text style={styles.errorText}>{errors.username}</Text>
-              )}
+              {errors.username ? <Text style={styles.errorText}>{errors.username}</Text> : null}
             </View>
-          )}
+          ) : null}
 
           <View style={styles.inputContainer}>
             <Text style={styles.label}>Email</Text>
-            <View style={[
-              styles.inputWrapper,
-              errors.email && styles.inputError
-            ]}>
-              <Ionicons 
-                name="mail-outline" 
-                size={20} 
-                color="#666" 
+            <View style={[styles.inputWrapper, errors.email && styles.inputError]}>
+              <Ionicons
+                name="mail-outline"
+                size={20}
+                color={theme.colors.textMuted}
                 style={styles.inputIcon}
               />
               <TextInput
                 style={styles.input}
                 placeholder="Enter your email"
+                placeholderTextColor={theme.colors.textSubtle}
                 value={email}
                 onChangeText={setEmail}
                 autoCapitalize="none"
@@ -233,45 +227,36 @@ export default function AuthScreen() {
                 editable={!loading}
               />
             </View>
-            {errors.email && (
-              <Text style={styles.errorText}>{errors.email}</Text>
-            )}
+            {errors.email ? <Text style={styles.errorText}>{errors.email}</Text> : null}
           </View>
 
           <View style={styles.inputContainer}>
             <Text style={styles.label}>Password</Text>
-            <View style={[
-              styles.inputWrapper,
-              errors.password && styles.inputError
-            ]}>
-              <Ionicons 
-                name="lock-closed-outline" 
-                size={20} 
-                color="#666" 
+            <View style={[styles.inputWrapper, errors.password && styles.inputError]}>
+              <Ionicons
+                name="lock-closed-outline"
+                size={20}
+                color={theme.colors.textMuted}
                 style={styles.inputIcon}
               />
               <TextInput
                 style={styles.input}
                 placeholder="Enter your password"
+                placeholderTextColor={theme.colors.textSubtle}
                 value={password}
                 onChangeText={setPassword}
                 secureTextEntry={!showPassword}
                 editable={!loading}
               />
-              <TouchableOpacity
-                onPress={() => setShowPassword(!showPassword)}
-                style={styles.eyeIcon}
-              >
+              <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={styles.eyeIcon}>
                 <Ionicons
-                  name={showPassword ? "eye-off-outline" : "eye-outline"}
+                  name={showPassword ? 'eye-off-outline' : 'eye-outline'}
                   size={20}
-                  color="#666"
+                  color={theme.colors.textMuted}
                 />
               </TouchableOpacity>
             </View>
-            {errors.password && (
-              <Text style={styles.errorText}>{errors.password}</Text>
-            )}
+            {errors.password ? <Text style={styles.errorText}>{errors.password}</Text> : null}
           </View>
 
           <TouchableOpacity
@@ -280,11 +265,9 @@ export default function AuthScreen() {
             disabled={loading}
           >
             {loading ? (
-              <ActivityIndicator color="#FFF" />
+              <ActivityIndicator color={theme.colors.white} />
             ) : (
-              <Text style={styles.authButtonText}>
-                {isSignUp ? 'Sign Up' : 'Sign In'}
-              </Text>
+              <Text style={styles.authButtonText}>{isSignUp ? 'Sign Up' : 'Sign In'}</Text>
             )}
           </TouchableOpacity>
 
@@ -294,23 +277,17 @@ export default function AuthScreen() {
             <View style={styles.dividerLine} />
           </View>
 
-          <TouchableOpacity
-            style={styles.toggleButton}
-            onPress={toggleAuthMode}
-            disabled={loading}
-          >
+          <TouchableOpacity style={styles.toggleButton} onPress={toggleAuthMode} disabled={loading}>
             <Text style={styles.toggleButtonText}>
               {isSignUp
                 ? 'Already have an account? Sign In'
-                : "Don't have an account? Sign Up"
-              }
+                : "Don't have an account? Sign Up"}
             </Text>
           </TouchableOpacity>
 
           <Text style={styles.termsText}>
-            By continuing, you agree to our{' '}
-            <Text style={styles.termsLink}>Terms of Service</Text> and{' '}
-            <Text style={styles.termsLink}>Privacy Policy</Text>
+            By continuing, you agree to our <Text style={styles.termsLink}>Terms of Service</Text>{' '}
+            and <Text style={styles.termsLink}>Privacy Policy</Text>
           </Text>
         </View>
       </ScrollView>
@@ -318,148 +295,182 @@ export default function AuthScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: burgundyTheme.colors.background,
-  },
-  scrollContainer: {
-    flexGrow: 1,
-    paddingHorizontal: 24,
-    paddingTop: 60,
-    paddingBottom: 40,
-  },
-  header: {
-    alignItems: 'center',
-    marginBottom: 40,
-  },
-  logoBadge: {
-    width: 112,
-    height: 112,
-    borderRadius: 56,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: burgundyTheme.colors.primaryTint,
-    borderWidth: 1,
-    borderColor: burgundyTheme.colors.primaryTintStrong,
-    marginBottom: 20,
-  },
-  logo: {
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: '700',
-    color: burgundyTheme.colors.text,
-    marginBottom: 8,
-  },
-  subtitle: {
-    fontSize: 16,
-    color: burgundyTheme.colors.textMuted,
-    textAlign: 'center',
-  },
-  form: {
-    width: '100%',
-    backgroundColor: burgundyTheme.colors.surface,
-    borderRadius: 24,
-    padding: 20,
-    borderWidth: 1,
-    borderColor: burgundyTheme.colors.border,
-    ...burgundyTheme.shadow,
-  },
-  inputContainer: {
-    marginBottom: 20,
-  },
-  label: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: burgundyTheme.colors.text,
-    marginBottom: 8,
-  },
-  inputWrapper: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: burgundyTheme.colors.surfaceAlt,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: burgundyTheme.colors.border,
-    paddingHorizontal: 16,
-    height: 56,
-  },
-  inputError: {
-    borderColor: burgundyTheme.colors.danger,
-  },
-  inputIcon: {
-    marginRight: 12,
-  },
-  input: {
-    flex: 1,
-    fontSize: 16,
-    color: burgundyTheme.colors.text,
-    height: '100%',
-  },
-  eyeIcon: {
-    padding: 8,
-  },
-  errorText: {
-    color: burgundyTheme.colors.danger,
-    fontSize: 12,
-    marginTop: 4,
-    marginLeft: 4,
-  },
-  authButton: {
-    backgroundColor: burgundyTheme.colors.primary,
-    borderRadius: 12,
-    height: 56,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginTop: 8,
-    shadowColor: burgundyTheme.colors.primary,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  authButtonDisabled: {
-    opacity: 0.7,
-  },
-  authButtonText: {
-    color: burgundyTheme.colors.white,
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  divider: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginVertical: 30,
-  },
-  dividerLine: {
-    flex: 1,
-    height: 1,
-    backgroundColor: burgundyTheme.colors.border,
-  },
-  dividerText: {
-    paddingHorizontal: 16,
-    color: burgundyTheme.colors.textSubtle,
-    fontSize: 14,
-  },
-  toggleButton: {
-    paddingVertical: 16,
-  },
-  toggleButtonText: {
-    color: burgundyTheme.colors.primary,
-    fontSize: 16,
-    fontWeight: '600',
-    textAlign: 'center',
-  },
-  termsText: {
-    fontSize: 12,
-    color: burgundyTheme.colors.textSubtle,
-    textAlign: 'center',
-    marginTop: 30,
-    lineHeight: 18,
-  },
-  termsLink: {
-    color: burgundyTheme.colors.primary,
-    fontWeight: '600',
-  },
-});
+const getStyles = (theme: ReturnType<typeof useAppMode>['theme']) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: theme.colors.background,
+    },
+    scrollContainer: {
+      flexGrow: 1,
+      paddingHorizontal: 24,
+      paddingTop: 28,
+      paddingBottom: 40,
+    },
+    header: {
+      alignItems: 'stretch',
+      marginBottom: 40,
+    },
+    topRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: 28,
+    },
+    backButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+      paddingHorizontal: 12,
+      paddingVertical: 8,
+      borderRadius: 999,
+      backgroundColor: theme.colors.surface,
+      borderWidth: 1,
+      borderColor: theme.colors.border,
+    },
+    backButtonText: {
+      color: theme.colors.primary,
+      fontWeight: '700',
+    },
+    modePill: {
+      paddingHorizontal: 12,
+      paddingVertical: 8,
+      borderRadius: 999,
+      backgroundColor: theme.colors.primaryTint,
+    },
+    modePillText: {
+      color: theme.colors.primary,
+      fontSize: 12,
+      fontWeight: '700',
+    },
+    logoBadge: {
+      width: 112,
+      height: 112,
+      borderRadius: 56,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: theme.colors.primaryTint,
+      borderWidth: 1,
+      borderColor: theme.colors.primaryTintStrong,
+      marginBottom: 20,
+      alignSelf: 'center',
+    },
+    logo: {},
+    title: {
+      fontSize: 28,
+      fontWeight: '700',
+      color: theme.colors.text,
+      marginBottom: 8,
+      textAlign: 'center',
+    },
+    subtitle: {
+      fontSize: 16,
+      color: theme.colors.textMuted,
+      textAlign: 'center',
+    },
+    form: {
+      width: '100%',
+      backgroundColor: theme.colors.surface,
+      borderRadius: 24,
+      padding: 20,
+      borderWidth: 1,
+      borderColor: theme.colors.border,
+      ...theme.shadow,
+    },
+    inputContainer: {
+      marginBottom: 20,
+    },
+    label: {
+      fontSize: 14,
+      fontWeight: '600',
+      color: theme.colors.text,
+      marginBottom: 8,
+    },
+    inputWrapper: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: theme.colors.surfaceAlt,
+      borderRadius: 12,
+      borderWidth: 1,
+      borderColor: theme.colors.border,
+      paddingHorizontal: 16,
+      height: 56,
+    },
+    inputError: {
+      borderColor: theme.colors.danger,
+    },
+    inputIcon: {
+      marginRight: 12,
+    },
+    input: {
+      flex: 1,
+      fontSize: 16,
+      color: theme.colors.text,
+      height: '100%',
+    },
+    eyeIcon: {
+      padding: 8,
+    },
+    errorText: {
+      color: theme.colors.danger,
+      fontSize: 12,
+      marginTop: 4,
+      marginLeft: 4,
+    },
+    authButton: {
+      backgroundColor: theme.colors.primary,
+      borderRadius: 12,
+      height: 56,
+      justifyContent: 'center',
+      alignItems: 'center',
+      marginTop: 8,
+      shadowColor: theme.colors.primary,
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.2,
+      shadowRadius: 8,
+      elevation: 4,
+    },
+    authButtonDisabled: {
+      opacity: 0.7,
+    },
+    authButtonText: {
+      color: theme.colors.white,
+      fontSize: 16,
+      fontWeight: '600',
+    },
+    divider: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginVertical: 30,
+    },
+    dividerLine: {
+      flex: 1,
+      height: 1,
+      backgroundColor: theme.colors.border,
+    },
+    dividerText: {
+      paddingHorizontal: 16,
+      color: theme.colors.textSubtle,
+      fontSize: 14,
+    },
+    toggleButton: {
+      paddingVertical: 16,
+    },
+    toggleButtonText: {
+      color: theme.colors.primary,
+      fontSize: 16,
+      fontWeight: '600',
+      textAlign: 'center',
+    },
+    termsText: {
+      fontSize: 12,
+      color: theme.colors.textSubtle,
+      textAlign: 'center',
+      marginTop: 30,
+      lineHeight: 18,
+    },
+    termsLink: {
+      color: theme.colors.primary,
+      fontWeight: '600',
+    },
+  });

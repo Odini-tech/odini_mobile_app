@@ -1,141 +1,137 @@
-import supabase from '../config/supabaseClient';
+import { supabase } from '../../lib/supabase';
 
-/**
- * Event service
- * 
- * Assumptions about Supabase schema (adapt if your schema differs):
- * - events table: id, title, description, tags (text[]), category, ...
- * - event_ratings table: id, user_id, event_id, rating (1-5), comment, created_at
- * - user_trips table: id, user_id, event_id, created_at
- * - user_preferences table: id, user_id, tag (or category), score (numeric)
- *
- * This module exposes helpers to fetch events, add a rating, add events to trips,
- * and update user preference scores based on interactions.
- */
-
-// Helper to get current user id if not provided
 async function getCurrentUserId() {
   try {
-    // supabase-js v2
-    if (supabase.auth && supabase.auth.getUser) {
-      const { data, error } = await supabase.auth.getUser();
-      if (error) return null;
-      return data?.user?.id ?? null;
-    }
-
-    // fallback for older API
-    if (supabase.auth && supabase.auth.user) {
-      const u = supabase.auth.user();
-      return u?.id ?? null;
-    }
-
-    return null;
-  } catch (err) {
+    const { data, error } = await supabase.auth.getUser();
+    if (error) return null;
+    return data?.user?.id ?? null;
+  } catch (_) {
     return null;
   }
 }
 
-/**
- * Fetch events with optional filters. Includes aggregated rating (avg) computed client-side.
- * @param {Object} opts
- * @param {number} opts.limit
- * @param {number} opts.offset
- * @param {string[]} opts.tags - filter events that contain all supplied tags
- * @param {string} opts.orderBy - column to order by (default: created_at)
- */
-export async function fetchEvents({ limit = 50, offset = 0, tags = null, orderBy = 'created_at' } = {}) {
-  try {
-    let query = supabase.from('events').select('*, event_ratings(rating)');
+const mapRatingToScore = rating => {
+  const value = Math.max(1, Math.min(5, Math.round(Number(rating) || 0)));
+  const lookup = { 1: -1, 2: 0, 3: 3, 4: 5, 5: 7 };
+  return lookup[value] ?? 1;
+};
 
-    if (tags && Array.isArray(tags) && tags.length > 0) {
-      // assumes "tags" is a Postgres text[] column
-      query = query.contains('tags', tags);
+const normalizeEventRow = row => {
+  const event = Array.isArray(row.events) ? row.events[0] : row.events;
+  return {
+    ...row,
+    event: event || null,
+  };
+};
+
+async function resolveListingIdsFromTags(tags) {
+  if (!Array.isArray(tags) || tags.length === 0) return null;
+
+  const { data: tagRows, error: tagError } = await supabase
+    .from('tags')
+    .select('id, name')
+    .or(tags.map(tag => `id.eq.${tag},name.ilike.${tag}`).join(','));
+
+  if (tagError) throw tagError;
+
+  const tagIds = (tagRows || []).map(t => t.id);
+  if (tagIds.length === 0) return [];
+
+  const { data: links, error: linkError } = await supabase
+    .from('tag_listings')
+    .select('listing_id')
+    .in('tag_id', tagIds);
+
+  if (linkError) throw linkError;
+
+  return Array.from(new Set((links || []).map(link => link.listing_id)));
+}
+
+export async function fetchEvents({ limit = 50, offset = 0, tags = null, orderBy = 'created_at', eventType = null } = {}) {
+  try {
+    const listingIds = await resolveListingIdsFromTags(tags);
+    if (Array.isArray(listingIds) && listingIds.length === 0) {
+      return [];
     }
 
-    // pagination
-    query = query.range(offset, offset + limit - 1).order(orderBy, { ascending: false });
+    let query = supabase
+      .from('listings')
+      .select('id, host_id, listing_type, title, description, is_active, price, created_at, events!inner(event_time, event_type, capacity, available_slots, location, end_time)')
+      .eq('listing_type', 'event')
+      .eq('is_active', true)
+      .range(offset, offset + limit - 1)
+      .order(orderBy, { ascending: false });
+
+    if (eventType) {
+      query = query.eq('events.event_type', eventType);
+    }
+
+    if (Array.isArray(listingIds)) {
+      query = query.in('id', listingIds);
+    }
 
     const { data, error } = await query;
     if (error) throw error;
 
-    // compute avg rating per event
-    const events = (data || []).map(evt => {
-      const ratings = evt.event_ratings || [];
-      const avgRating = ratings.length ? (ratings.reduce((s, r) => s + Number(r.rating || 0), 0) / ratings.length) : null;
-      return { ...evt, avgRating, ratingsCount: ratings.length };
-    });
-
-    return events;
+    return (data || []).map(normalizeEventRow);
   } catch (err) {
     console.error('fetchEvents error', err);
     throw err;
   }
 }
 
-/**
- * Get a single event by id with ratings and average rating
- */
 export async function getEventById(eventId) {
   if (!eventId) throw new Error('eventId is required');
+
   try {
-    const { data, error } = await supabase.from('events').select('*, event_ratings(rating, user_id, comment, created_at)').eq('id', eventId).single();
+    const { data, error } = await supabase
+      .from('listings')
+      .select('id, host_id, listing_type, title, description, is_active, price, created_at, events!inner(event_time, event_type, capacity, available_slots, location, end_time)')
+      .eq('id', eventId)
+      .eq('listing_type', 'event')
+      .maybeSingle();
+
     if (error) throw error;
-    const ratings = data.event_ratings || [];
-    const avgRating = ratings.length ? (ratings.reduce((s, r) => s + Number(r.rating || 0), 0) / ratings.length) : null;
-    return { ...data, avgRating, ratingsCount: ratings.length };
+    if (!data) return null;
+
+    return normalizeEventRow(data);
   } catch (err) {
     console.error('getEventById error', err);
     throw err;
   }
 }
 
-/**
- * Compute preference delta based on rating.
- * Policy used: center rating around 3; delta = rating - 3.0
- * So 5 -> +2, 1 -> -2. Scale is configurable here.
- */
 function computePreferenceDelta(rating, weight = 1.0) {
   const center = 3.0;
-  const delta = (Number(rating) - center) * weight;
-  return delta;
+  return (Number(rating) - center) * weight;
 }
 
-/**
- * Update user's preference scores for given tags (or categories).
- * Upserts each tag row (assumes unique constraint on (user_id, tag)).
- */
 export async function updateUserPreferences(userId, tags = [], delta = 0) {
-  if (!userId) throw new Error('userId required');
-  if (!Array.isArray(tags) || tags.length === 0) return;
+  if (!userId || !Array.isArray(tags) || tags.length === 0) {
+    return true;
+  }
 
   try {
-    // For each tag, fetch existing score, then upsert with new score
-    // Note: this is done sequentially for clarity. If you have many tags you can batch these in parallel.
-    for (const tag of tags) {
-      const { data: existing, error: fetchErr } = await supabase
-        .from('user_preferences')
-        .select('*')
-        .eq('user_id', userId)
-        .eq('tag', tag)
-        .single();
-      if (fetchErr && fetchErr.code !== 'PGRST116') {
-        // PGRST116 is "No rows found" in some setups; ignore if not found
-        // but rethrow other errors
-        // Avoid relying on code strings across versions; this is a best-effort pattern
-      }
+    const score = mapRatingToScore(3 + delta);
 
-      const currentScore = existing?.score ?? 0;
-      const newScore = Number(currentScore) + Number(delta);
+    const { data: links } = await supabase
+      .from('tag_listings')
+      .select('listing_id, tags!inner(name)')
+      .in('tags.name', tags);
 
-      const payload = {
-        user_id: userId,
-        tag,
-        score: newScore,
-      };
+    if (!links || links.length === 0) return true;
 
-      const { error: upsertErr } = await supabase.from('user_preferences').upsert(payload, { onConflict: ['user_id', 'tag'] });
-      if (upsertErr) throw upsertErr;
-    }
+    const listingIds = Array.from(new Set(links.map(link => link.listing_id)));
+
+    const rows = listingIds.map(listingId => ({
+      user_id: userId,
+      listing_id: listingId,
+      score,
+      last_action: JSON.stringify({ action: 'preference_update', tags, delta }),
+    }));
+
+    const { error } = await supabase.from('interactions').insert(rows);
+    if (error) throw error;
 
     return true;
   } catch (err) {
@@ -144,15 +140,6 @@ export async function updateUserPreferences(userId, tags = [], delta = 0) {
   }
 }
 
-/**
- * Add or update a rating from a user for an event. Also updates preference scores.
- * If a rating by the same user for the same event exists, we update it.
- * @param {Object} opts
- * @param {string} opts.userId - optional, will be taken from auth if not provided
- * @param {string} opts.eventId
- * @param {number} opts.rating - 1..5
- * @param {string} opts.comment
- */
 export async function addRating({ userId = null, eventId, rating, comment = null } = {}) {
   if (!eventId) throw new Error('eventId required');
   if (!rating) throw new Error('rating required');
@@ -161,44 +148,31 @@ export async function addRating({ userId = null, eventId, rating, comment = null
   if (!uid) throw new Error('user not authenticated');
 
   try {
-    // Check if there is an existing rating by this user for this event
-    const { data: existing, error: fetchErr } = await supabase
-      .from('event_ratings')
-      .select('*')
-      .eq('user_id', uid)
-      .eq('event_id', eventId)
-      .single();
+    const score = mapRatingToScore(rating);
 
-    if (fetchErr && fetchErr.code && fetchErr.code !== 'PGRST116') {
-      // rethrow unexpected errors
-      // continue if "no rows" found
-    }
+    const { error } = await supabase
+      .from('interactions')
+      .insert({
+        user_id: uid,
+        listing_id: eventId,
+        score,
+        last_action: JSON.stringify({ action: 'event_rating', rating, comment }),
+      });
 
-    if (existing && existing.id) {
-      // Update existing rating
-      const { error: updateErr } = await supabase
-        .from('event_ratings')
-        .update({ rating, comment, updated_at: new Date().toISOString() })
-        .eq('id', existing.id);
-      if (updateErr) throw updateErr;
-    } else {
-      // Insert new rating
-      const { error: insertErr } = await supabase.from('event_ratings').insert({ user_id: uid, event_id: eventId, rating, comment });
-      if (insertErr) throw insertErr;
-    }
+    if (error) throw error;
 
-    // After rating, fetch event tags to update preferences
-    const { data: event, error: eventErr } = await supabase.from('events').select('id, tags, category').eq('id', eventId).single();
-    if (eventErr) throw eventErr;
+    const { data: tagLinks } = await supabase
+      .from('tag_listings')
+      .select('tags!inner(name)')
+      .eq('listing_id', eventId);
 
-    // determine tags to update
-    const tags = event.tags || (event.category ? [event.category] : []);
-
+    const tags = (tagLinks || []).map(link => link.tags?.name).filter(Boolean);
     const delta = computePreferenceDelta(rating, 1.0);
 
-    await updateUserPreferences(uid, tags, delta);
+    if (tags.length > 0) {
+      await updateUserPreferences(uid, tags, delta);
+    }
 
-    // Return the updated event with new rating stats
     return await getEventById(eventId);
   } catch (err) {
     console.error('addRating error', err);
@@ -206,29 +180,42 @@ export async function addRating({ userId = null, eventId, rating, comment = null
   }
 }
 
-/**
- * Add an event to a user's trip (user_trips table). Optionally takes a tripId if your schema supports trips/itineraries.
- * Also can update preferences positively to indicate stronger interest.
- */
 export async function addToTrip({ userId = null, eventId, tripId = null } = {}) {
   if (!eventId) throw new Error('eventId required');
+
   const uid = userId || (await getCurrentUserId());
   if (!uid) throw new Error('user not authenticated');
 
   try {
-    const payload = { user_id: uid, event_id: eventId };
-    if (tripId) payload.trip_id = tripId;
+    const { data: eventListing, error: listingErr } = await supabase
+      .from('listings')
+      .select('id, host_id, listing_type, price')
+      .eq('id', eventId)
+      .eq('listing_type', 'event')
+      .single();
 
-    // prevent duplicates (optional) — assumes a unique constraint exists if you prefer
-    const { error: insertErr } = await supabase.from('user_trips').insert(payload);
+    if (listingErr || !eventListing) {
+      throw listingErr || new Error('Event listing not found');
+    }
+
+    const { error: insertErr } = await supabase
+      .from('bookings')
+      .insert({
+        booking_ref: tripId || `EVT-${Date.now()}-${Math.random().toString(36).slice(2, 8).toUpperCase()}`,
+        host_id: eventListing.host_id,
+        user_id: uid,
+        listing_id: eventId,
+        listing_type: 'event',
+        guests: 1,
+        price_at_booking: eventListing.price || 0,
+        total_price: eventListing.price || 0,
+        quantity: 1,
+        reservation_time: new Date().toISOString(),
+        status: 'pending',
+        notes: tripId ? `Trip ${tripId}` : 'Added to trip',
+      });
+
     if (insertErr) throw insertErr;
-
-    // Positive preference bump for adding to trip
-    const { data: event } = await supabase.from('events').select('tags, category').eq('id', eventId).single();
-    const tags = event?.tags || (event?.category ? [event.category] : []);
-
-    const delta = 0.75; // smaller positive bump than a 5-star rating
-    await updateUserPreferences(uid, tags, delta);
 
     return true;
   } catch (err) {
@@ -237,19 +224,24 @@ export async function addToTrip({ userId = null, eventId, tripId = null } = {}) 
   }
 }
 
-/**
- * Get all events added to user's trips
- */
 export async function getUserTripEvents(userId = null) {
   const uid = userId || (await getCurrentUserId());
   if (!uid) throw new Error('user not authenticated');
+
   try {
     const { data, error } = await supabase
-      .from('user_trips')
-      .select('event:events(*)')
-      .eq('user_id', uid);
+      .from('bookings')
+      .select('listing:listings(id, host_id, listing_type, title, description, is_active, price, created_at, events!inner(event_time, event_type, capacity, available_slots, location, end_time))')
+      .eq('user_id', uid)
+      .eq('listing_type', 'event')
+      .in('status', ['pending', 'confirmed', 'completed']);
+
     if (error) throw error;
-    return (data || []).map(r => r.event);
+
+    return (data || [])
+      .map(row => row.listing)
+      .filter(Boolean)
+      .map(normalizeEventRow);
   } catch (err) {
     console.error('getUserTripEvents error', err);
     throw err;
@@ -259,27 +251,52 @@ export async function getUserTripEvents(userId = null) {
 export async function getUserPreferences(userId = null) {
   const uid = userId || (await getCurrentUserId());
   if (!uid) throw new Error('user not authenticated');
+
   try {
-    const { data, error } = await supabase.from('user_preferences').select('*').eq('user_id', uid);
+    const { data: interactions, error } = await supabase
+      .from('interactions')
+      .select('listing_id, score')
+      .eq('user_id', uid);
+
     if (error) throw error;
-    return data || [];
+
+    if (!interactions || interactions.length === 0) return [];
+
+    const listingIds = Array.from(new Set(interactions.map(i => i.listing_id)));
+    const listingScoreMap = interactions.reduce((acc, row) => {
+      acc[row.listing_id] = (acc[row.listing_id] || 0) + Number(row.score || 0);
+      return acc;
+    }, {});
+
+    const { data: tagLinks } = await supabase
+      .from('tag_listings')
+      .select('listing_id, tags!inner(name)')
+      .in('listing_id', listingIds);
+
+    const tagScoreMap = {};
+    (tagLinks || []).forEach(link => {
+      const tagName = link.tags?.name;
+      if (!tagName) return;
+      tagScoreMap[tagName] = (tagScoreMap[tagName] || 0) + (listingScoreMap[link.listing_id] || 0);
+    });
+
+    return Object.entries(tagScoreMap)
+      .map(([tag, score]) => ({ tag, score }))
+      .sort((a, b) => b.score - a.score);
   } catch (err) {
     console.error('getUserPreferences error', err);
     throw err;
   }
 }
 
-/**
- * Subscribe to event changes (INSERT, UPDATE, DELETE). Callback receives a payload describing the change.
- * Usage: const sub = subscribeToEvents(handleChange);
- * To unsubscribe: supabase.removeSubscription(sub) or sub.unsubscribe() depending on client version
- */
 export function subscribeToEvents(onChange) {
-  // This uses the Realtime (or PostgresChanges) interface
   try {
-    const channel = supabase.channel('public:events').on('postgres_changes', { event: '*', schema: 'public', table: 'events' }, payload => {
-      onChange && onChange(payload);
-    }).subscribe();
+    const channel = supabase
+      .channel('public:events')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'events' }, payload => {
+        if (onChange) onChange(payload);
+      })
+      .subscribe();
 
     return channel;
   } catch (err) {
@@ -300,4 +317,3 @@ const eventService = {
 };
 
 export default eventService;
- 

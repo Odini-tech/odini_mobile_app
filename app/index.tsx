@@ -3,7 +3,8 @@ import { useRouter } from "expo-router";
 import { useEffect, useRef, useState } from "react";
 import { ActivityIndicator, StyleSheet, View } from "react-native";
 import { supabase } from "../lib/supabase";
-import burgundyTheme from "../src/theme/burgundyTheme";
+import RoleLanding from "../src/components/auth/RoleLanding";
+import { useAppMode } from "../src/context/AppModeContext";
 
 import AuthScreen from "./(tabs)/authScreen";
 
@@ -12,6 +13,7 @@ export default function App() {
   const [loading, setLoading] = useState(true);
   const router = useRouter();
   const prevSessionRef = useRef<Session | null>(null);
+  const { clearMode, isReady, mode, setMode, theme } = useAppMode();
 
   useEffect(() => {
     let mounted = true;
@@ -21,7 +23,14 @@ export default function App() {
       setSession(data.session);
       setLoading(false);
       prevSessionRef.current = data.session;
-      if (data.session) router.replace('/home' as any);
+      if (data.session) {
+        if (!mode) {
+          setMode('patient').catch((error) => {
+            console.warn('Failed to set default app mode:', error);
+          });
+        }
+        router.replace('/home' as any);
+      }
     });
 
     const { data: listener } = supabase.auth.onAuthStateChange(
@@ -46,17 +55,30 @@ export default function App() {
       mounted = false;
       listener.subscription.unsubscribe();
     };
-  }, []);
+  }, [mode, router, setMode]);
 
-  if (loading) {
+  if (loading || !isReady) {
     return (
       <View style={styles.loadingScreen}>
-        <ActivityIndicator size="large" color={burgundyTheme.colors.primary} />
+        <ActivityIndicator size="large" color={theme.colors.primary} />
       </View>
     );
   }
 
-  return session ? <></> : <AuthScreen />;
+  if (session) {
+    return <></>;
+  }
+
+  if (!mode) {
+    return (
+      <RoleLanding
+        onSelectDoctor={() => setMode('doctor')}
+        onSelectPatient={() => setMode('patient')}
+      />
+    );
+  }
+
+  return <AuthScreen onBack={clearMode} />;
 }
 
 const styles = StyleSheet.create({
@@ -64,6 +86,6 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: burgundyTheme.colors.background,
+    backgroundColor: "#FFFFFF",
   },
 });

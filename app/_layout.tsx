@@ -2,6 +2,7 @@ import { Slot, useRouter, useSegments } from "expo-router";
 import { useEffect, useRef, useState } from "react";
 import { Animated, Easing, StyleSheet, View } from "react-native";
 import { supabase } from "../lib/supabase";
+import { AppModeProvider, useAppMode } from "../src/context/AppModeContext";
 import {
   BottomNavVisibilityProvider,
   useBottomNavVisibility,
@@ -13,6 +14,7 @@ const DEFAULT_NAV_HEIGHT = 88;
 function RootLayoutContent() {
   const router = useRouter();
   const segments = useSegments();
+  const { clearMode, mode } = useAppMode();
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [navHeight, setNavHeight] = useState(DEFAULT_NAV_HEIGHT);
   const { isBottomNavVisible, resetBottomNavScroll } = useBottomNavVisibility();
@@ -53,6 +55,7 @@ function RootLayoutContent() {
 
   const handleSignOut = async () => {
     try {
+      await clearMode();
       await supabase.auth.signOut();
       router.replace("/" as any);
     } catch (e) {
@@ -110,6 +113,7 @@ function RootLayoutContent() {
               onProfilePress={handleProfile}
               onSignOutPress={handleSignOut}
               onSearchPress={handleSearch}
+              showSignOut={mode === "doctor"}
             />
           </Animated.View>
         </Animated.View>
@@ -120,9 +124,11 @@ function RootLayoutContent() {
 
 export default function RootLayout() {
   return (
-    <BottomNavVisibilityProvider>
-      <RootLayoutContent />
-    </BottomNavVisibilityProvider>
+    <AppModeProvider>
+      <BottomNavVisibilityProvider>
+        <RootLayoutContent />
+      </BottomNavVisibilityProvider>
+    </AppModeProvider>
   );
 }
 

@@ -11,7 +11,6 @@ import {
   View,
 } from 'react-native';
 import { supabase } from '../lib/supabase';
-import burgundyTheme from '../src/theme/burgundyTheme';
 
 export default function SearchPage() {
   const router = useRouter();
@@ -39,6 +38,7 @@ export default function SearchPage() {
         return;
       }
 
+      const listingIds = Array.from(new Set(catListings.map((c) => c.listing_id)));
       const { data: bookings } = await supabase.from('bookings').select('listing_id');
 
       const bookingCountByListing = {};
@@ -128,11 +128,6 @@ export default function SearchPage() {
 
   return (
     <View style={styles.page}>
-      <View style={styles.hero}>
-        <Text style={styles.eyebrow}>Find your next experience</Text>
-        <Text style={styles.heroTitle}>Search in a burgundy glow</Text>
-      </View>
-
       <View style={styles.topSearch}>
         <TextInput
           style={styles.searchInput}
@@ -141,7 +136,6 @@ export default function SearchPage() {
           onChangeText={setQuery}
           returnKeyType="search"
           onSubmitEditing={handleSearchSubmit}
-          placeholderTextColor={burgundyTheme.colors.textSubtle}
         />
         <TouchableOpacity style={styles.searchBtn} onPress={handleSearchSubmit}>
           <Text style={styles.searchBtnText}>Search</Text>
@@ -152,7 +146,7 @@ export default function SearchPage() {
         <Text style={styles.sectionTitle}>Popular Today</Text>
         {popularLoading ? (
           <View style={styles.loaderRow}>
-            <ActivityIndicator size="small" color={burgundyTheme.colors.primary} />
+            <ActivityIndicator size="small" color="#4A90E2" />
           </View>
         ) : (
           <CategoryGrid
@@ -165,7 +159,7 @@ export default function SearchPage() {
         <Text style={styles.sectionTitle}>You May Like</Text>
         {personalLoading ? (
           <View style={styles.loaderRow}>
-            <ActivityIndicator size="small" color={burgundyTheme.colors.primary} />
+            <ActivityIndicator size="small" color="#4A90E2" />
           </View>
         ) : (
           <CategoryGrid
@@ -193,7 +187,7 @@ function CategoryGrid({ categories, onPress, fallbackText }) {
   );
 }
 
-function CategoryTile({ category, onPress }) {
+function CategoryTile({ category, onPress }) {  
   const hasImage = !!category.image_url;
   const content = (
     <View style={styles.categoryOverlay}>
@@ -224,57 +218,28 @@ function CategoryTile({ category, onPress }) {
 const styles = StyleSheet.create({
   page: {
     flex: 1,
-    backgroundColor: burgundyTheme.colors.background,
-  },
-  hero: {
-    paddingHorizontal: 16,
-    paddingTop: 24,
-    paddingBottom: 8,
-  },
-  eyebrow: {
-    fontSize: 12,
-    fontWeight: '700',
-    letterSpacing: 1,
-    textTransform: 'uppercase',
-    color: burgundyTheme.colors.primarySoft,
-    marginBottom: 6,
-  },
-  heroTitle: {
-    fontSize: 26,
-    fontWeight: '800',
-    color: burgundyTheme.colors.text,
+    backgroundColor: '#FFF',
   },
   topSearch: {
     flexDirection: 'row',
-    marginHorizontal: 12,
-    marginTop: 8,
-    marginBottom: 6,
     padding: 12,
     gap: 8,
-    backgroundColor: burgundyTheme.colors.surface,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: burgundyTheme.colors.border,
-    ...burgundyTheme.shadow,
   },
   searchInput: {
     flex: 1,
     height: 44,
-    borderRadius: 12,
-    backgroundColor: burgundyTheme.colors.surfaceAlt,
+    borderRadius: 8,
+    backgroundColor: '#F5F5F5',
     paddingHorizontal: 12,
-    color: burgundyTheme.colors.text,
-    borderWidth: 1,
-    borderColor: burgundyTheme.colors.border,
   },
   searchBtn: {
-    backgroundColor: burgundyTheme.colors.primary,
+    backgroundColor: '#4A90E2',
     paddingHorizontal: 16,
     justifyContent: 'center',
-    borderRadius: 12,
+    borderRadius: 8,
   },
   searchBtnText: {
-    color: burgundyTheme.colors.white,
+    color: '#FFF',
     fontWeight: '700',
   },
   content: {
@@ -284,11 +249,10 @@ const styles = StyleSheet.create({
     paddingBottom: 24,
   },
   sectionTitle: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: '700',
     marginTop: 12,
     marginHorizontal: 12,
-    color: burgundyTheme.colors.text,
   },
   loaderRow: {
     paddingHorizontal: 12,
@@ -307,9 +271,7 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     marginBottom: 12,
     overflow: 'hidden',
-    backgroundColor: burgundyTheme.colors.surfaceAlt,
-    borderWidth: 1,
-    borderColor: burgundyTheme.colors.border,
+    backgroundColor: '#F3F6FB',
   },
   categoryImage: {
     flex: 1,
@@ -319,13 +281,13 @@ const styles = StyleSheet.create({
     borderRadius: 14,
   },
   categoryOverlay: {
-    backgroundColor: burgundyTheme.colors.overlay,
+    backgroundColor: 'rgba(0,0,0,0.4)',
     padding: 10,
   },
   categoryName: {
     fontSize: 16,
     fontWeight: '700',
-    color: burgundyTheme.colors.white,
+    color: '#FFF',
   },
   categoryCount: {
     fontSize: 12,
@@ -335,11 +297,11 @@ const styles = StyleSheet.create({
   categoryFallback: {
     padding: 12,
     justifyContent: 'flex-end',
-    backgroundColor: burgundyTheme.colors.primaryTintStrong,
+    backgroundColor: '#E5E8EF',
   },
   fallbackText: {
     fontSize: 14,
-    color: burgundyTheme.colors.textMuted,
+    color: '#666',
     paddingHorizontal: 12,
     marginTop: 8,
   },

@@ -10,7 +10,7 @@ import {
 import Dash from '../../src/components/homeTabs/dash';
 import Explore from '../../src/components/homeTabs/explore';
 import { ForYouPage } from '../../src/components/homeTabs/myFeed';
-import burgundyTheme from '../../src/theme/burgundyTheme';
+import { useAppMode } from '../../src/context/AppModeContext';
 
 const { width } = Dimensions.get('window');
 
@@ -21,6 +21,8 @@ const TABS = [
 ];
 
 const Home = () => {
+  const { theme } = useAppMode();
+  const styles = getStyles(theme);
   const [activeTab, setActiveTab] = useState(1);
   const indicatorAnim = useRef(new Animated.Value(width / 3)).current;
 
@@ -36,7 +38,6 @@ const Home = () => {
   };
 
   const performItemAction = (listing) => {
-    // TODO: replace with navigation to detail screen when available
     console.log('Perform action for listing:', listing);
   };
 
@@ -83,49 +84,50 @@ const Home = () => {
   );
 };
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: burgundyTheme.colors.background,
-  },
-  topNav: {
-    flexDirection: 'row',
-    backgroundColor: burgundyTheme.colors.surface,
-    borderBottomWidth: 1,
-    borderBottomColor: burgundyTheme.colors.border,
-    paddingTop: 12,
-    paddingBottom: 8,
-    position: 'relative',
-  },
-  tabButton: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 12,
-    marginHorizontal: 6,
-    borderRadius: 16,
-  },
-  tabLabel: {
-    color: burgundyTheme.colors.textMuted,
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  activeTabLabel: {
-    color: burgundyTheme.colors.primary,
-    fontWeight: 'bold',
-  },
-  indicator: {
-    position: 'absolute',
-    bottom: 0,
-    width: width / 3,
-    height: 4,
-    backgroundColor: burgundyTheme.colors.primary,
-    borderRadius: 999,
-  },
-  page: {
-    flex: 1,
-    backgroundColor: burgundyTheme.colors.background,
-  },
-});
+const getStyles = (theme) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: theme.colors.background,
+    },
+    topNav: {
+      flexDirection: 'row',
+      backgroundColor: theme.colors.surface,
+      borderBottomWidth: 1,
+      borderBottomColor: theme.colors.border,
+      paddingTop: 12,
+      paddingBottom: 8,
+      position: 'relative',
+    },
+    tabButton: {
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingVertical: 12,
+      marginHorizontal: 6,
+      borderRadius: 16,
+    },
+    tabLabel: {
+      color: theme.colors.textMuted,
+      fontSize: 14,
+      fontWeight: '600',
+    },
+    activeTabLabel: {
+      color: theme.colors.primary,
+      fontWeight: 'bold',
+    },
+    indicator: {
+      position: 'absolute',
+      bottom: 0,
+      width: width / 3,
+      height: 4,
+      backgroundColor: theme.colors.primary,
+      borderRadius: 999,
+    },
+    page: {
+      flex: 1,
+      backgroundColor: theme.colors.background,
+    },
+  });
 
 export default Home;

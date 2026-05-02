@@ -1,6 +1,6 @@
 // src/services/recommendationService.ts
 
-import { supabase } from '../config/supabaseclient';
+import { supabase } from '../../lib/supabase';
 
 /**
  * Recommendation context types
@@ -155,7 +155,7 @@ export const RecommendationService = {
    * Private method to call the recommendations Edge Function
    * Centralizes all Edge Function calls for consistency and error handling
    */
-  private async _callRecommendationFunction(
+  async _callRecommendationFunction(
     request: RecommendationRequest
   ): Promise<RecommendationResponse> {
     try {
