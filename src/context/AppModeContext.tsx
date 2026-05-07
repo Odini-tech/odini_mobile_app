@@ -2,7 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { getThemeForMode } from '../theme/appModeTheme';
 
-type AppMode = 'patient' | 'doctor' | null;
+type AppMode = 'user' | null;
 
 type AppModeContextValue = {
   mode: AppMode;
@@ -26,8 +26,8 @@ export function AppModeProvider({ children }: { children: React.ReactNode }) {
     AsyncStorage.getItem(STORAGE_KEY)
       .then((storedMode) => {
         if (!isMounted) return;
-        if (storedMode === 'patient' || storedMode === 'doctor') {
-          setModeState(storedMode);
+        if (storedMode === 'user') {
+          setModeState(storedMode as AppMode);
         }
       })
       .finally(() => {

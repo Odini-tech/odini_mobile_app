@@ -15,11 +15,7 @@ import {
 import { supabase } from '../../lib/supabase';
 import { useAppMode } from '../../src/context/AppModeContext';
 
-type AuthScreenProps = {
-  onBack?: () => void | Promise<void>;
-};
-
-export default function AuthScreen({ onBack }: AuthScreenProps) {
+export default function AuthScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [username, setUsername] = useState('');
@@ -31,9 +27,8 @@ export default function AuthScreen({ onBack }: AuthScreenProps) {
     password?: string;
     username?: string;
   }>({});
-  const { mode, theme } = useAppMode();
+  const { theme } = useAppMode();
   const styles = getStyles(theme);
-  const isDoctor = mode === 'doctor';
 
   const validateForm = () => {
     const newErrors: typeof errors = {};
@@ -85,7 +80,7 @@ export default function AuthScreen({ onBack }: AuthScreenProps) {
             {
               id: authData.user.id,
               username,
-              role: isDoctor ? 'doctor' : 'patient',
+              role: 'user',
             },
           ]);
 
@@ -155,19 +150,11 @@ export default function AuthScreen({ onBack }: AuthScreenProps) {
     >
       <ScrollView contentContainerStyle={styles.scrollContainer} showsVerticalScrollIndicator={false}>
         <View style={styles.header}>
-          <View style={styles.topRow}>
-            <TouchableOpacity style={styles.backButton} onPress={onBack}>
-              <Ionicons name="chevron-back" size={18} color={theme.colors.primary} />
-              <Text style={styles.backButtonText}>Back</Text>
-            </TouchableOpacity>
-            <View style={styles.modePill}>
-              <Text style={styles.modePillText}>{isDoctor ? 'Doctor Side' : 'Patient Side'}</Text>
-            </View>
-          </View>
+          <View style={styles.topRow} />
 
           <View style={styles.logoBadge}>
             <Ionicons
-              name={isDoctor ? 'medkit-outline' : 'person-outline'}
+              name="globe-outline"
               size={60}
               color={theme.colors.primary}
               style={styles.logo}
@@ -177,8 +164,8 @@ export default function AuthScreen({ onBack }: AuthScreenProps) {
           <Text style={styles.title}>{isSignUp ? 'Create Account' : 'Welcome Back'}</Text>
           <Text style={styles.subtitle}>
             {isSignUp
-              ? `Sign up to enter the ${isDoctor ? 'doctor' : 'patient'} side`
-              : `Sign in to continue on the ${isDoctor ? 'doctor' : 'patient'} side`}
+              ? 'Sign up to explore amazing travel experiences'
+              : 'Sign in to continue exploring'}
           </Text>
         </View>
 

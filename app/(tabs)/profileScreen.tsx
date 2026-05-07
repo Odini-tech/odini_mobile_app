@@ -3,13 +3,13 @@ import { Session } from '@supabase/supabase-js';
 import { useRouter } from 'expo-router';
 import React, { useCallback, useEffect, useState } from 'react';
 import {
-  ActivityIndicator,
-  Alert,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
+    ActivityIndicator,
+    Alert,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
 } from 'react-native';
 import { supabase } from '../../lib/supabase';
 import { useAppMode } from '../../src/context/AppModeContext';
@@ -28,7 +28,7 @@ export default function ProfileScreen() {
   const [session, setSession] = useState<Session | null>(null);
   const bottomNavScroll = useBottomNavScroll();
   const router = useRouter();
-  const { clearMode, mode, theme } = useAppMode();
+  const { clearMode, theme } = useAppMode();
   const styles = getStyles(theme);
 
   const createProfile = useCallback(async (userId: string, email?: string) => {
@@ -39,7 +39,7 @@ export default function ProfileScreen() {
           {
             id: userId,
             username: email?.split('@')[0] || 'user',
-            role: mode || 'patient',
+            role: 'user',
           },
         ])
         .select()
@@ -51,7 +51,7 @@ export default function ProfileScreen() {
       console.error('Error creating profile:', error);
       throw error;
     }
-  }, [mode]);
+  }, []);
 
   const fetchSessionAndProfile = useCallback(async () => {
     try {
@@ -142,10 +142,6 @@ export default function ProfileScreen() {
 
         <Text style={styles.name}>{profile?.username || 'User'}</Text>
         <Text style={styles.email}>{session?.user?.email}</Text>
-
-        <View style={styles.badge}>
-          <Text style={styles.badgeText}>{mode === 'doctor' ? 'Doctor Side' : 'Patient Side'}</Text>
-        </View>
       </View>
 
       <View style={styles.section}>

@@ -4,8 +4,8 @@ import { Animated, Easing, StyleSheet, View } from "react-native";
 import { supabase } from "../lib/supabase";
 import { AppModeProvider, useAppMode } from "../src/context/AppModeContext";
 import {
-  BottomNavVisibilityProvider,
-  useBottomNavVisibility,
+    BottomNavVisibilityProvider,
+    useBottomNavVisibility,
 } from "../src/context/BottomNavVisibilityContext";
 import BottomNav from "./(tabs)/components/BottomNav";
 
@@ -14,7 +14,7 @@ const DEFAULT_NAV_HEIGHT = 88;
 function RootLayoutContent() {
   const router = useRouter();
   const segments = useSegments();
-  const { clearMode, mode } = useAppMode();
+  const { clearMode } = useAppMode();
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [navHeight, setNavHeight] = useState(DEFAULT_NAV_HEIGHT);
   const { isBottomNavVisible, resetBottomNavScroll } = useBottomNavVisibility();
@@ -113,7 +113,7 @@ function RootLayoutContent() {
               onProfilePress={handleProfile}
               onSignOutPress={handleSignOut}
               onSearchPress={handleSearch}
-              showSignOut={mode === "doctor"}
+              showSignOut={true}
             />
           </Animated.View>
         </Animated.View>

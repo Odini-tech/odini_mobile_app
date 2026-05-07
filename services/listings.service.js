@@ -20,7 +20,7 @@ export async function getListings(listingType = null) {
         profiles:host_id(username, firstname, lastname, location),
         stays(durations_nights, max_guests, available_rooms),
         events(event_time, event_type, capacity),
-        offering(service_type, opening_hours, price_range),
+        offering(service_type, opening_hours, location, duration_minutes, max_bookings),
         price
       `)
       .eq("is_active", true)
@@ -76,7 +76,7 @@ export async function getListingById(listingId) {
         profiles:host_id(username, firstname, lastname, location),
         stays(durations_nights, max_guests, available_rooms),
         events(event_time, event_type, capacity),
-        offering(service_type, opening_hours, price_range),
+        offering(service_type, opening_hours, location, duration_minutes, max_bookings),
         price
       `)
       .eq("id", listingId)

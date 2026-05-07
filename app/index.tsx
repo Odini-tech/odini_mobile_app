@@ -3,7 +3,6 @@ import { useRouter } from "expo-router";
 import { useEffect, useRef, useState } from "react";
 import { ActivityIndicator, StyleSheet, View } from "react-native";
 import { supabase } from "../lib/supabase";
-import RoleLanding from "../src/components/auth/RoleLanding";
 import { useAppMode } from "../src/context/AppModeContext";
 import { announceRecommendationMode, onRecommendationModeChange } from "../src/services/recommendationGateway";
 
@@ -14,7 +13,7 @@ export default function App() {
   const [loading, setLoading] = useState(true);
   const router = useRouter();
   const prevSessionRef = useRef<Session | null>(null);
-  const { clearMode, isReady, mode, setMode, theme } = useAppMode();
+  const { isReady, setMode, theme } = useAppMode();
 
   useEffect(() => {
     announceRecommendationMode();
@@ -33,11 +32,9 @@ export default function App() {
       setLoading(false);
       prevSessionRef.current = data.session;
       if (data.session) {
-        if (!mode) {
-          setMode('patient').catch((error) => {
-            console.warn('Failed to set default app mode:', error);
-          });
-        }
+        setMode('user').catch((error) => {
+          console.warn('Failed to set default app mode:', error);
+        });
         router.replace('/home' as any);
       }
     });
@@ -64,7 +61,7 @@ export default function App() {
       mounted = false;
       listener.subscription.unsubscribe();
     };
-  }, [mode, router, setMode]);
+  }, [router, setMode]);
 
   if (loading || !isReady) {
     return (
@@ -78,16 +75,7 @@ export default function App() {
     return <></>;
   }
 
-  if (!mode) {
-    return (
-      <RoleLanding
-        onSelectDoctor={() => setMode('doctor')}
-        onSelectPatient={() => setMode('patient')}
-      />
-    );
-  }
-
-  return <AuthScreen onBack={clearMode} />;
+  return <AuthScreen />;
 }
 
 const styles = StyleSheet.create({
