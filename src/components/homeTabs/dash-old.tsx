@@ -2,17 +2,18 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
-  ActivityIndicator,
   Dimensions,
   Image,
   ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
-  View
+  View,
+  ActivityIndicator
 } from 'react-native';
 import { supabase } from '../../../lib/supabase';
-import { listingService } from '../../services/listingService';
+import { searchService } from '../../../services/searchService';
+import { listingService } from '../../../services/listingService';
 import burgundyTheme from '../../theme/burgundyTheme';
 
 const { width } = Dimensions.get('window');
@@ -123,38 +124,40 @@ export default function Dash({ onItemClick }) {
       });
 
       // Convert listings to SearchResult format
-      const imageUrls = [
-        'https://images.unsplash.com/photo-1578321272176-852e6aa3a76e?w=400&h=400&fit=crop',
-        'https://images.unsplash.com/photo-1552820728-8ac41f1ce891?w=400&h=400&fit=crop',
-        'https://images.unsplash.com/photo-1489824904134-891ab64532f1?w=400&h=400&fit=crop',
-        'https://images.unsplash.com/photo-1531746790731-6c087fecd65b?w=400&h=400&fit=crop',
-        'https://images.unsplash.com/photo-1478268413698-81f0f2de5bcc?w=400&h=400&fit=crop',
-        'https://images.unsplash.com/photo-1514395462716-a3dec6deba34?w=400&h=400&fit=crop',
-        'https://images.unsplash.com/photo-1517457373614-b7152f800fd1?w=400&h=400&fit=crop',
-        'https://images.unsplash.com/photo-1552664730-d307ca884978?w=400&h=400&fit=crop',
-        'https://images.unsplash.com/photo-1577720643272-265f434f6408?w=400&h=400&fit=crop',
-      ];
+      const searchResults: SearchResult[] = listings.map((listing, idx) => {
+        const imageUrls = [
+          'https://images.unsplash.com/photo-1578321272176-852e6aa3a76e?w=400&h=400&fit=crop',
+          'https://images.unsplash.com/photo-1552820728-8ac41f1ce891?w=400&h=400&fit=crop',
+          'https://images.unsplash.com/photo-1489824904134-891ab64532f1?w=400&h=400&fit=crop',
+          'https://images.unsplash.com/photo-1531746790731-6c087fecd65b?w=400&h=400&fit=crop',
+          'https://images.unsplash.com/photo-1478268413698-81f0f2de5bcc?w=400&h=400&fit=crop',
+          'https://images.unsplash.com/photo-1514395462716-a3dec6deba34?w=400&h=400&fit=crop',
+          'https://images.unsplash.com/photo-1517457373614-b7152f800fd1?w=400&h=400&fit=crop',
+          'https://images.unsplash.com/photo-1552664730-d307ca884978?w=400&h=400&fit=crop',
+          'https://images.unsplash.com/photo-1577720643272-265f434f6408?w=400&h=400&fit=crop',
+        ];
 
-      const searchResults: SearchResult[] = listings.map((listing, idx) => ({
-        id: listing.id,
-        title: listing.title,
-        description: listing.description || 'Event or listing',
-        imageUrl: imageUrls[idx % imageUrls.length],
-        date: listing.listing_type === 'event' ? `Friday, Nov ${21 + (idx % 10)}` : '',
-        time: listing.listing_type === 'event' ? 'All Day' : '',
-        location: listing.listing_type === 'event' ? 'Lusaka' : listing.title,
-        price: listing.price || '0',
-        attendees: 100 + idx * 10,
-        rating: 4.2 + (idx % 5) * 0.2,
-        category: listing.listing_type,
-        organizer: 'ODINI',
-        isVerified: idx % 2 === 0,
-      }));
+        return {
+          id: listing.id,
+          title: listing.title,
+          description: listing.description || 'Event or listing',
+          imageUrl: imageUrls[idx % imageUrls.length],
+          date: listing.listing_type === 'event' ? `Friday, Nov ${21 + idx}` : '',
+          time: listing.listing_type === 'event' ? 'All Day' : '',
+          location: listing.listing_type === 'event' ? 'Lusaka' : listing.title,
+          price: listing.price || '0',
+          attendees: 100 + idx * 10,
+          rating: 4.2 + (idx % 5) * 0.2,
+          category: listing.listing_type,
+          organizer: 'ODINI',
+          isVerified: idx % 2 === 0,
+        };
+      });
 
       setAllListings(searchResults);
-      setUpcomingEvents(searchResults.filter(r => r.category === 'event').slice(0, 5));
-      setFavoritePlaces(searchResults.slice(0, 8));
-      setRecentlyVisited(searchResults.slice(0, 5));
+      setUpcomingEvents(searchResults.slice(0, 3).filter(r => r.category === 'event'));
+      setFavoritePlaces(searchResults.slice(3, 8));
+      setRecentlyVisited(searchResults.slice(0, 3));
     } catch (err) {
       console.error('Error fetching listings:', err);
       // Use default data if fetch fails
@@ -166,11 +169,8 @@ export default function Dash({ onItemClick }) {
   };
 
   const handleShowAll = (sectionId: string, items: SearchResult[]) => {
-    if (expandedSection === sectionId) {
-      setExpandedSection(null);
-    } else {
-      setExpandedSection(sectionId);
-    }
+    setExpandedSection(sectionId);
+    onItemClick?.({ id: sectionId, title: sectionId, items });
   };
 
   const getDisplayItems = (items: SearchResult[], sectionId: string) => {
@@ -179,6 +179,182 @@ export default function Dash({ onItemClick }) {
     }
     return items.slice(0, 3);
   };
+
+  const renderCollectionCard = (collection) => {
+    {
+      id: '1',
+      title: 'ZAMBIAN ART AND DESIGN SHOW',
+      description: 'Experience the finest Zambian art and design at CIELA.',
+      imageUrl: 'https://images.unsplash.com/photo-1578321272176-852e6aa3a76e?w=400&h=400&fit=crop',
+      date: 'Friday, Nov 21',
+      time: 'All Day',
+      location: 'CIELA',
+      price: 'From K100',
+      attendees: 189,
+      rating: 4.6,
+      category: 'Art',
+      organizer: 'CIELA',
+      isVerified: true,
+    },
+    {
+      id: '2',
+      title: 'LUSAKA THRIFT MARKET & BLOCK PARTY',
+      description: 'Join the thrift market and block party.',
+      imageUrl: 'https://images.unsplash.com/photo-1552820728-8ac41f1ce891?w=400&h=400&fit=crop',
+      date: 'Saturday, TBA',
+      time: 'All Day',
+      location: 'NGAGRES MALL',
+      price: 'K50',
+      attendees: 312,
+      rating: 4.4,
+      category: 'Shopping',
+      organizer: 'Sampa the Great',
+      isVerified: false,
+    },
+    {
+      id: '3',
+      title: '15TH LUSAKA MOTOR SHOW',
+      description: 'Zambia\'s biggest motor show featuring vehicles.',
+      imageUrl: 'https://images.unsplash.com/photo-1489824904134-891ab64532f1?w=400&h=400&fit=crop',
+      date: 'Friday, Aug 29',
+      time: 'All Day',
+      location: 'LUSAKA POLO CLUB',
+      price: '100',
+      attendees: 567,
+      rating: 4.7,
+      category: 'Automotive',
+      organizer: 'Professional Insurance',
+      isVerified: true,
+    },
+  ];
+
+  const favoritePlaces: SearchResult[] = [
+    {
+      id: '4',
+      title: 'MAZABUKA AGRI EXPO',
+      description: 'Agricultural exposition powered by Professional Insurance.',
+      imageUrl: 'https://images.unsplash.com/photo-1531746790731-6c087fecd65b?w=400&h=400&fit=crop',
+      date: 'Friday, Oct 10',
+      time: 'All Day',
+      location: 'MAZABUKA TURF CLUB',
+      price: '50',
+      attendees: 423,
+      rating: 4.5,
+      category: 'Business',
+      organizer: 'Professional Insurance',
+      isVerified: true,
+    },
+    {
+      id: '5',
+      title: 'CLASSIC CARS AUTO SHOW 2025',
+      description: 'Classic car exhibition featuring exclusive market.',
+      imageUrl: 'https://images.unsplash.com/photo-1552820728-8ac41f1ce891?w=400&h=400&fit=crop',
+      date: 'Sunday, Aug 24',
+      time: '9:30 AM onwards',
+      location: 'TBA',
+      price: '50',
+      attendees: 278,
+      rating: 4.3,
+      category: 'Automotive',
+      organizer: 'Classic Cars Zambia',
+      isVerified: false,
+    },
+    {
+      id: '6',
+      title: 'EL MUKUKA\'S ALBUM LAUNCH',
+      description: 'Experience El Mukuka\'s album launch with live performance.',
+      imageUrl: 'https://images.unsplash.com/photo-1478268413698-81f0f2de5bcc?w=400&h=400&fit=crop',
+      date: 'Saturday, Dec 6',
+      time: '7:00 PM - 1:00 AM',
+      location: 'TBA',
+      price: '200',
+      attendees: 156,
+      rating: 4.8,
+      category: 'Music',
+      organizer: 'Stella Artois',
+      isVerified: false,
+    },
+    {
+      id: '7',
+      title: 'Stories in the Woods',
+      description: 'Interactive story experience for children ages 6 to 10.',
+      imageUrl: 'https://images.unsplash.com/photo-1514395462716-a3dec6deba34?w=400&h=400&fit=crop',
+      date: 'Saturday, Nov 22',
+      time: '9:00 AM - 12:00 PM',
+      location: 'Chirfwema Arboretum',
+      price: '500',
+      attendees: 89,
+      rating: 4.9,
+      category: 'Education',
+      organizer: 'Stories with Sala',
+      isVerified: true,
+    },
+    {
+      id: '8',
+      title: 'GREEN COSMOS - KEEP ZAMBIA CLEAN',
+      description: 'Community clean-up initiative with special guest.',
+      imageUrl: 'https://images.unsplash.com/photo-1517457373614-b7152f800fd1?w=400&h=400&fit=crop',
+      date: 'Friday, Nov 7',
+      time: 'All Day',
+      location: 'Kaunda Square Stage 1 Market',
+      price: 'Free',
+      attendees: 234,
+      rating: 4.7,
+      category: 'Community',
+      organizer: 'Green Cosmos Zambia',
+      isVerified: true,
+    },
+  ];
+
+  const recentlyVisited: SearchResult[] = [
+    {
+      id: '9',
+      title: 'RENPOWER ZAMBIA 2025',
+      description: '3rd edition energy conference.',
+      imageUrl: 'https://images.unsplash.com/photo-1552664730-d307ca884978?w=400&h=400&fit=crop',
+      date: 'Friday, Jul 11',
+      time: 'All Day',
+      location: 'Lusaka, Zambia',
+      price: 'TBA',
+      attendees: 345,
+      rating: 4.6,
+      category: 'Business',
+      organizer: 'Euroconvention Global',
+      isVerified: true,
+    },
+    {
+      id: '10',
+      title: 'YOUTH CONNEKT ZAMBIA - GREEN HUSTLE',
+      description: 'Youth entrepreneurship and innovation in agriculture.',
+      imageUrl: 'https://images.unsplash.com/photo-1552664730-d307ca884978?w=400&h=400&fit=crop',
+      date: 'Monday, Nov 17',
+      time: 'All Day',
+      location: 'New Government Complex, Lusaka',
+      price: 'Free',
+      attendees: 512,
+      rating: 4.5,
+      category: 'Business',
+      organizer: 'Ministry of Youth, Sport & Arts',
+      isVerified: true,
+    },
+    {
+      id: '11',
+      title: 'BOUNCE ZAMBIA',
+      description: 'The ultimate trampoline park experience.',
+      imageUrl: 'https://images.unsplash.com/photo-1577720643272-265f434f6408?w=400&h=400&fit=crop',
+      date: '',
+      time: 'All Day',
+      location: 'Garden City Mall, Lusaka',
+      price: '150',
+      attendees: 300,
+      rating: 4.9,
+      category: 'Recreation',
+      organizer: 'Bounce Zambia',
+      isVerified: false,
+    },
+  ];
+
+
 
   const renderCollectionCard = (collection) => {
     const imageSource = collection.image
@@ -260,16 +436,14 @@ export default function Dash({ onItemClick }) {
     </TouchableOpacity>
   );
 
-  if (loading) {
-    return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={burgundyTheme.colors.primary} />
-      </View>
-    );
-  }
-
   return (
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
+      {loading ? (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={burgundyTheme.colors.primary} />
+        </View>
+      ) : (
+        <>
       {/* Hero Section */}
       <View style={styles.heroSection}>
         <View style={styles.heroContent}>
@@ -290,111 +464,99 @@ export default function Dash({ onItemClick }) {
       </View>
 
       {/* Recently Visited */}
-      {recentlyVisited.length > 0 && (
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Recently Visited</Text>
-            {recentlyVisited.length > 3 && (
-              <TouchableOpacity onPress={() => handleShowAll('show-all-recent', recentlyVisited)}>
-                <Text style={styles.showAllText}>
-                  {expandedSection === 'show-all-recent' ? 'Show less' : 'Show all'}
-                </Text>
-              </TouchableOpacity>
-            )}
-          </View>
-          <ScrollView
-            horizontal={expandedSection !== 'show-all-recent'}
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={expandedSection !== 'show-all-recent' ? styles.recentContainer : styles.expandedContainer}
-            scrollEnabled={expandedSection !== 'show-all-recent'}
-          >
-            {getDisplayItems(recentlyVisited, 'show-all-recent').map((place) => (
-              <TouchableOpacity
-                key={place.id}
-                style={styles.recentCard}
-                onPress={() => onItemClick?.(place)}
-                activeOpacity={0.7}
-              >
-                <View style={styles.imageContainer}>
-                  <Image source={{ uri: place.imageUrl }} style={styles.recentImage} />
-                  <View style={styles.imageOverlay} />
-                </View>
-                <View style={styles.recentInfo}>
-                  <Text style={styles.recentTitle} numberOfLines={2}>
-                    {place.title}
-                  </Text>
-                  <View style={styles.recentLocation}>
-                    <MaterialCommunityIcons name="map-marker" size={10} color={burgundyTheme.colors.textMuted} />
-                    <Text style={styles.recentLocationText} numberOfLines={1}>
-                      {place.location}
-                    </Text>
-                  </View>
-                  <View style={styles.recentRating}>
-                    <MaterialCommunityIcons name="star" size={10} color={burgundyTheme.colors.primary} />
-                    <Text style={styles.recentRatingText}>{place.rating}</Text>
-                  </View>
-                </View>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
+      <View style={styles.section}>
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>Recently Visited</Text>
+          {recentlyVisited.length > 3 && (
+            <TouchableOpacity onPress={() => handleShowAll('show-all-recent', recentlyVisited)}>
+              <Text style={styles.showAllText}>{expandedSection === 'show-all-recent' ? 'Show less' : 'Show all'}</Text>
+            </TouchableOpacity>
+          )}
         </View>
-      )}
+        <ScrollView
+          horizontal={expandedSection !== 'show-all-recent'}
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={expandedSection !== 'show-all-recent' ? styles.recentContainer : styles.expandedContainer}
+          scrollEnabled={expandedSection !== 'show-all-recent'}
+        >
+          {getDisplayItems(recentlyVisited, 'show-all-recent').map((place) => (
+            <TouchableOpacity
+              key={place.id}
+              style={styles.recentCard}
+              onPress={() => onItemClick?.(place)}
+              activeOpacity={0.7}
+            >
+              <View style={styles.imageContainer}>
+                <Image source={{ uri: place.imageUrl }} style={styles.recentImage} />
+                <View style={styles.imageOverlay} />
+              </View>
+              <View style={styles.recentInfo}>
+                <Text style={styles.recentTitle} numberOfLines={2}>
+                  {place.title}
+                </Text>
+                <View style={styles.recentLocation}>
+                  <MaterialCommunityIcons name="map-marker" size={10} color={burgundyTheme.colors.textMuted} />
+                  <Text style={styles.recentLocationText} numberOfLines={1}>
+                    {place.location}
+                  </Text>
+                </View>
+                <View style={styles.recentRating}>
+                  <MaterialCommunityIcons name="star" size={10} color={burgundyTheme.colors.primary} />
+                  <Text style={styles.recentRatingText}>{place.rating}</Text>
+                </View>
+              </View>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+      </View>
 
       {/* Coming Up Next */}
-      {upcomingEvents.length > 0 && (
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <View>
-              <Text style={styles.sectionTitle}>Coming Up Next</Text>
-              <Text style={styles.sectionSubtitle}>Your scheduled adventures</Text>
-            </View>
-            {upcomingEvents.length > 3 && (
-              <TouchableOpacity onPress={() => handleShowAll('show-all-events', upcomingEvents)}>
-                <Text style={styles.showAllText}>
-                  {expandedSection === 'show-all-events' ? 'Show less' : 'View all'}
-                </Text>
-              </TouchableOpacity>
-            )}
+      <View style={styles.section}>
+        <View style={styles.sectionHeader}>
+          <View>
+            <Text style={styles.sectionTitle}>Coming Up Next</Text>
+            <Text style={styles.sectionSubtitle}>Your scheduled adventures</Text>
           </View>
-          <View style={expandedSection === 'show-all-events' ? styles.expandedGrid : styles.eventGrid}>
-            {getDisplayItems(upcomingEvents, 'show-all-events').map(renderEventCard)}
-          </View>
+          {upcomingEvents.length > 3 && (
+            <TouchableOpacity onPress={() => handleShowAll('show-all-events', upcomingEvents)}>
+              <Text style={styles.showAllText}>{expandedSection === 'show-all-events' ? 'Show less' : 'View all'}</Text>
+            </TouchableOpacity>
+          )}
         </View>
-      )}
+        <View style={expandedSection === 'show-all-events' ? styles.expandedGrid : styles.eventGrid}>
+          {getDisplayItems(upcomingEvents, 'show-all-events').map(renderEventCard)}
+        </View>
+      </View>
 
       {/* Your Top Places */}
-      {favoritePlaces.length > 0 && (
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <View>
-              <Text style={styles.sectionTitle}>Your Top Places</Text>
-              <Text style={styles.sectionSubtitle}>Most visited this month</Text>
-            </View>
-            {favoritePlaces.length > 3 && (
-              <TouchableOpacity onPress={() => handleShowAll('show-all-places', favoritePlaces)}>
-                <Text style={styles.showAllText}>
-                  {expandedSection === 'show-all-places' ? 'Show less' : 'See more'}
-                </Text>
-              </TouchableOpacity>
-            )}
+      <View style={styles.section}>
+        <View style={styles.sectionHeader}>
+          <View>
+            <Text style={styles.sectionTitle}>Your Top Places</Text>
+            <Text style={styles.sectionSubtitle}>Most visited this month</Text>
           </View>
-          <View style={expandedSection === 'show-all-places' ? styles.expandedGrid : styles.placeGrid}>
-            {getDisplayItems(favoritePlaces, 'show-all-places').map(renderPlaceCard)}
-          </View>
+          {favoritePlaces.length > 3 && (
+            <TouchableOpacity onPress={() => handleShowAll('show-all-places', favoritePlaces)}>
+              <Text style={styles.showAllText}>{expandedSection === 'show-all-places' ? 'Show less' : 'See more'}</Text>
+            </TouchableOpacity>
+          )}
         </View>
-      )}
+        <View style={expandedSection === 'show-all-places' ? styles.expandedGrid : styles.placeGrid}>
+          {getDisplayItems(favoritePlaces, 'show-all-places').map(renderPlaceCard)}
+        </View>
+      </View>
 
       {/* Made For You */}
-      {allListings.length > 0 && (
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Made For You</Text>
-          <Text style={styles.sectionSubtitle}>Personalized recommendations</Text>
-          <View style={styles.placeGrid}>
-            {[...upcomingEvents.slice(0, 2), ...favoritePlaces.slice(0, 3)].map(
-              renderPlaceCard,
-            )}
-          </View>
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Made For You</Text>
+        <Text style={styles.sectionSubtitle}>Personalized recommendations</Text>
+        <View style={styles.placeGrid}>
+          {[...upcomingEvents.slice(0, 2), ...favoritePlaces.slice(0, 3)].map(
+            renderPlaceCard,
+          )}
         </View>
+      </View>
+        </>
       )}
     </ScrollView>
   );
@@ -403,12 +565,6 @@ export default function Dash({ onItemClick }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: burgundyTheme.colors.background,
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
     backgroundColor: burgundyTheme.colors.background,
   },
   heroSection: {
@@ -505,11 +661,6 @@ const styles = StyleSheet.create({
     paddingRight: 16,
     gap: 12,
   },
-  expandedContainer: {
-    flexWrap: 'wrap',
-    gap: 12,
-    paddingBottom: 12,
-  },
   recentCard: {
     width: 130,
     backgroundColor: burgundyTheme.colors.surface,
@@ -557,12 +708,6 @@ const styles = StyleSheet.create({
     color: burgundyTheme.colors.text,
   },
   eventGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 12,
-    justifyContent: 'space-between',
-  },
-  expandedGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 12,
