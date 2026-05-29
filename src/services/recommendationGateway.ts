@@ -95,11 +95,42 @@ const emitMode = () => {
   });
 };
 
+let recoveryTimer: ReturnType<typeof setTimeout> | null = null;
+
+const scheduleRecEngRecovery = () => {
+  if (recoveryTimer) return; // already scheduled
+  if (!configuredApiBase) return;
+  if (initialMode !== 'rec_eng') return; // only recover if rec_eng was the original intent
+
+  recoveryTimer = setTimeout(async () => {
+    recoveryTimer = null;
+    if (activeMode === 'rec_eng') return; // already back
+    try {
+      const base = trimTrailingSlash(configuredApiBase!);
+      const res = await fetch(`${base}/health`, { method: 'GET' });
+      if (res.ok) {
+        setModeInternal('rec_eng', 'Auto-recovered after successful health check');
+        return;
+      }
+    } catch {
+      // still down
+    }
+    scheduleRecEngRecovery(); // retry again
+  }, 60_000);
+};
+
 const setModeInternal = (mode: RecommendationRuntimeMode, reason: string) => {
   activeMode = mode;
   activeReason = reason;
   activeUpdatedAt = new Date().toISOString();
   emitMode();
+  // If we just fell back to basic and rec_eng was the original config, schedule a recovery probe
+  if (mode === 'basic' && initialMode === 'rec_eng') {
+    scheduleRecEngRecovery();
+  } else if (mode === 'rec_eng' && recoveryTimer) {
+    clearTimeout(recoveryTimer);
+    recoveryTimer = null;
+  }
 };
 
 export function setRecommendationMode(mode: RecommendationRuntimeMode, reason = 'Manual override'): RecommendationModeStatus {

@@ -1,5 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
+import { useCurrency } from '../../context/CurrencyContext';
 import {
   Modal,
   SafeAreaView,
@@ -17,8 +18,35 @@ import burgundyTheme, { getListingTypeColor } from '../../theme/burgundyTheme';
 const EVENT_ACCENT = getListingTypeColor('event');
 
 export default function EventBookingModal({ listing, eventDetails, onClose, onConfirm }) {
+  const { formatPrice } = useCurrency();
   const [ticketCount, setTicketCount] = useState('1');
   const [specialRequests, setSpecialRequests] = useState('');
+  const [guestName, setGuestName] = useState('');
+  const [guestEmail, setGuestEmail] = useState('');
+  const [processing, setProcessing] = useState(false);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const { data: authData } = await supabase.auth.getUser();
+        const userId = authData?.user?.id;
+        if (!userId) return;
+
+        if (authData.user.email) setGuestEmail(authData.user.email);
+
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('firstname, lastname, phone_number')
+          .eq('id', userId)
+          .maybeSingle();
+
+        if (profile) {
+          const fullName = [profile.firstname, profile.lastname].filter(Boolean).join(' ');
+          if (fullName) setGuestName(fullName);
+        }
+      } catch (_) {}
+    })();
+  }, []);
 
   const pricePerTicket = listing.price || 0;
   const tickets = parseInt(ticketCount, 10) || 1;
@@ -26,15 +54,13 @@ export default function EventBookingModal({ listing, eventDetails, onClose, onCo
   const serviceFee = Math.round(subtotal * 0.1);
   const total = subtotal + serviceFee;
 
-  const handleConfirm = () => {
+  const handleConfirm = async () => {
     if (!ticketCount) {
       alert('Please select number of tickets');
       return;
     }
-    (async () => {
-      try {
-        setProcessing?.(true);
-      } catch (e) {}
+    setProcessing(true);
+    try {
       const { data: userData, error: userErr } = await supabase.auth.getUser();
       const userId = userData?.user?.id || null;
       if (userErr || !userId) {
@@ -42,11 +68,16 @@ export default function EventBookingModal({ listing, eventDetails, onClose, onCo
         return;
       }
 
+      const nameParts = guestName.trim().split(' ');
       const payload = {
         quantity: parseInt(ticketCount, 10) || 1,
         event_slot: eventDetails.event_time || null,
         reservation_time: new Date().toISOString(),
         guests: 1,
+        guest_firstname: nameParts[0] || null,
+        guest_lastname: nameParts.slice(1).join(' ') || null,
+        guest_email: guestEmail || null,
+        notes: specialRequests || null,
       };
 
       const res = await bookingService.createBooking({
@@ -54,6 +85,7 @@ export default function EventBookingModal({ listing, eventDetails, onClose, onCo
         listingId: listing.id,
         listingType: 'event',
         priceAtBooking: listing.price || 0,
+        totalPrice: total,
         payload,
       });
 
@@ -64,7 +96,9 @@ export default function EventBookingModal({ listing, eventDetails, onClose, onCo
 
       onConfirm && onConfirm(res.data);
       onClose && onClose();
-    })();
+    } finally {
+      setProcessing(false);
+    }
   };
 
   const formatEventTime = (timestamp) => {
@@ -104,12 +138,6 @@ export default function EventBookingModal({ listing, eventDetails, onClose, onCo
                 <Text style={styles.eventInfoText}>{formatEventTime(eventDetails.event_time)}</Text>
               </View>
               <View style={styles.eventInfoRow}>
-                <Ionicons name="location" size={16} color={EVENT_ACCENT} />
-                <Text style={styles.eventInfoText}>
-                  {listing.address_city}, {listing.address_country}
-                </Text>
-              </View>
-              <View style={styles.eventInfoRow}>
                 <Ionicons name="people" size={16} color={EVENT_ACCENT} />
                 <Text style={styles.eventInfoText}>
                   Capacity: {eventDetails.capacity || 'Unlimited'}
@@ -122,7 +150,7 @@ export default function EventBookingModal({ listing, eventDetails, onClose, onCo
             <Text style={styles.sectionTitle}>Number of Tickets</Text>
             <View style={styles.counter}>
               <TouchableOpacity
-                onPress={() => setTicketCount(Math.max('1', (parseInt(ticketCount, 10) - 1).toString()))}
+                onPress={() => setTicketCount(Math.max(1, parseInt(ticketCount, 10) - 1).toString())}
               >
                 <Ionicons name="remove" size={24} color={EVENT_ACCENT} />
               </TouchableOpacity>
@@ -142,12 +170,17 @@ export default function EventBookingModal({ listing, eventDetails, onClose, onCo
               style={styles.input}
               placeholder="Full Name"
               placeholderTextColor={burgundyTheme.colors.textSubtle}
+              value={guestName}
+              onChangeText={setGuestName}
             />
             <TextInput
               style={[styles.input, styles.spacedInput]}
               placeholder="Email"
               placeholderTextColor={burgundyTheme.colors.textSubtle}
               keyboardType="email-address"
+              value={guestEmail}
+              onChangeText={setGuestEmail}
+              autoCapitalize="none"
             />
           </View>
 
@@ -169,17 +202,17 @@ export default function EventBookingModal({ listing, eventDetails, onClose, onCo
             <View style={styles.priceBreakdown}>
               <View style={styles.priceRow}>
                 <Text style={styles.priceLabel}>
-                  ${pricePerTicket} x {tickets} ticket{tickets !== 1 ? 's' : ''}
+                  {formatPrice(pricePerTicket)} x {tickets} ticket{tickets !== 1 ? 's' : ''}
                 </Text>
-                <Text style={styles.priceValue}>${subtotal}</Text>
+                <Text style={styles.priceValue}>{formatPrice(subtotal)}</Text>
               </View>
               <View style={styles.priceRow}>
-                <Text style={styles.priceLabel}>Service fee</Text>
-                <Text style={styles.priceValue}>${serviceFee}</Text>
+                <Text style={styles.priceLabel}>Service fee (10%)</Text>
+                <Text style={styles.priceValue}>{formatPrice(serviceFee)}</Text>
               </View>
               <View style={[styles.priceRow, styles.totalRow]}>
                 <Text style={styles.totalLabel}>Total</Text>
-                <Text style={styles.totalValue}>${total}</Text>
+                <Text style={styles.totalValue}>{formatPrice(total)}</Text>
               </View>
             </View>
           </View>
@@ -192,8 +225,8 @@ export default function EventBookingModal({ listing, eventDetails, onClose, onCo
         </ScrollView>
 
         <View style={styles.footer}>
-          <TouchableOpacity style={styles.button} onPress={handleConfirm}>
-            <Text style={styles.buttonText}>Get Tickets - ${total}</Text>
+          <TouchableOpacity style={[styles.button, processing && styles.buttonDisabled]} onPress={handleConfirm} disabled={processing}>
+            <Text style={styles.buttonText}>{processing ? 'Booking...' : `Get Tickets — ${formatPrice(total)}`}</Text>
           </TouchableOpacity>
         </View>
       </SafeAreaView>
@@ -376,6 +409,9 @@ const styles = StyleSheet.create({
     padding: 16,
     borderRadius: 12,
     alignItems: 'center',
+  },
+  buttonDisabled: {
+    opacity: 0.6,
   },
   buttonText: {
     fontSize: 16,

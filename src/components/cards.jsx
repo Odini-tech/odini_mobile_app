@@ -1,10 +1,14 @@
 import { Ionicons } from "@expo/vector-icons";
-import { useState } from "react";
-import { ActivityIndicator, Image, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { useEffect, useRef, useState } from "react";
+import { ActivityIndicator, Animated, Image, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { supabase } from "../../lib/supabase";
+import { useCurrency } from "../context/CurrencyContext";
+import { InteractionService } from "../services/interactionService";
 import burgundyTheme, { getListingTypeColor } from "../theme/burgundyTheme";
 import EventDetail from "./details/EventDetail";
 import OfferingDetail from "./details/OfferingDetail";
 import StayDetail from "./details/StayDetail";
+import CardInteractionMenu from "./shared/CardInteractionMenu";
 
 const LISTING_TYPE_ICONS = {
   stay: { name: "home", color: getListingTypeColor("stay") },
@@ -12,126 +16,220 @@ const LISTING_TYPE_ICONS = {
   offering: { name: "briefcase", color: getListingTypeColor("offering") },
 };
 
-export default function ListingCard({ item, onPress, onFavoritePress, favoriteLoading, styles: externalStyles }) {
+export default function ListingCard({ item, onPress, onFavoritePress, favoriteLoading, onInteractionAction, styles: externalStyles }) {
   const styles = externalStyles || localStyles;
+  const { formatPrice } = useCurrency();
   const typeIcon = LISTING_TYPE_ICONS[item.listing_type] || LISTING_TYPE_ICONS.stay;
   const hostName = item.profiles?.firstname || item.profiles?.username || "Host";
   const [showDetails, setShowDetails] = useState(false);
+  const [menuVisible, setMenuVisible] = useState(false);
+  const [isFavorited, setIsFavorited] = useState(item.is_favorited || false);
+  const scaleAnim = useRef(new Animated.Value(1)).current;
 
-  const handleCloseDetails = () => {
-    setShowDetails(false);
+  useEffect(() => {
+    checkIfFavorited();
+  }, [item.id]);
+
+  const checkIfFavorited = async () => {
+    try {
+      const { data: authData } = await supabase.auth.getUser();
+      const userId = authData?.user?.id;
+      if (!userId) return;
+      const { data } = await supabase
+        .from('interactions')
+        .select('id')
+        .eq('user_id', userId)
+        .eq('listing_id', item.id)
+        .gte('score', 5)
+        .maybeSingle();
+      setIsFavorited(!!data);
+    } catch (_) {}
   };
+
+  const handleCloseDetails = () => setShowDetails(false);
 
   const handleDetails = () => {
     if (onPress) {
       onPress(item);
       return;
     }
+    if (item?.listing_type) setShowDetails(true);
+  };
 
-    if (item?.listing_type) {
-      setShowDetails(true);
+  const handleLongPress = () => {
+    Animated.sequence([
+      Animated.timing(scaleAnim, { toValue: 0.98, duration: 80, useNativeDriver: true }),
+      Animated.timing(scaleAnim, { toValue: 1, duration: 80, useNativeDriver: true }),
+    ]).start();
+    setMenuVisible(true);
+  };
+
+  const handleInteractionAction = async (actionId, listing) => {
+    try {
+      const { data: authData } = await supabase.auth.getUser();
+      const userId = authData?.user?.id;
+      if (!userId) return;
+
+      if (actionId === 'favorite') {
+        if (isFavorited) {
+          await supabase
+            .from('interactions')
+            .delete()
+            .eq('user_id', userId)
+            .eq('listing_id', listing.id)
+            .gte('score', 5);
+          setIsFavorited(false);
+        } else {
+          await InteractionService.trackSave(userId, listing.id);
+          setIsFavorited(true);
+        }
+        onFavoritePress?.(listing.id);
+      } else if (actionId === 'dislike') {
+        await InteractionService.trackSwipe(userId, listing.id, 'left');
+      } else if (actionId === 'hide') {
+        await supabase.from('interactions').insert({
+          user_id: userId,
+          listing_id: listing.id,
+          score: -1,
+          last_action: JSON.stringify({ action: 'hide' }),
+        });
+      }
+
+      onInteractionAction?.(actionId, listing);
+    } catch (err) {
+      console.error('Interaction action error:', err);
     }
   };
 
   const renderDetailModal = () => {
-    if (!showDetails) {
-      return null;
-    }
-
+    if (!showDetails) return null;
     switch (item?.listing_type) {
-      case "stay":
-        return <StayDetail listing={item} onClose={handleCloseDetails} />;
-      case "event":
-        return <EventDetail listing={item} onClose={handleCloseDetails} />;
-      case "offering":
-        return <OfferingDetail listing={item} onClose={handleCloseDetails} />;
-      default:
-        return null;
+      case "stay": return <StayDetail listing={item} onClose={handleCloseDetails} />;
+      case "event": return <EventDetail listing={item} onClose={handleCloseDetails} />;
+      case "offering": return <OfferingDetail listing={item} onClose={handleCloseDetails} />;
+      default: return null;
     }
   };
 
   return (
     <>
-      <TouchableOpacity style={styles.postContainer} activeOpacity={0.9} onPress={handleDetails}>
-        <View style={styles.postHeader}>
-          <View style={styles.userInfo}>
-            <View style={[styles.avatar, { backgroundColor: typeIcon.color }]}>
-              <Ionicons name={typeIcon.name} size={20} color={burgundyTheme.colors.white} />
-            </View>
-            <View style={styles.userDetails}>
-              <Text style={styles.username} numberOfLines={1}>{item.title}</Text>
-              <Text style={styles.location} numberOfLines={1}>
-                {item.profiles?.location || "Location not specified"}
-              </Text>
-            </View>
-          </View>
-          <Ionicons name="ellipsis-horizontal" size={20} color={burgundyTheme.colors.textMuted} />
-        </View>
-
+      <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>
         <TouchableOpacity
-          style={styles.imageContainer}
+          style={styles.postContainer}
           activeOpacity={0.9}
           onPress={handleDetails}
+          onLongPress={handleLongPress}
+          delayLongPress={350}
         >
-          {item.image_url ? (
-            <Image
-              source={{ uri: item.image_url }}
-              style={styles.image}
-            />
-          ) : (
-            <View style={styles.imagePlaceholder}>
-              <Ionicons name={typeIcon.name} size={60} color={typeIcon.color} />
+          <View style={styles.postHeader}>
+            <View style={styles.userInfo}>
+              <View style={[styles.avatar, { backgroundColor: typeIcon.color }]}>
+                <Ionicons name={typeIcon.name} size={20} color={burgundyTheme.colors.white} />
+              </View>
+              <View style={styles.userDetails}>
+                <Text style={styles.username} numberOfLines={1}>{item.title}</Text>
+                <Text style={styles.location} numberOfLines={1}>
+                  {item.profiles?.location || "Location not specified"}
+                </Text>
+              </View>
             </View>
-          )}
-        </TouchableOpacity>
-
-        <View style={styles.interactions}>
-          <TouchableOpacity
-            style={styles.interactionButton}
-            onPress={onFavoritePress}
-            disabled={favoriteLoading}
-          >
-            {favoriteLoading ? (
-              <ActivityIndicator size="small" color={burgundyTheme.colors.danger} />
-            ) : (
-              <Ionicons
-                name={item.is_favorited ? "heart" : "heart-outline"}
-                size={24}
-                color={item.is_favorited ? burgundyTheme.colors.danger : burgundyTheme.colors.text}
-              />
-            )}
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.interactionButton} onPress={handleDetails}>
-            <Ionicons name="chatbubble-outline" size={24} color={burgundyTheme.colors.text} />
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.interactionButton}>
-            <Ionicons name="share-social-outline" size={24} color={burgundyTheme.colors.text} />
-          </TouchableOpacity>
-        </View>
-
-        <View style={styles.caption}>
-          <View style={styles.captionHeader}>
-            <Text style={[styles.captionBadge, { backgroundColor: `${typeIcon.color}20`, borderColor: typeIcon.color }]}>
-              <Text style={{ color: typeIcon.color }}>{item.listing_type.toUpperCase()}</Text>
-            </Text>
-            <Text style={styles.captionMeta}>by {hostName}</Text>
+            <TouchableOpacity
+              onPress={() => setMenuVisible(true)}
+              hitSlop={{ top: 10, right: 10, bottom: 10, left: 10 }}
+              activeOpacity={0.6}
+            >
+              <Ionicons name="ellipsis-horizontal" size={20} color={burgundyTheme.colors.textMuted} />
+            </TouchableOpacity>
           </View>
 
-          <Text style={styles.captionTitle}>
-            {getListingMetaText(item)}
-          </Text>
-
-          {item.description && (
-            <Text style={styles.captionText} numberOfLines={2}>
-              {item.description}
-            </Text>
-          )}
-          <TouchableOpacity onPress={handleDetails}>
-            <Text style={styles.viewMore}>View Details</Text>
+          <TouchableOpacity style={styles.imageContainer} activeOpacity={0.9} onPress={handleDetails}>
+            {item.image_url ? (
+              <Image source={{ uri: item.image_url }} style={styles.image} />
+            ) : (
+              <View style={styles.imagePlaceholder}>
+                <Ionicons name={typeIcon.name} size={60} color={typeIcon.color} />
+              </View>
+            )}
           </TouchableOpacity>
-        </View>
-      </TouchableOpacity>
+
+          <View style={styles.interactions}>
+            <TouchableOpacity
+              style={styles.interactionButton}
+              onPress={async () => {
+                const { data: authData } = await supabase.auth.getUser();
+                const userId = authData?.user?.id;
+                if (!userId) return;
+                if (isFavorited) {
+                  await supabase
+                    .from('interactions')
+                    .delete()
+                    .eq('user_id', userId)
+                    .eq('listing_id', item.id)
+                    .gte('score', 5);
+                  setIsFavorited(false);
+                } else {
+                  await InteractionService.trackSave(userId, item.id);
+                  setIsFavorited(true);
+                }
+                onFavoritePress?.(item.id);
+              }}
+              disabled={favoriteLoading}
+            >
+              {favoriteLoading ? (
+                <ActivityIndicator size="small" color={burgundyTheme.colors.danger} />
+              ) : (
+                <Ionicons
+                  name={isFavorited ? "heart" : "heart-outline"}
+                  size={24}
+                  color={isFavorited ? burgundyTheme.colors.danger : burgundyTheme.colors.text}
+                />
+              )}
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.interactionButton} onPress={handleDetails}>
+              <Ionicons name="chatbubble-outline" size={24} color={burgundyTheme.colors.text} />
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.interactionButton}>
+              <Ionicons name="share-social-outline" size={24} color={burgundyTheme.colors.text} />
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.caption}>
+            <View style={styles.captionHeader}>
+              <Text style={[styles.captionBadge, { backgroundColor: `${typeIcon.color}20`, borderColor: typeIcon.color }]}>
+                <Text style={{ color: typeIcon.color }}>{item.listing_type.toUpperCase()}</Text>
+              </Text>
+              <Text style={styles.captionMeta}>by {hostName}</Text>
+            </View>
+
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+              <Text style={styles.captionTitle}>{getListingMetaText(item)}</Text>
+              {item.price ? (
+                <Text style={[styles.captionTitle, { color: typeIcon.color, fontWeight: '700' }]}>
+                  {formatPrice(item.price)}
+                </Text>
+              ) : null}
+            </View>
+
+            {item.description && (
+              <Text style={styles.captionText} numberOfLines={2}>
+                {item.description}
+              </Text>
+            )}
+            <TouchableOpacity onPress={handleDetails}>
+              <Text style={styles.viewMore}>View Details</Text>
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      </Animated.View>
+
       {renderDetailModal()}
+
+      <CardInteractionMenu
+        visible={menuVisible}
+        listing={item}
+        onAction={handleInteractionAction}
+        onClose={() => setMenuVisible(false)}
+      />
     </>
   );
 }
@@ -150,8 +248,7 @@ function getListingMetaText(item) {
     }
     case "offering": {
       const serviceType = item.offering?.[0]?.service_type || "Service";
-      const priceRange = item.offering?.[0]?.price_range || "Price TBD";
-      return `${serviceType} - ${priceRange}`;
+      return `${serviceType}`;
     }
     default:
       return "Listing";

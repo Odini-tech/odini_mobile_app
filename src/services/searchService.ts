@@ -302,6 +302,7 @@ export const searchService = {
 
       return await runDualMode<SearchResults>({
         context: 'searchService.searchListings',
+        fallbackToBasicOnError: false,
         recEng: async () => {
           const filteredIdSet = await fetchListingIdsByTaxonomy(category_ids, tag_ids);
 
@@ -346,9 +347,48 @@ export const searchService = {
         basic: runBasic,
       });
     } catch (error) {
-      console.error('Error in searchListings:', error);
-      throw error;
+      // rec_eng failed — fall back to basic without switching mode
+      try {
+        return await (searchService as any)._runBasicSearch(params);
+      } catch (basicError) {
+        console.error('Error in searchListings:', basicError);
+        throw basicError;
+      }
     }
+  },
+
+  async _runBasicSearch(params: SearchParams): Promise<SearchResults> {
+    const {
+      query = '',
+      listing_type,
+      category_ids = [],
+      tag_ids = [],
+      min_price,
+      max_price,
+      is_active = true,
+      page = 1,
+      page_size = 20,
+    } = params;
+    const offset = (page - 1) * page_size;
+    const filteredIdSet = await fetchListingIdsByTaxonomy(category_ids, tag_ids);
+    if (filteredIdSet && filteredIdSet.size === 0) {
+      return { listings: [], categories: [], tags: [], total_count: 0 };
+    }
+    let listingsQuery = supabase
+      .from('listings')
+      .select('id, host_id, listing_type, title, description, is_active, price, created_at', { count: 'exact' });
+    if (query.trim()) listingsQuery = listingsQuery.or(`title.ilike.%${query}%,description.ilike.%${query}%`);
+    if (listing_type) listingsQuery = listingsQuery.eq('listing_type', listing_type);
+    listingsQuery = listingsQuery.eq('is_active', is_active);
+    if (min_price !== undefined) listingsQuery = listingsQuery.gte('price', min_price);
+    if (max_price !== undefined) listingsQuery = listingsQuery.lte('price', max_price);
+    if (filteredIdSet) listingsQuery = listingsQuery.in('id', Array.from(filteredIdSet));
+    const { data: listings, error, count } = await listingsQuery
+      .order('created_at', { ascending: false })
+      .range(offset, offset + page_size - 1);
+    if (error) throw new Error(`Failed to search listings: ${error.message}`);
+    const combined = await attachCategoriesAndTags((listings || []) as ListingRow[]);
+    return { ...combined, total_count: count || 0 };
   },
 
   /**

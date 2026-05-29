@@ -7,6 +7,7 @@ import {
     BottomNavVisibilityProvider,
     useBottomNavVisibility,
 } from "../src/context/BottomNavVisibilityContext";
+import { CurrencyProvider } from "../src/context/CurrencyContext";
 import BottomNav from "./(tabs)/components/BottomNav";
 
 const DEFAULT_NAV_HEIGHT = 88;
@@ -125,9 +126,11 @@ function RootLayoutContent() {
 export default function RootLayout() {
   return (
     <AppModeProvider>
-      <BottomNavVisibilityProvider>
-        <RootLayoutContent />
-      </BottomNavVisibilityProvider>
+      <CurrencyProvider>
+        <BottomNavVisibilityProvider>
+          <RootLayoutContent />
+        </BottomNavVisibilityProvider>
+      </CurrencyProvider>
     </AppModeProvider>
   );
 }

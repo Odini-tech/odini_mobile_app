@@ -1,5 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import React, { useState } from 'react';
+import { useCurrency } from '../../context/CurrencyContext';
 import {
   Modal,
   SafeAreaView,
@@ -17,6 +18,7 @@ import burgundyTheme, { getListingTypeColor } from '../../theme/burgundyTheme';
 const STAY_ACCENT = getListingTypeColor('stay');
 
 export default function StayBookingModal({ listing, stayDetails, onClose, onConfirm }) {
+  const { formatPrice } = useCurrency();
   const [checkInDate, setCheckInDate] = useState(new Date().toISOString().split('T')[0]);
   const [checkOutDate, setCheckOutDate] = useState(
     new Date(Date.now() + 86400000).toISOString().split('T')[0]
@@ -123,7 +125,7 @@ export default function StayBookingModal({ listing, stayDetails, onClose, onConf
                 <View style={styles.counter}>
                   <TouchableOpacity
                     onPress={() =>
-                      setGuestCount(Math.max('1', (parseInt(guestCount, 10) - 1).toString()))
+                      setGuestCount(Math.max(1, parseInt(guestCount, 10) - 1).toString())
                     }
                   >
                     <Ionicons name="remove" size={20} color={STAY_ACCENT} />
@@ -141,7 +143,7 @@ export default function StayBookingModal({ listing, stayDetails, onClose, onConf
                 <Text style={styles.label}>Rooms</Text>
                 <View style={styles.counter}>
                   <TouchableOpacity
-                    onPress={() => setRooms(Math.max('1', (parseInt(rooms, 10) - 1).toString()))}
+                    onPress={() => setRooms(Math.max(1, parseInt(rooms, 10) - 1).toString())}
                   >
                     <Ionicons name="remove" size={20} color={STAY_ACCENT} />
                   </TouchableOpacity>
@@ -175,17 +177,17 @@ export default function StayBookingModal({ listing, stayDetails, onClose, onConf
             <View style={styles.priceBreakdown}>
               <View style={styles.priceRow}>
                 <Text style={styles.priceLabel}>
-                  ${pricePerNight} x {nights} night{nights !== 1 ? 's' : ''}
+                  {formatPrice(pricePerNight)} x {nights} night{nights !== 1 ? 's' : ''}
                 </Text>
-                <Text style={styles.priceValue}>${subtotal}</Text>
+                <Text style={styles.priceValue}>{formatPrice(subtotal)}</Text>
               </View>
               <View style={styles.priceRow}>
-                <Text style={styles.priceLabel}>Service fee</Text>
-                <Text style={styles.priceValue}>${serviceFee}</Text>
+                <Text style={styles.priceLabel}>Service fee (10%)</Text>
+                <Text style={styles.priceValue}>{formatPrice(serviceFee)}</Text>
               </View>
               <View style={[styles.priceRow, styles.totalRow]}>
                 <Text style={styles.totalLabel}>Total</Text>
-                <Text style={styles.totalValue}>${total}</Text>
+                <Text style={styles.totalValue}>{formatPrice(total)}</Text>
               </View>
             </View>
           </View>
@@ -193,7 +195,7 @@ export default function StayBookingModal({ listing, stayDetails, onClose, onConf
 
         <View style={styles.footer}>
           <TouchableOpacity style={styles.button} onPress={handleConfirm}>
-            <Text style={styles.buttonText}>Book Now - ${total}</Text>
+            <Text style={styles.buttonText}>Book Now — {formatPrice(total)}</Text>
           </TouchableOpacity>
         </View>
       </SafeAreaView>

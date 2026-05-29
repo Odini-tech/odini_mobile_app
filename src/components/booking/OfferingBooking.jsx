@@ -1,5 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
+import { useCurrency } from '../../context/CurrencyContext';
 import {
   Modal,
   SafeAreaView,
@@ -17,20 +18,49 @@ import burgundyTheme, { getListingTypeColor } from '../../theme/burgundyTheme';
 const OFFERING_ACCENT = getListingTypeColor('offering');
 
 export default function OfferingBookingModal({ listing, offeringDetails, onClose, onConfirm }) {
+  const { formatPrice } = useCurrency();
   const [serviceDate, setServiceDate] = useState(new Date().toISOString().split('T')[0]);
   const [serviceTime, setServiceTime] = useState('10:00');
   const [quantity, setQuantity] = useState('1');
   const [specialRequests, setSpecialRequests] = useState('');
+  const [guestName, setGuestName] = useState('');
+  const [guestEmail, setGuestEmail] = useState('');
+  const [guestPhone, setGuestPhone] = useState('');
+  const [processing, setProcessing] = useState(false);
 
-  const priceRange = offeringDetails.price_range || 'Contact for price';
-  const estimatedPrice = 100;
+  useEffect(() => {
+    (async () => {
+      try {
+        const { data: authData } = await supabase.auth.getUser();
+        const userId = authData?.user?.id;
+        if (!userId) return;
 
-  const handleConfirm = () => {
+        if (authData.user.email) setGuestEmail(authData.user.email);
+
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('firstname, lastname, phone_number')
+          .eq('id', userId)
+          .maybeSingle();
+
+        if (profile) {
+          const fullName = [profile.firstname, profile.lastname].filter(Boolean).join(' ');
+          if (fullName) setGuestName(fullName);
+          if (profile.phone_number) setGuestPhone(profile.phone_number);
+        }
+      } catch (_) {}
+    })();
+  }, []);
+
+  const estimatedPrice = listing.price || 0;
+
+  const handleConfirm = async () => {
     if (!serviceDate || !serviceTime) {
       alert('Please select date and time');
       return;
     }
-    (async () => {
+    setProcessing(true);
+    try {
       const { data: userData, error: userErr } = await supabase.auth.getUser();
       const userId = userData?.user?.id || null;
       if (userErr || !userId) {
@@ -38,16 +68,22 @@ export default function OfferingBookingModal({ listing, offeringDetails, onClose
         return;
       }
 
+      const nameParts = guestName.trim().split(' ');
       const payload = {
         reservation_time: `${serviceDate}T${serviceTime}:00.000Z`,
         quantity: parseInt(quantity, 10) || 1,
+        guest_firstname: nameParts[0] || null,
+        guest_lastname: nameParts.slice(1).join(' ') || null,
+        guest_email: guestEmail || null,
+        guest_phone: guestPhone || null,
+        notes: specialRequests || null,
       };
 
       const res = await bookingService.createBooking({
         userId,
         listingId: listing.id,
         listingType: 'offering',
-        priceAtBooking: 0,
+        priceAtBooking: estimatedPrice,
         payload,
       });
 
@@ -58,7 +94,9 @@ export default function OfferingBookingModal({ listing, offeringDetails, onClose
 
       onConfirm && onConfirm(res.data);
       onClose && onClose();
-    })();
+    } finally {
+      setProcessing(false);
+    }
   };
 
   const formatDate = (dateString) =>
@@ -135,7 +173,7 @@ export default function OfferingBookingModal({ listing, offeringDetails, onClose
             <Text style={styles.sectionTitle}>Quantity/Duration</Text>
             <View style={styles.counter}>
               <TouchableOpacity
-                onPress={() => setQuantity(Math.max('1', (parseInt(quantity, 10) - 1).toString()))}
+                onPress={() => setQuantity(Math.max(1, parseInt(quantity, 10) - 1).toString())}
               >
                 <Ionicons name="remove" size={24} color={OFFERING_ACCENT} />
               </TouchableOpacity>
@@ -152,29 +190,26 @@ export default function OfferingBookingModal({ listing, offeringDetails, onClose
               style={styles.input}
               placeholder="Full Name"
               placeholderTextColor={burgundyTheme.colors.textSubtle}
+              value={guestName}
+              onChangeText={setGuestName}
             />
             <TextInput
               style={[styles.input, styles.spacedInput]}
               placeholder="Email"
               placeholderTextColor={burgundyTheme.colors.textSubtle}
               keyboardType="email-address"
+              value={guestEmail}
+              onChangeText={setGuestEmail}
+              autoCapitalize="none"
             />
             <TextInput
               style={[styles.input, styles.spacedInput]}
               placeholder="Phone Number"
               placeholderTextColor={burgundyTheme.colors.textSubtle}
               keyboardType="phone-pad"
+              value={guestPhone}
+              onChangeText={setGuestPhone}
             />
-          </View>
-
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Service Location</Text>
-            <View style={styles.locationRow}>
-              <Ionicons name="location" size={16} color={burgundyTheme.colors.primary} />
-              <Text style={styles.locationText}>
-                {listing.address_city}, {listing.address_country}
-              </Text>
-            </View>
           </View>
 
           <View style={styles.section}>
@@ -194,12 +229,8 @@ export default function OfferingBookingModal({ listing, offeringDetails, onClose
             <Text style={styles.sectionTitle}>Pricing</Text>
             <View style={styles.priceBreakdown}>
               <View style={styles.priceRow}>
-                <Text style={styles.priceLabel}>Service Price Range</Text>
-                <Text style={styles.priceValue}>{priceRange}</Text>
-              </View>
-              <View style={styles.priceRow}>
                 <Text style={styles.priceLabel}>Estimated Total</Text>
-                <Text style={styles.priceValue}>${estimatedPrice}</Text>
+                <Text style={styles.priceValue}>{estimatedPrice ? formatPrice(estimatedPrice) : 'TBD'}</Text>
               </View>
               <Text style={styles.priceNote}>
                 Final price will be confirmed by the service provider
@@ -216,8 +247,8 @@ export default function OfferingBookingModal({ listing, offeringDetails, onClose
         </ScrollView>
 
         <View style={styles.footer}>
-          <TouchableOpacity style={styles.button} onPress={handleConfirm}>
-            <Text style={styles.buttonText}>Request Service</Text>
+          <TouchableOpacity style={[styles.button, processing && styles.buttonDisabled]} onPress={handleConfirm} disabled={processing}>
+            <Text style={styles.buttonText}>{processing ? 'Submitting...' : 'Request Service'}</Text>
           </TouchableOpacity>
         </View>
       </SafeAreaView>
@@ -367,21 +398,6 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: burgundyTheme.colors.text,
   },
-  locationRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    backgroundColor: burgundyTheme.colors.surfaceAlt,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: burgundyTheme.colors.border,
-  },
-  locationText: {
-    fontSize: 13,
-    color: burgundyTheme.colors.textMuted,
-  },
   textArea: {
     borderWidth: 1,
     borderColor: burgundyTheme.colors.border,
@@ -418,7 +434,7 @@ const styles = StyleSheet.create({
   priceNote: {
     fontSize: 11,
     color: burgundyTheme.colors.textSubtle,
-    marginTop: 8,
+    marginTop: 4,
     fontStyle: 'italic',
   },
   termsContainer: {
@@ -441,6 +457,9 @@ const styles = StyleSheet.create({
     padding: 16,
     borderRadius: 12,
     alignItems: 'center',
+  },
+  buttonDisabled: {
+    opacity: 0.6,
   },
   buttonText: {
     fontSize: 16,

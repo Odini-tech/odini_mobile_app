@@ -1,59 +1,101 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Dimensions,
   Image,
+  RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
   View
 } from 'react-native';
+
 import { supabase } from '../../../lib/supabase';
-import { listingService } from '../../services/listingService';
+import {
+  getUserFavoriteListings,
+  getUserRecentlyViewedListings,
+  getListings,
+  enrichRecommendationListings,
+} from '../../../services/listings.service';
+import { useCurrency } from '../../context/CurrencyContext';
+import { InteractionService } from '../../services/interactionService';
+import { RecommendationService } from '../../services/recommendationService';
+import { getRecommendationModeStatus } from '../../services/recommendationGateway';
+import CurrencyPicker from '../settings/CurrencyPicker';
 import burgundyTheme from '../../theme/burgundyTheme';
+import CardInteractionMenu from '../shared/CardInteractionMenu';
+import EventDetail from '../details/EventDetail';
+import OfferingDetail from '../details/OfferingDetail';
+import StayDetail from '../details/StayDetail';
 
 const { width } = Dimensions.get('window');
 
-interface SearchResult {
+interface Listing {
   id: string;
   title: string;
   description: string;
-  imageUrl: string;
-  date: string;
-  time: string;
-  location: string;
-  price: string | number;
-  attendees: number;
-  rating: number;
-  category: string;
-  organizer: string;
-  isVerified?: boolean;
+  image_url: string | null;
+  listing_type: string;
+  price: number | null;
+  is_favorited?: boolean;
+  // Supabase returns profiles as object; enriched listings may return array form
+  profiles?: { firstname?: string; username?: string; location?: string } | any;
+  stays?: any[];
+  events?: any[];
+  offering?: any[];
 }
 
-export default function Dash({ onItemClick }) {
-  const router = useRouter();
+export default function Dash({ onItemClick }: { onItemClick?: (listing: Listing) => void }) {
+  const { formatPrice, selectedCurrency } = useCurrency();
+  const [currencyPickerVisible, setCurrencyPickerVisible] = useState(false);
   const [collections, setCollections] = useState<any[]>([]);
-  const [upcomingEvents, setUpcomingEvents] = useState<SearchResult[]>([]);
-  const [favoritePlaces, setFavoritePlaces] = useState<SearchResult[]>([]);
-  const [recentlyVisited, setRecentlyVisited] = useState<SearchResult[]>([]);
+  const [upcomingEvents, setUpcomingEvents] = useState<Listing[]>([]);
+  const [favoritePlaces, setFavoritePlaces] = useState<Listing[]>([]);
+  const [recentlyViewed, setRecentlyViewed] = useState<Listing[]>([]);
+  const [madeForYou, setMadeForYou] = useState<Listing[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [userName, setUserName] = useState('there');
+  const [userId, setUserId] = useState<string | null>(null);
   const [expandedSection, setExpandedSection] = useState<string | null>(null);
-  const [allListings, setAllListings] = useState<SearchResult[]>([]);
+
+  const [menuListing, setMenuListing] = useState<Listing | null>(null);
+  const [menuVisible, setMenuVisible] = useState(false);
+  const [selectedListing, setSelectedListing] = useState<Listing | null>(null);
+  const [detailsType, setDetailsType] = useState<string | null>(null);
+  const detailRequestRef = useRef<string | null>(null);
 
   useEffect(() => {
-    loadDashboardData();
+    initUser();
   }, []);
 
-  const loadDashboardData = async () => {
+  const initUser = async () => {
+    try {
+      const { data: authData } = await supabase.auth.getUser();
+      const uid = authData?.user?.id;
+      if (!uid) return;
+      setUserId(uid);
+
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('firstname, username')
+        .eq('id', uid)
+        .maybeSingle();
+
+      const name = profile?.firstname || profile?.username || authData.user?.email?.split('@')[0] || 'there';
+      setUserName(name);
+    } catch (_) {}
+  };
+
+  const loadDashboardData = async (uid: string | null = userId) => {
     try {
       setLoading(true);
-      // Fetch categories for collections
-      await fetchCategories();
-      // Fetch listings from service
-      await fetchListings();
+      await Promise.all([
+        fetchCategories(),
+        fetchAllContent(uid),
+      ]);
     } catch (err) {
       console.error('Error loading dashboard:', err);
     } finally {
@@ -61,141 +103,162 @@ export default function Dash({ onItemClick }) {
     }
   };
 
+  useEffect(() => {
+    if (userId !== null) {
+      loadDashboardData(userId);
+    } else {
+      // Still load without personalization once we know there's no user
+      const timer = setTimeout(() => {
+        if (!userId) loadDashboardData(null);
+      }, 800);
+      return () => clearTimeout(timer);
+    }
+  }, [userId]);
+
   const fetchCategories = async () => {
     try {
       const { data, error } = await supabase
         .from('categories')
         .select('*')
-        .limit(4);
+        .limit(6);
 
-      if (error) throw error;
+      if (error || !data?.length) {
+        setCollections(getDefaultCollections());
+        return;
+      }
 
-      const formattedCollections = data.map((category, index) => ({
-        id: index + 1,
-        title: category.name,
-        description: category.description || 'Collection of curated picks',
-        count: 12,
-        image: category.image_url,
-      }));
-
-      setCollections(formattedCollections);
-    } catch (err) {
-      console.error('Error fetching categories:', err);
-      // Fallback to default collections if fetch fails
-      setCollections([
-        {
-          id: 1,
-          title: 'LSK Nightlife',
-          description: 'Your favorite after-dark spots',
+      setCollections(
+        data.map((category, index) => ({
+          id: index + 1,
+          title: category.name,
+          description: category.description || 'Curated picks for you',
           count: 12,
-          image: require('../../../assets/images/icon.png'),
-        },
-        {
-          id: 2,
-          title: 'favorite nshima spots',
-          description: 'Delicious discoveries',
-          count: 18,
-          image: require('../../../assets/images/icon.png'),
-        },
-        {
-          id: 3,
-          title: 'Weekend Escapes',
-          description: 'Perfect getaway spots',
-          count: 8,
-          image: require('../../../assets/images/icon.png'),
-        },
-        {
-          id: 4,
-          title: 'zambian Arts & Culture',
-          description: 'Creative experiences',
-          count: 15,
-          image: require('../../../assets/images/icon.png'),
-        },
-      ]);
+          image: category.image_url,
+        }))
+      );
+    } catch (_) {
+      setCollections(getDefaultCollections());
     }
   };
 
-  const fetchListings = async () => {
+  const fetchAllContent = async (uid: string | null) => {
     try {
-      // Fetch listings from service
-      const listings = await listingService.fetchListings({
-        pagination: { page: 1, pageSize: 50 },
-      });
+      const { mode } = getRecommendationModeStatus();
 
-      // Convert listings to SearchResult format
-      const imageUrls = [
-        'https://images.unsplash.com/photo-1578321272176-852e6aa3a76e?w=400&h=400&fit=crop',
-        'https://images.unsplash.com/photo-1552820728-8ac41f1ce891?w=400&h=400&fit=crop',
-        'https://images.unsplash.com/photo-1489824904134-891ab64532f1?w=400&h=400&fit=crop',
-        'https://images.unsplash.com/photo-1531746790731-6c087fecd65b?w=400&h=400&fit=crop',
-        'https://images.unsplash.com/photo-1478268413698-81f0f2de5bcc?w=400&h=400&fit=crop',
-        'https://images.unsplash.com/photo-1514395462716-a3dec6deba34?w=400&h=400&fit=crop',
-        'https://images.unsplash.com/photo-1517457373614-b7152f800fd1?w=400&h=400&fit=crop',
-        'https://images.unsplash.com/photo-1552664730-d307ca884978?w=400&h=400&fit=crop',
-        'https://images.unsplash.com/photo-1577720643272-265f434f6408?w=400&h=400&fit=crop',
+      const tasks: Promise<any>[] = [
+        getListings(),
+        uid ? getUserFavoriteListings(uid) : Promise.resolve([]),
+        uid ? getUserRecentlyViewedListings(uid, 8) : Promise.resolve([]),
       ];
 
-      const searchResults: SearchResult[] = listings.map((listing, idx) => ({
-        id: listing.id,
-        title: listing.title,
-        description: listing.description || 'Event or listing',
-        imageUrl: imageUrls[idx % imageUrls.length],
-        date: listing.listing_type === 'event' ? `Friday, Nov ${21 + (idx % 10)}` : '',
-        time: listing.listing_type === 'event' ? 'All Day' : '',
-        location: listing.listing_type === 'event' ? 'Lusaka' : listing.title,
-        price: listing.price || '0',
-        attendees: 100 + idx * 10,
-        rating: 4.2 + (idx % 5) * 0.2,
-        category: listing.listing_type,
-        organizer: 'ODINI',
-        isVerified: idx % 2 === 0,
-      }));
+      const [allListings, favorites, recentlyViewedData] = await Promise.all(tasks);
 
-      setAllListings(searchResults);
-      setUpcomingEvents(searchResults.filter(r => r.category === 'event').slice(0, 5));
-      setFavoritePlaces(searchResults.slice(0, 8));
-      setRecentlyVisited(searchResults.slice(0, 5));
+      const events = (allListings || []).filter((l: Listing) => l.listing_type === 'event').slice(0, 6);
+      setUpcomingEvents(events);
+
+      setFavoritePlaces(favorites || []);
+      setRecentlyViewed(recentlyViewedData || []);
+
+      // Use rec engine for Made For You when available
+      if (mode === 'rec_eng' && uid) {
+        try {
+          const recListings = await RecommendationService.getForYou(uid);
+          if (recListings.length > 0) {
+            const enriched = await enrichRecommendationListings(recListings);
+            if (enriched.length > 0) {
+              setMadeForYou(enriched);
+              return;
+            }
+          }
+        } catch (_) {
+          // fall through to basic personalization
+        }
+      }
+
+      const personalized = uid
+        ? (favorites.length > 0
+            ? [...favorites.slice(0, 2), ...allListings.slice(0, 4)]
+            : allListings.slice(0, 6))
+        : (allListings || []).slice(0, 6);
+
+      setMadeForYou(personalized);
     } catch (err) {
-      console.error('Error fetching listings:', err);
-      // Use default data if fetch fails
-      const defaultItems: SearchResult[] = [];
-      setUpcomingEvents(defaultItems);
-      setFavoritePlaces(defaultItems);
-      setRecentlyVisited(defaultItems);
+      console.error('Error fetching content:', err);
     }
   };
 
-  const handleShowAll = (sectionId: string, items: SearchResult[]) => {
-    if (expandedSection === sectionId) {
-      setExpandedSection(null);
-    } else {
-      setExpandedSection(sectionId);
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    await loadDashboardData(userId);
+    setRefreshing(false);
+  };
+
+  const handleCardPress = async (listing: Listing) => {
+    detailRequestRef.current = listing.id;
+    setDetailsType(listing.listing_type);
+    setSelectedListing(listing);
+    onItemClick?.(listing);
+
+    if (userId) {
+      InteractionService.trackClick(userId, listing.id).catch(() => {});
     }
   };
 
-  const getDisplayItems = (items: SearchResult[], sectionId: string) => {
-    if (expandedSection === sectionId) {
-      return items;
-    }
-    return items.slice(0, 3);
+  const handleCloseDetails = () => {
+    detailRequestRef.current = null;
+    setSelectedListing(null);
+    setDetailsType(null);
   };
 
-  const renderCollectionCard = (collection) => {
+  const handleLongPress = (listing: Listing) => {
+    setMenuListing(listing);
+    setMenuVisible(true);
+  };
+
+  const handleInteractionAction = async (actionId: string, listing: Listing) => {
+    if (!userId) return;
+    try {
+      if (actionId === 'favorite') {
+        await InteractionService.trackSave(userId, listing.id);
+        const updated = await getUserFavoriteListings(userId);
+        setFavoritePlaces(updated);
+      } else if (actionId === 'dislike') {
+        await InteractionService.trackSwipe(userId, listing.id, 'left');
+        setMadeForYou((prev) => prev.filter((l) => l.id !== listing.id));
+        setUpcomingEvents((prev) => prev.filter((l) => l.id !== listing.id));
+      } else if (actionId === 'hide') {
+        await supabase.from('interactions').insert({
+          user_id: userId,
+          listing_id: listing.id,
+          score: -1,
+          last_action: JSON.stringify({ action: 'hide' }),
+        });
+        setMadeForYou((prev) => prev.filter((l) => l.id !== listing.id));
+        setUpcomingEvents((prev) => prev.filter((l) => l.id !== listing.id));
+        setRecentlyViewed((prev) => prev.filter((l) => l.id !== listing.id));
+        setFavoritePlaces((prev) => prev.filter((l) => l.id !== listing.id));
+      }
+    } catch (err) {
+      console.error('Dash interaction error:', err);
+    }
+  };
+
+  const handleShowAll = (sectionId: string) => {
+    setExpandedSection(expandedSection === sectionId ? null : sectionId);
+  };
+
+  const getDisplayItems = (items: Listing[], sectionId: string) => {
+    return expandedSection === sectionId ? items : items.slice(0, 4);
+  };
+
+  const renderCollectionCard = (collection: { id: number; title: string; description: string; count: number; image: string | null }) => {
     const imageSource = collection.image
-      ? (typeof collection.image === 'string'
-          ? { uri: collection.image }
-          : collection.image)
+      ? (typeof collection.image === 'string' ? { uri: collection.image } : collection.image)
       : null;
 
     return (
-      <TouchableOpacity
-        key={collection.id}
-        style={styles.collectionCard}
-        activeOpacity={0.8}
-      >
-        {imageSource && (
-          <Image source={imageSource} style={styles.collectionImage} />
-        )}
+      <TouchableOpacity key={collection.id} style={styles.collectionCard} activeOpacity={0.8}>
+        {imageSource && <Image source={imageSource} style={styles.collectionImage} />}
         <View style={[styles.collectionOverlay, !imageSource && { backgroundColor: burgundyTheme.colors.primary }]} />
         <View style={styles.collectionContent}>
           <Text style={styles.collectionTitle}>{collection.title}</Text>
@@ -206,59 +269,54 @@ export default function Dash({ onItemClick }) {
     );
   };
 
-  const renderEventCard = (event: SearchResult) => (
-    <TouchableOpacity
-      key={event.id}
-      style={styles.eventCard}
-      onPress={() => onItemClick?.(event)}
-      activeOpacity={0.7}
-    >
-      <View style={styles.imageContainer}>
-        <Image source={{ uri: event.imageUrl }} style={styles.eventImage} />
-        <View style={styles.imageOverlay} />
-      </View>
-      {event.date && (
-        <View style={styles.eventDateBadge}>
-          <Text style={styles.eventDateText}>{event.date}</Text>
-        </View>
-      )}
-      <View style={styles.eventInfo}>
-        <Text style={styles.eventTitle} numberOfLines={2}>{event.title}</Text>
-        <View style={styles.eventLocation}>
-          <MaterialCommunityIcons name="map-marker" size={10} color={burgundyTheme.colors.textMuted} />
-          <Text style={styles.eventLocationText} numberOfLines={1}>
-            {event.location}
-          </Text>
-        </View>
-      </View>
-    </TouchableOpacity>
-  );
+  const renderListingCard = (listing: Listing, size: 'small' | 'medium' = 'medium') => {
+    const cardStyle = size === 'small' ? styles.smallCard : styles.mediumCard;
+    const imageStyle = size === 'small' ? styles.smallCardImage : styles.mediumCardImage;
+    const accent = listing.listing_type === 'event'
+      ? '#A63456'
+      : listing.listing_type === 'offering'
+      ? '#8B4B61'
+      : '#7A1E3A';
 
-  const renderPlaceCard = (place: SearchResult) => (
-    <TouchableOpacity
-      key={place.id}
-      style={styles.placeCard}
-      onPress={() => onItemClick?.(place)}
-      activeOpacity={0.7}
-    >
-      <View style={styles.imageContainer}>
-        <Image source={{ uri: place.imageUrl }} style={styles.placeImage} />
-        <View style={styles.imageOverlay} />
-      </View>
-      {place.isVerified && (
-        <View style={styles.verifiedBadge}>
-          <MaterialCommunityIcons name="check-circle" size={14} color="#0066cc" />
+    return (
+      <TouchableOpacity
+        key={listing.id}
+        style={cardStyle}
+        onPress={() => handleCardPress(listing)}
+        onLongPress={() => handleLongPress(listing)}
+        delayLongPress={350}
+        activeOpacity={0.75}
+      >
+        <View style={styles.cardImageWrapper}>
+          {listing.image_url ? (
+            <Image source={{ uri: listing.image_url }} style={imageStyle} />
+          ) : (
+            <View style={[imageStyle, styles.cardImagePlaceholder]}>
+              <MaterialCommunityIcons
+                name={listing.listing_type === 'event' ? 'calendar' : listing.listing_type === 'offering' ? 'briefcase' : 'home'}
+                size={size === 'small' ? 24 : 32}
+                color={accent}
+              />
+            </View>
+          )}
+          <View style={[styles.typePill, { backgroundColor: accent }]}>
+            <Text style={styles.typePillText}>{listing.listing_type.toUpperCase()}</Text>
+          </View>
+          {listing.is_favorited && (
+            <View style={styles.heartBadge}>
+              <MaterialCommunityIcons name="heart" size={12} color="#E63B6F" />
+            </View>
+          )}
         </View>
-      )}
-      <View style={styles.placeInfo}>
-        <Text style={styles.placeTitle} numberOfLines={2}>{place.title}</Text>
-        <View style={styles.placeRating}>
-          <MaterialCommunityIcons name="star" size={10} color={burgundyTheme.colors.primary} />
-          <Text style={styles.ratingText}>{place.rating}</Text>
+        <View style={styles.cardInfo}>
+          <Text style={styles.cardTitle} numberOfLines={2}>{listing.title}</Text>
+          {listing.price ? (
+            <Text style={[styles.cardPrice, { color: accent }]}>{formatPrice(listing.price)}</Text>
+          ) : null}
         </View>
-      </View>
-    </TouchableOpacity>
-  );
+      </TouchableOpacity>
+    );
+  };
 
   if (loading) {
     return (
@@ -268,136 +326,212 @@ export default function Dash({ onItemClick }) {
     );
   }
 
+  const greeting = getGreeting();
+
   return (
-    <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
-      {/* Hero Section */}
-      <View style={styles.heroSection}>
-        <View style={styles.heroContent}>
-          <Text style={styles.heroSubtitle}>Your holiday starter pack</Text>
-          <Text style={styles.heroTitle}>hello Alex</Text>
-        </View>
-      </View>
-
-      {/* Collections */}
-      <View style={styles.section}>
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.collectionsContainer}
-        >
-          {collections.map(renderCollectionCard)}
-        </ScrollView>
-      </View>
-
-      {/* Recently Visited */}
-      {recentlyVisited.length > 0 && (
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Recently Visited</Text>
-            {recentlyVisited.length > 3 && (
-              <TouchableOpacity onPress={() => handleShowAll('show-all-recent', recentlyVisited)}>
-                <Text style={styles.showAllText}>
-                  {expandedSection === 'show-all-recent' ? 'Show less' : 'Show all'}
-                </Text>
-              </TouchableOpacity>
-            )}
-          </View>
-          <ScrollView
-            horizontal={expandedSection !== 'show-all-recent'}
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={expandedSection !== 'show-all-recent' ? styles.recentContainer : styles.expandedContainer}
-            scrollEnabled={expandedSection !== 'show-all-recent'}
-          >
-            {getDisplayItems(recentlyVisited, 'show-all-recent').map((place) => (
-              <TouchableOpacity
-                key={place.id}
-                style={styles.recentCard}
-                onPress={() => onItemClick?.(place)}
-                activeOpacity={0.7}
-              >
-                <View style={styles.imageContainer}>
-                  <Image source={{ uri: place.imageUrl }} style={styles.recentImage} />
-                  <View style={styles.imageOverlay} />
-                </View>
-                <View style={styles.recentInfo}>
-                  <Text style={styles.recentTitle} numberOfLines={2}>
-                    {place.title}
+    <>
+      <ScrollView
+        style={styles.container}
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={handleRefresh}
+            tintColor={burgundyTheme.colors.primary}
+          />
+        }
+      >
+        {/* Hero */}
+        <View style={styles.heroSection}>
+          <View style={styles.heroRow}>
+            <View style={styles.heroContent}>
+              <Text style={styles.heroSubtitle}>{greeting}</Text>
+              <Text style={styles.heroTitle}>
+                {userName.charAt(0).toUpperCase() + userName.slice(1)}
+              </Text>
+              {userId && favoritePlaces.length > 0 && (
+                <View style={styles.heroMeta}>
+                  <MaterialCommunityIcons name="heart" size={14} color={burgundyTheme.colors.danger} />
+                  <Text style={styles.heroMetaText}>
+                    {favoritePlaces.length} saved place{favoritePlaces.length !== 1 ? 's' : ''}
                   </Text>
-                  <View style={styles.recentLocation}>
-                    <MaterialCommunityIcons name="map-marker" size={10} color={burgundyTheme.colors.textMuted} />
-                    <Text style={styles.recentLocationText} numberOfLines={1}>
-                      {place.location}
-                    </Text>
-                  </View>
-                  <View style={styles.recentRating}>
-                    <MaterialCommunityIcons name="star" size={10} color={burgundyTheme.colors.primary} />
-                    <Text style={styles.recentRatingText}>{place.rating}</Text>
-                  </View>
                 </View>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
-        </View>
-      )}
-
-      {/* Coming Up Next */}
-      {upcomingEvents.length > 0 && (
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <View>
-              <Text style={styles.sectionTitle}>Coming Up Next</Text>
-              <Text style={styles.sectionSubtitle}>Your scheduled adventures</Text>
+              )}
             </View>
-            {upcomingEvents.length > 3 && (
-              <TouchableOpacity onPress={() => handleShowAll('show-all-events', upcomingEvents)}>
-                <Text style={styles.showAllText}>
-                  {expandedSection === 'show-all-events' ? 'Show less' : 'View all'}
-                </Text>
-              </TouchableOpacity>
-            )}
-          </View>
-          <View style={expandedSection === 'show-all-events' ? styles.expandedGrid : styles.eventGrid}>
-            {getDisplayItems(upcomingEvents, 'show-all-events').map(renderEventCard)}
+            <TouchableOpacity
+              style={styles.currencyButton}
+              onPress={() => setCurrencyPickerVisible(true)}
+              activeOpacity={0.75}
+            >
+              <Text style={styles.currencyFlag}>{selectedCurrency.flag}</Text>
+              <Text style={styles.currencyCode}>{selectedCurrency.code}</Text>
+              <MaterialCommunityIcons name="chevron-down" size={14} color={burgundyTheme.colors.textMuted} />
+            </TouchableOpacity>
           </View>
         </View>
-      )}
 
-      {/* Your Top Places */}
-      {favoritePlaces.length > 0 && (
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <View>
-              <Text style={styles.sectionTitle}>Your Top Places</Text>
-              <Text style={styles.sectionSubtitle}>Most visited this month</Text>
+        {/* Collections */}
+        {collections.length > 0 && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Collections</Text>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.collectionsContainer}
+            >
+              {collections.map(renderCollectionCard)}
+            </ScrollView>
+          </View>
+        )}
+
+        {/* Your Favorites */}
+        {favoritePlaces.length > 0 && (
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <View>
+                <Text style={styles.sectionTitle}>Your Favorites</Text>
+                <Text style={styles.sectionSubtitle}>Places you&apos;ve saved</Text>
+              </View>
+              {favoritePlaces.length > 4 && (
+                <TouchableOpacity onPress={() => handleShowAll('favorites')}>
+                  <Text style={styles.showAllText}>
+                    {expandedSection === 'favorites' ? 'Show less' : 'See all'}
+                  </Text>
+                </TouchableOpacity>
+              )}
             </View>
-            {favoritePlaces.length > 3 && (
-              <TouchableOpacity onPress={() => handleShowAll('show-all-places', favoritePlaces)}>
-                <Text style={styles.showAllText}>
-                  {expandedSection === 'show-all-places' ? 'Show less' : 'See more'}
+            <ScrollView
+              horizontal={expandedSection !== 'favorites'}
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={
+                expandedSection !== 'favorites'
+                  ? styles.horizontalScroll
+                  : styles.wrappedGrid
+              }
+            >
+              {getDisplayItems(favoritePlaces, 'favorites').map((l) => renderListingCard(l, 'medium'))}
+            </ScrollView>
+          </View>
+        )}
+
+        {/* Recently Viewed */}
+        {recentlyViewed.length > 0 && (
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Recently Viewed</Text>
+              {recentlyViewed.length > 4 && (
+                <TouchableOpacity onPress={() => handleShowAll('recent')}>
+                  <Text style={styles.showAllText}>
+                    {expandedSection === 'recent' ? 'Show less' : 'Show all'}
+                  </Text>
+                </TouchableOpacity>
+              )}
+            </View>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.horizontalScroll}
+            >
+              {recentlyViewed.map((l) => renderListingCard(l, 'small'))}
+            </ScrollView>
+          </View>
+        )}
+
+        {/* Coming Up (Events) */}
+        {upcomingEvents.length > 0 && (
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <View>
+                <Text style={styles.sectionTitle}>Coming Up</Text>
+                <Text style={styles.sectionSubtitle}>Events near you</Text>
+              </View>
+              {upcomingEvents.length > 4 && (
+                <TouchableOpacity onPress={() => handleShowAll('events')}>
+                  <Text style={styles.showAllText}>
+                    {expandedSection === 'events' ? 'Show less' : 'View all'}
+                  </Text>
+                </TouchableOpacity>
+              )}
+            </View>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.horizontalScroll}
+            >
+              {getDisplayItems(upcomingEvents, 'events').map((l) => renderListingCard(l, 'medium'))}
+            </ScrollView>
+          </View>
+        )}
+
+        {/* Made For You */}
+        {madeForYou.length > 0 && (
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <View>
+                <Text style={styles.sectionTitle}>Made For You</Text>
+                <Text style={styles.sectionSubtitle}>
+                  {userId ? 'Based on your activity' : 'Personalized recommendations'}
                 </Text>
-              </TouchableOpacity>
-            )}
+              </View>
+              {madeForYou.length > 4 && (
+                <TouchableOpacity onPress={() => handleShowAll('foryou')}>
+                  <Text style={styles.showAllText}>
+                    {expandedSection === 'foryou' ? 'Show less' : 'See more'}
+                  </Text>
+                </TouchableOpacity>
+              )}
+            </View>
+            <View style={styles.twoColGrid}>
+              {getDisplayItems(madeForYou, 'foryou').map((l) => renderListingCard(l, 'medium'))}
+            </View>
           </View>
-          <View style={expandedSection === 'show-all-places' ? styles.expandedGrid : styles.placeGrid}>
-            {getDisplayItems(favoritePlaces, 'show-all-places').map(renderPlaceCard)}
-          </View>
-        </View>
+        )}
+
+        <View style={{ height: 80 }} />
+      </ScrollView>
+
+      {selectedListing && detailsType === 'stay' && (
+        <StayDetail listing={selectedListing} onClose={handleCloseDetails} />
+      )}
+      {selectedListing && detailsType === 'event' && (
+        <EventDetail listing={selectedListing} onClose={handleCloseDetails} />
+      )}
+      {selectedListing && detailsType === 'offering' && (
+        <OfferingDetail listing={selectedListing} onClose={handleCloseDetails} />
       )}
 
-      {/* Made For You */}
-      {allListings.length > 0 && (
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Made For You</Text>
-          <Text style={styles.sectionSubtitle}>Personalized recommendations</Text>
-          <View style={styles.placeGrid}>
-            {[...upcomingEvents.slice(0, 2), ...favoritePlaces.slice(0, 3)].map(
-              renderPlaceCard,
-            )}
-          </View>
-        </View>
-      )}
-    </ScrollView>
+      <CardInteractionMenu
+        visible={menuVisible}
+        listing={menuListing}
+        onAction={handleInteractionAction}
+        onClose={() => {
+          setMenuVisible(false);
+          setMenuListing(null);
+        }}
+      />
+
+      <CurrencyPicker
+        visible={currencyPickerVisible}
+        onClose={() => setCurrencyPickerVisible(false)}
+      />
+    </>
   );
+}
+
+function getGreeting() {
+  const hour = new Date().getHours();
+  if (hour < 12) return 'Good morning';
+  if (hour < 17) return 'Good afternoon';
+  return 'Good evening';
+}
+
+function getDefaultCollections() {
+  return [
+    { id: 1, title: 'LSK Nightlife', description: 'After-dark spots', count: 12, image: null },
+    { id: 2, title: 'Nshima Spots', description: 'Delicious discoveries', count: 18, image: null },
+    { id: 3, title: 'Weekend Escapes', description: 'Perfect getaways', count: 8, image: null },
+    { id: 4, title: 'Arts & Culture', description: 'Creative experiences', count: 15, image: null },
+  ];
 }
 
 const styles = StyleSheet.create({
@@ -412,27 +546,64 @@ const styles = StyleSheet.create({
     backgroundColor: burgundyTheme.colors.background,
   },
   heroSection: {
-    paddingHorizontal: 12,
-    paddingVertical: 16,
+    paddingHorizontal: 16,
+    paddingTop: 20,
+    paddingBottom: 16,
     borderBottomWidth: 1,
     borderBottomColor: burgundyTheme.colors.border,
   },
+  heroRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+  },
   heroContent: {
-    marginBottom: 8,
+    gap: 2,
+    flex: 1,
   },
-  heroSubtitle: {
+  currencyButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: burgundyTheme.colors.surfaceAlt,
+    borderWidth: 1,
+    borderColor: burgundyTheme.colors.border,
+    borderRadius: 20,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    marginTop: 4,
+  },
+  currencyFlag: {
+    fontSize: 14,
+  },
+  currencyCode: {
     fontSize: 12,
-    color: burgundyTheme.colors.textMuted,
-    marginBottom: 4,
-  },
-  heroTitle: {
-    fontSize: 28,
-    fontWeight: '700',
+    fontWeight: '600',
     color: burgundyTheme.colors.text,
   },
+  heroSubtitle: {
+    fontSize: 13,
+    color: burgundyTheme.colors.textMuted,
+  },
+  heroTitle: {
+    fontSize: 30,
+    fontWeight: '700',
+    color: burgundyTheme.colors.text,
+    letterSpacing: -0.5,
+  },
+  heroMeta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: 6,
+  },
+  heroMetaText: {
+    fontSize: 12,
+    color: burgundyTheme.colors.textMuted,
+  },
   section: {
-    paddingVertical: 12,
-    paddingHorizontal: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 14,
   },
   sectionHeader: {
     flexDirection: 'row',
@@ -449,28 +620,28 @@ const styles = StyleSheet.create({
   sectionSubtitle: {
     fontSize: 12,
     color: burgundyTheme.colors.textMuted,
-    marginTop: 2,
   },
   showAllText: {
     fontSize: 13,
     color: burgundyTheme.colors.primary,
     fontWeight: '600',
+    marginTop: 4,
   },
   collectionsContainer: {
-    paddingRight: 16,
+    paddingRight: 14,
     gap: 12,
   },
   collectionCard: {
-    width: 260,
-    height: 140,
-    borderRadius: 12,
+    width: 220,
+    height: 130,
+    borderRadius: 14,
     overflow: 'hidden',
     backgroundColor: burgundyTheme.colors.surface,
     elevation: 3,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
-    shadowRadius: 3,
+    shadowOpacity: 0.12,
+    shadowRadius: 4,
   },
   collectionImage: {
     ...StyleSheet.absoluteFillObject,
@@ -479,203 +650,119 @@ const styles = StyleSheet.create({
   },
   collectionOverlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0, 0, 0, 0.4)',
+    backgroundColor: 'rgba(0,0,0,0.42)',
   },
   collectionContent: {
     flex: 1,
-    padding: 16,
+    padding: 14,
     justifyContent: 'space-between',
   },
   collectionTitle: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: '700',
     color: '#fff',
-    marginBottom: 4,
   },
   collectionDesc: {
-    fontSize: 12,
-    color: 'rgba(255, 255, 255, 0.8)',
+    fontSize: 11,
+    color: 'rgba(255,255,255,0.8)',
   },
   collectionCount: {
-    fontSize: 12,
+    fontSize: 11,
     color: '#fff',
-    marginTop: 8,
   },
-  recentContainer: {
-    paddingRight: 16,
+  horizontalScroll: {
+    paddingRight: 14,
     gap: 12,
   },
-  expandedContainer: {
+  wrappedGrid: {
+    flexWrap: 'wrap',
+    flexDirection: 'row',
+    gap: 12,
+    paddingBottom: 8,
+  },
+  twoColGrid: {
+    flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 12,
-    paddingBottom: 12,
   },
-  recentCard: {
+  smallCard: {
     width: 130,
     backgroundColor: burgundyTheme.colors.surface,
-    borderRadius: 10,
+    borderRadius: 12,
     overflow: 'hidden',
     borderWidth: 0.5,
     borderColor: burgundyTheme.colors.border,
     elevation: 2,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
+    shadowOpacity: 0.08,
+    shadowRadius: 3,
   },
-  recentImage: {
-    width: '100%',
-    height: 70,
-  },
-  recentInfo: {
-    padding: 6,
-  },
-  recentTitle: {
-    fontSize: 10,
-    fontWeight: '600',
-    color: burgundyTheme.colors.text,
-    marginBottom: 3,
-  },
-  recentLocation: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 4,
-    gap: 2,
-  },
-  recentLocationText: {
-    fontSize: 10,
-    color: burgundyTheme.colors.textMuted,
-    flex: 1,
-  },
-  recentRating: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 2,
-  },
-  recentRatingText: {
-    fontSize: 10,
-    color: burgundyTheme.colors.text,
-  },
-  eventGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 12,
-    justifyContent: 'space-between',
-  },
-  expandedGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 12,
-    justifyContent: 'space-between',
-  },
-  eventCard: {
-    width: '22%',
+  mediumCard: {
+    width: (width - 28 - 12) / 2,
     backgroundColor: burgundyTheme.colors.surface,
-    borderRadius: 10,
+    borderRadius: 12,
     overflow: 'hidden',
     borderWidth: 0.5,
     borderColor: burgundyTheme.colors.border,
     elevation: 2,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
+    shadowOpacity: 0.08,
+    shadowRadius: 3,
   },
-  eventImage: {
+  cardImageWrapper: {
+    position: 'relative',
+  },
+  smallCardImage: {
     width: '100%',
     height: 90,
+    backgroundColor: burgundyTheme.colors.surfaceAlt,
   },
-  eventDateBadge: {
-    position: 'absolute',
-    top: 8,
-    left: 8,
-    backgroundColor: burgundyTheme.colors.primary,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 6,
-  },
-  eventDateText: {
-    fontSize: 10,
-    fontWeight: '600',
-    color: '#fff',
-  },
-  eventInfo: {
-    padding: 8,
-  },
-  eventTitle: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: burgundyTheme.colors.text,
-    marginBottom: 4,
-  },
-  eventLocation: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 2,
-  },
-  eventLocationText: {
-    fontSize: 9,
-    color: burgundyTheme.colors.textMuted,
-    flex: 1,
-  },
-  placeGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 12,
-    justifyContent: 'space-between',
-  },
-  placeCard: {
-    width: '22%',
-    backgroundColor: burgundyTheme.colors.surface,
-    borderRadius: 10,
-    overflow: 'hidden',
-    borderWidth: 0.5,
-    borderColor: burgundyTheme.colors.border,
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-  },
-  placeImage: {
+  mediumCardImage: {
     width: '100%',
-    height: 90,
+    height: 120,
+    backgroundColor: burgundyTheme.colors.surfaceAlt,
   },
-  verifiedBadge: {
-    position: 'absolute',
-    top: 6,
-    right: 6,
-    width: 18,
-    height: 18,
-    borderRadius: 9,
-    backgroundColor: '#0066cc',
+  cardImagePlaceholder: {
     justifyContent: 'center',
     alignItems: 'center',
   },
-  placeInfo: {
+  typePill: {
+    position: 'absolute',
+    bottom: 6,
+    left: 6,
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+    borderRadius: 8,
+  },
+  typePillText: {
+    fontSize: 9,
+    fontWeight: '700',
+    color: '#fff',
+  },
+  heartBadge: {
+    position: 'absolute',
+    top: 6,
+    right: 6,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: 'rgba(255,255,255,0.92)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  cardInfo: {
     padding: 8,
   },
-  placeTitle: {
-    fontSize: 11,
+  cardTitle: {
+    fontSize: 12,
     fontWeight: '600',
     color: burgundyTheme.colors.text,
-    marginBottom: 4,
+    marginBottom: 2,
   },
-  placeRating: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 2,
-  },
-  ratingText: {
-    fontSize: 10,
-    color: burgundyTheme.colors.text,
-  },
-  imageContainer: {
-    position: 'relative',
-    overflow: 'hidden',
-  },
-  imageOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0, 0, 0, 0.15)',
+  cardPrice: {
+    fontSize: 12,
+    fontWeight: '700',
   },
 });

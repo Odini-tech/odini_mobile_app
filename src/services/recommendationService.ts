@@ -75,10 +75,14 @@ type RecommendationApiListing = {
   title?: string;
   description?: string;
   price?: number;
+  listing_type?: string;
+  is_active?: boolean;
+  created_at?: string;
   host_id?: string;
   hostId?: string;
   score?: number;
-  explanation?: string;
+  reason?: string;      // API returns 'reason'
+  explanation?: string; // normalised alias
   metadata?: Record<string, any>;
 };
 
@@ -171,11 +175,22 @@ export const RecommendationService = {
   async _callRecommendationFunction(
     request: RecommendationRequest
   ): Promise<RecommendationResponse> {
-    const runBasic = () => this._callSupabaseRecommendationFunction(request);
+    const emptyResponse = (): RecommendationResponse => ({
+      listings: [],
+      metadata: {
+        context: request.context,
+        generatedAt: new Date().toISOString(),
+        totalCount: 0,
+        page: request.params?.page ?? 1,
+        hasMore: false,
+      },
+    });
 
     try {
       return await runDualMode<RecommendationResponse>({
         context: `recommendationService._callRecommendationFunction:${request.context}`,
+        // Don't auto-switch mode on failure — keep configured mode so toggle stays meaningful
+        fallbackToBasicOnError: false,
         recEng: async () => {
           const path = recommendationApiPath('/v1/listings/recommendations', {
             userId: request.userId,
@@ -191,15 +206,26 @@ export const RecommendationService = {
           const envelope = await callRecommendationApi<RecommendationApiListing[]>(path, { method: 'GET' });
           return this._normalizeApiRecommendationResponse(request.context, envelope.data || [], request.params);
         },
-        basic: runBasic,
+        basic: () => this._callSupabaseRecommendationFunction(request),
       });
-    } catch (error) {
-      console.error(`Error in _callRecommendationFunction for context ${request.context}:`, error);
-      throw error;
+    } catch {
+      // Both paths unavailable — return empty so UI falls back to getListings()
+      return emptyResponse();
     }
   },
 
   async _callSupabaseRecommendationFunction(request: RecommendationRequest): Promise<RecommendationResponse> {
+    const emptyResponse = (): RecommendationResponse => ({
+      listings: [],
+      metadata: {
+        context: request.context,
+        generatedAt: new Date().toISOString(),
+        totalCount: 0,
+        page: request.params?.page ?? 1,
+        hasMore: false,
+      },
+    });
+
     const { data, error } = await supabase.functions.invoke<RecommendationResponse>(
       'recommendations',
       {
@@ -211,16 +237,9 @@ export const RecommendationService = {
       }
     );
 
-    if (error) {
-      throw new Error(`Recommendation Edge Function error: ${error.message}`);
-    }
-
-    if (!data) {
-      throw new Error('No data returned from recommendation service');
-    }
-
-    if (!Array.isArray(data.listings)) {
-      throw new Error('Invalid response format: listings must be an array');
+    // Edge Function not deployed or unavailable — degrade silently so UI falls back to getListings()
+    if (error || !data || !Array.isArray(data.listings)) {
+      return emptyResponse();
     }
 
     return data;
@@ -244,11 +263,16 @@ export const RecommendationService = {
         country: '',
       },
       amenities: [],
-      isAvailable: true,
+      isAvailable: item.is_active !== false,
       hostId: item.hostId || item.host_id || '',
       score: item.score,
-      explanation: item.explanation,
-      metadata: item.metadata,
+      // API returns 'reason'; also accept 'explanation' for forward compat
+      explanation: item.reason || item.explanation,
+      metadata: {
+        ...(item.metadata || {}),
+        listing_type: item.listing_type,
+        created_at: item.created_at,
+      },
     }));
 
     const page = params?.page || 1;
@@ -277,42 +301,31 @@ export const RecommendationService = {
     context: RecommendationContext,
     metadata?: Record<string, any>
   ): Promise<void> {
-    try {
-      await runDualMode({
-        context: 'recommendationService.recordInteraction',
-        recEng: async () => {
-          await callRecommendationApi('/v1/listings/interactions', {
-            method: 'POST',
-            body: JSON.stringify({
-              userId,
-              listingId,
-              interactionType,
-              context,
-              metadata,
-              timestamp: new Date().toISOString(),
-            }),
-          });
-        },
-        basic: async () => {
-          // Non-blocking call - we don't want to break UX if analytics fails
-          supabase.functions.invoke('recommendations', {
-            body: {
-              action: 'record_interaction',
-              userId,
-              listingId,
-              interactionType,
-              context,
-              metadata,
-              timestamp: new Date().toISOString(),
-            },
-          }).catch(error => {
-            console.error('Failed to record interaction:', error);
-          });
-        },
-      });
-    } catch (error) {
-      // Swallow errors for analytics calls
-      console.error('Error in recordInteraction:', error);
-    }
+    // Pure analytics — never switch mode, never throw
+    runDualMode({
+      context: 'recommendationService.recordInteraction',
+      fallbackToBasicOnError: false,
+      recEng: async () => {
+        await callRecommendationApi('/v1/listings/interactions', {
+          method: 'POST',
+          body: JSON.stringify({
+            userId,
+            listingId,
+            interactionType,
+            context,
+            metadata,
+            timestamp: new Date().toISOString(),
+          }),
+        });
+      },
+      basic: async () => {
+        await supabase.from('interactions').insert({
+          user_id: userId,
+          listing_id: listingId,
+          score: interactionType === 'book' ? 7 : interactionType === 'save' ? 5 : 3,
+          last_action: JSON.stringify({ action: interactionType, context, metadata }),
+        });
+      },
+    }).catch(() => undefined);
   },
 };

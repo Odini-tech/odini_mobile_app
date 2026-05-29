@@ -1,36 +1,139 @@
 import { Ionicons } from '@expo/vector-icons';
-import { Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { useEffect, useRef, useState } from 'react';
+import { Animated, Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { supabase } from '../../lib/supabase';
+import { useCurrency } from '../context/CurrencyContext';
+import { InteractionService } from '../services/interactionService';
 import burgundyTheme, { getListingTypeColor } from '../theme/burgundyTheme';
+import CardInteractionMenu from './shared/CardInteractionMenu';
 
-export default function ExploreCard({ item, onPress }) {
+export default function ExploreCard({ item, onPress, onInteractionAction }) {
+  const { formatPrice } = useCurrency();
   const typeIcon = getTypeIcon(item.listing_type);
   const imageUrl = getFirstImageUrl(item);
+  const [menuVisible, setMenuVisible] = useState(false);
+  const [isFavorited, setIsFavorited] = useState(false);
+  const scaleAnim = useRef(new Animated.Value(1)).current;
+
+  useEffect(() => {
+    checkIfFavorited();
+  }, [item.id]);
+
+  const checkIfFavorited = async () => {
+    try {
+      const { data: authData } = await supabase.auth.getUser();
+      const userId = authData?.user?.id;
+      if (!userId) return;
+      const { data } = await supabase
+        .from('interactions')
+        .select('id, last_action')
+        .eq('user_id', userId)
+        .eq('listing_id', item.id)
+        .gte('score', 5)
+        .maybeSingle();
+      setIsFavorited(!!data);
+    } catch (_) {}
+  };
+
+  const handleLongPress = () => {
+    Animated.sequence([
+      Animated.timing(scaleAnim, { toValue: 0.96, duration: 80, useNativeDriver: true }),
+      Animated.timing(scaleAnim, { toValue: 1, duration: 80, useNativeDriver: true }),
+    ]).start();
+    setMenuVisible(true);
+  };
+
+  const handleInteractionAction = async (actionId, listing) => {
+    try {
+      const { data: authData } = await supabase.auth.getUser();
+      const userId = authData?.user?.id;
+      if (!userId) return;
+
+      if (actionId === 'favorite') {
+        if (isFavorited) {
+          await supabase
+            .from('interactions')
+            .delete()
+            .eq('user_id', userId)
+            .eq('listing_id', listing.id)
+            .gte('score', 5);
+          setIsFavorited(false);
+        } else {
+          await InteractionService.trackSave(userId, listing.id);
+          setIsFavorited(true);
+        }
+      } else if (actionId === 'dislike') {
+        await InteractionService.trackSwipe(userId, listing.id, 'left');
+      } else if (actionId === 'hide') {
+        await supabase.from('interactions').insert({
+          user_id: userId,
+          listing_id: listing.id,
+          score: -1,
+          last_action: JSON.stringify({ action: 'hide' }),
+        });
+      }
+
+      onInteractionAction?.(actionId, listing);
+    } catch (err) {
+      console.error('Interaction action error:', err);
+    }
+  };
 
   return (
-    <TouchableOpacity style={styles.card} onPress={onPress} activeOpacity={0.85}>
-      <View style={styles.imageContainer}>
-        {imageUrl ? (
-          <Image source={{ uri: imageUrl }} style={styles.image} />
-        ) : (
-          <View style={[styles.image, styles.imagePlaceholder]}>
-            <Ionicons name={typeIcon.name} size={40} color={typeIcon.color} />
+    <>
+      <Animated.View style={[styles.cardWrapper, { transform: [{ scale: scaleAnim }] }]}>
+        <TouchableOpacity
+          style={styles.card}
+          onPress={onPress}
+          onLongPress={handleLongPress}
+          delayLongPress={350}
+          activeOpacity={0.85}
+        >
+          <View style={styles.imageContainer}>
+            {imageUrl ? (
+              <Image source={{ uri: imageUrl }} style={styles.image} />
+            ) : (
+              <View style={[styles.image, styles.imagePlaceholder]}>
+                <Ionicons name={typeIcon.name} size={40} color={typeIcon.color} />
+              </View>
+            )}
+
+            <View style={[styles.typeBadge, { backgroundColor: typeIcon.color }]}>
+              <Ionicons name={typeIcon.name} size={12} color={burgundyTheme.colors.white} />
+              <Text style={styles.typeBadgeText}>{item.listing_type.toUpperCase()}</Text>
+            </View>
+
+            {isFavorited && (
+              <View style={styles.favoriteBadge}>
+                <Ionicons name="heart" size={12} color={burgundyTheme.colors.danger} />
+              </View>
+            )}
           </View>
-        )}
 
-        <View style={[styles.typeBadge, { backgroundColor: typeIcon.color }]}>
-          <Ionicons name={typeIcon.name} size={12} color={burgundyTheme.colors.white} />
-          <Text style={styles.typeBadgeText}>{item.listing_type.toUpperCase()}</Text>
-        </View>
-      </View>
+          <Text style={styles.title} numberOfLines={2}>
+            {item.title}
+          </Text>
 
-      <Text style={styles.title} numberOfLines={2}>
-        {item.title}
-      </Text>
+          <View style={styles.cardFooter}>
+            <Text style={styles.hostName} numberOfLines={1}>
+              by {item.profiles?.firstname || item.profiles?.username || 'Host'}
+            </Text>
+            {item.price ? (
+              <Text style={[styles.price, { color: getTypeIcon(item.listing_type).color }]}>
+                {formatPrice(item.price)}
+              </Text>
+            ) : null}
+          </View>
+        </TouchableOpacity>
+      </Animated.View>
 
-      <Text style={styles.hostName} numberOfLines={1}>
-        by {item.profiles?.firstname || item.profiles?.username || 'Host'}
-      </Text>
-    </TouchableOpacity>
+      <CardInteractionMenu
+        visible={menuVisible}
+        listing={item}
+        onAction={handleInteractionAction}
+        onClose={() => setMenuVisible(false)}
+      />
+    </>
   );
 }
 
@@ -66,6 +169,9 @@ function getTypeIcon(listingType) {
 }
 
 const styles = StyleSheet.create({
+  cardWrapper: {
+    flex: 1,
+  },
   card: {
     flex: 1,
     backgroundColor: 'transparent',
@@ -110,6 +216,17 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: burgundyTheme.colors.white,
   },
+  favoriteBadge: {
+    position: 'absolute',
+    top: 8,
+    left: 8,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: 'rgba(255,255,255,0.92)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   title: {
     fontSize: 14,
     fontWeight: '600',
@@ -117,10 +234,21 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingTop: 10,
   },
+  cardFooter: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 10,
+    paddingBottom: 10,
+  },
+  price: {
+    fontSize: 12,
+    fontWeight: '700',
+  },
   hostName: {
     fontSize: 12,
     color: burgundyTheme.colors.textMuted,
-    paddingHorizontal: 10,
+    flex: 1,
     paddingBottom: 10,
   },
 });

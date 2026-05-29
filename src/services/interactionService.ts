@@ -1,9 +1,6 @@
 import { supabase } from '../../lib/supabase';
-import { callRecommendationApi, runDualMode } from './recommendationGateway';
+import { callRecommendationApi, getRecommendationModeStatus } from './recommendationGateway';
 
-/**
- * Allowed interaction actions used in app logic.
- */
 export type InteractionType =
   | 'view'
   | 'save'
@@ -37,26 +34,30 @@ const ACTION_SCORE: Record<InteractionType, InteractionRow['score']> = {
   book: 7,
 };
 
+const ACTION_TO_API_ACTION: Record<InteractionType, string> = {
+  view: 'viewed',
+  click: 'viewed',
+  save: 'liked',
+  book: 'liked',
+  swipe_right: 'liked',
+  swipe_left: 'disliked',
+  share: 'shared',
+  message: 'shared',
+};
+
 const clampAllowedScore = (score: number): InteractionRow['score'] => {
   const allowed: InteractionRow['score'][] = [-1, 0, 1, 3, 5, 7];
-  const closest = allowed.reduce((prev, curr) =>
+  return allowed.reduce((prev, curr) =>
     Math.abs(curr - score) < Math.abs(prev - score) ? curr : prev
   );
-  return closest;
 };
 
 const stringifyAction = (
   interactionType: InteractionType,
   metadata?: Record<string, unknown>,
   propertyId?: string
-): string => {
-  const payload = {
-    action: interactionType,
-    propertyId,
-    metadata: metadata || null,
-  };
-  return JSON.stringify(payload);
-};
+): string =>
+  JSON.stringify({ action: interactionType, propertyId: propertyId ?? null, metadata: metadata ?? null });
 
 export const InteractionService = {
   async trackView(userId: string, listingId: string, propertyId?: string): Promise<boolean> {
@@ -73,13 +74,7 @@ export const InteractionService = {
 
   async trackSwipe(userId: string, listingId: string, direction: SwipeDirection, propertyId?: string): Promise<boolean> {
     const interactionType: InteractionType = direction === 'left' ? 'swipe_left' : 'swipe_right';
-    return this._insertInteraction({
-      userId,
-      listingId,
-      propertyId,
-      interactionType,
-      weight: ACTION_SCORE[interactionType],
-    });
+    return this._insertInteraction({ userId, listingId, propertyId, interactionType, weight: ACTION_SCORE[interactionType] });
   },
 
   async trackClick(userId: string, listingId: string, propertyId?: string): Promise<boolean> {
@@ -104,82 +99,46 @@ export const InteractionService = {
       metadata?: Record<string, unknown>;
     }>
   ): Promise<boolean> {
-    try {
-      if (interactions.length === 0) return true;
-
-      const formattedInteractions = interactions.map(interaction => ({
-        user_id: interaction.userId,
-        listing_id: interaction.listingId,
-        score: clampAllowedScore(interaction.weight),
-        last_action: stringifyAction(interaction.interactionType, interaction.metadata, interaction.propertyId),
-      }));
-
-      await runDualMode({
-        context: 'interactionService.trackBatch',
-        recEng: async () => {
-          await Promise.all(
-            formattedInteractions.map(row =>
-              callRecommendationApi('/v1/listings/interactions', {
-                method: 'POST',
-                body: JSON.stringify({
-                  userId: row.user_id,
-                  listingId: row.listing_id,
-                  interactionType: 'batch',
-                  score: row.score,
-                  metadata: row.last_action ? JSON.parse(row.last_action) : null,
-                }),
-              })
-            )
-          );
-        },
-        basic: async () => {
-          const { error } = await supabase
-            .from('interactions')
-            .insert(formattedInteractions);
-
-          if (error) {
-            throw error;
-          }
-        },
-      });
-
-      const uniqueUsers = Array.from(new Set(interactions.map(i => i.userId)));
-      uniqueUsers.forEach(userId => {
-        this._triggerRecommendationUpdate(userId).catch(() => undefined);
-      });
-
-      return true;
-    } catch (error) {
-      console.error('Error in trackBatch:', error);
-      return false;
-    }
+    if (interactions.length === 0) return true;
+    const results = await Promise.allSettled(
+      interactions.map(i =>
+        this._insertInteraction({
+          userId: i.userId,
+          listingId: i.listingId,
+          propertyId: i.propertyId,
+          interactionType: i.interactionType,
+          weight: i.weight,
+          metadata: i.metadata,
+        })
+      )
+    );
+    return results.every(r => r.status === 'fulfilled' && r.value === true);
   },
 
   async getUserRecentInteractions(userId: string, limit = 50): Promise<InteractionRow[]> {
     try {
-      return await runDualMode<InteractionRow[]>({
-        context: 'interactionService.getUserRecentInteractions',
-        recEng: async () => {
-          const envelope = await callRecommendationApi<InteractionRow[]>(`/v1/listings/user/${userId}/interactions?limit=${limit}`, {
-            method: 'GET',
-          });
-          return envelope.data || [];
-        },
-        basic: async () => {
-          const { data, error } = await supabase
-            .from('interactions')
-            .select('*')
-            .eq('user_id', userId)
-            .order('created_at', { ascending: false })
-            .limit(limit);
+      const { mode } = getRecommendationModeStatus();
+      if (mode === 'rec_eng') {
+        try {
+          const envelope = await callRecommendationApi<InteractionRow[]>(
+            `/v1/listings/user/${encodeURIComponent(userId)}/interactions?limit=${limit}`,
+            { method: 'GET' }
+          );
+          if (envelope.data?.length) return envelope.data;
+        } catch {
+          // fall through to Supabase
+        }
+      }
 
-          if (error) {
-            throw error;
-          }
+      const { data, error } = await supabase
+        .from('interactions')
+        .select('*')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false })
+        .limit(limit);
 
-          return (data || []) as InteractionRow[];
-        },
-      });
+      if (error) throw error;
+      return (data ?? []) as InteractionRow[];
     } catch (error) {
       console.error('Error in getUserRecentInteractions:', error);
       return [];
@@ -188,16 +147,8 @@ export const InteractionService = {
 
   async clearUserInteractions(userId: string): Promise<boolean> {
     try {
-      const { error } = await supabase
-        .from('interactions')
-        .delete()
-        .eq('user_id', userId);
-
-      if (error) {
-        console.error('Error clearing user interactions:', error);
-        return false;
-      }
-
+      const { error } = await supabase.from('interactions').delete().eq('user_id', userId);
+      if (error) throw error;
       return true;
     } catch (error) {
       console.error('Error in clearUserInteractions:', error);
@@ -224,64 +175,41 @@ export const InteractionService = {
       const score = clampAllowedScore(weight);
       const lastAction = stringifyAction(interactionType, metadata, propertyId);
 
-      await runDualMode({
-        context: `interactionService._insertInteraction:${interactionType}`,
-        recEng: async () => {
-          await callRecommendationApi('/v1/listings/interactions', {
-            method: 'POST',
-            body: JSON.stringify({
-              userId,
-              listingId,
-              interactionType,
-              score,
-              metadata: lastAction ? JSON.parse(lastAction) : null,
-            }),
-          });
-        },
-        basic: async () => {
-          const { error } = await supabase
-            .from('interactions')
-            .insert({
-              user_id: userId,
-              listing_id: listingId,
-              score,
-              last_action: lastAction,
-            });
+      // Always write to Supabase — update existing row if present, else insert
+      const { data: updated, error: updateErr } = await supabase
+        .from('interactions')
+        .update({ score, last_action: lastAction })
+        .eq('user_id', userId)
+        .eq('listing_id', listingId)
+        .select('id');
 
-          if (error) {
-            throw error;
-          }
-        },
-      });
+      if (updateErr) throw updateErr;
 
-      this._triggerRecommendationUpdate(userId).catch(() => undefined);
+      if (!updated?.length) {
+        const { error: insertErr } = await supabase
+          .from('interactions')
+          .insert({ user_id: userId, listing_id: listingId, score, last_action: lastAction });
+        if (insertErr) throw insertErr;
+      }
+
+      // Best-effort: also push to rec engine if it's configured (never throws, never switches mode)
+      const { mode } = getRecommendationModeStatus();
+      if (mode === 'rec_eng') {
+        callRecommendationApi('/v1/listings/interactions', {
+          method: 'POST',
+          body: JSON.stringify({
+            userId,
+            listingId,
+            action: ACTION_TO_API_ACTION[interactionType] ?? 'viewed',
+            score,
+          }),
+        }).catch(() => undefined);
+      }
+
       return true;
     } catch (error) {
       console.error(`Error in _insertInteraction for ${interactionType}:`, error);
       return false;
-    }
-  },
-
-  async _triggerRecommendationUpdate(userId: string): Promise<void> {
-    try {
-      await runDualMode({
-        context: 'interactionService._triggerRecommendationUpdate',
-        recEng: async () => {
-          await callRecommendationApi('/v1/listings/recommendations?userId=' + encodeURIComponent(userId), {
-            method: 'GET',
-          });
-        },
-        basic: async () => {
-          await supabase.functions.invoke('recommendations', {
-            body: {
-              action: 'refresh_user',
-              userId,
-            },
-          });
-        },
-      });
-    } catch (_) {
-      // silent fail
     }
   },
 };

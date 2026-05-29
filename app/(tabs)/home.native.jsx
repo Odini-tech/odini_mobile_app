@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   Animated,
   Dimensions,
@@ -12,6 +12,11 @@ import Dash from '../../src/components/homeTabs/dash';
 import Explore from '../../src/components/homeTabs/explore';
 import { ForYouPage } from '../../src/components/homeTabs/myFeed';
 import { useAppMode } from '../../src/context/AppModeContext';
+import {
+  getRecommendationModeStatus,
+  setRecommendationMode,
+  onRecommendationModeChange,
+} from '../../src/services/recommendationGateway';
 
 const { width } = Dimensions.get('window');
 
@@ -20,8 +25,14 @@ const Home = () => {
   const styles = getStyles(theme);
   const [activeTab, setActiveTab] = useState(1);
   const [pendingAction, setPendingAction] = useState(null);
+  const [recMode, setRecMode] = useState(() => getRecommendationModeStatus().mode);
   const pagerRef = useRef(null);
   const indicatorAnim = useRef(new Animated.Value(width / 3)).current;
+
+  useEffect(() => {
+    const unsubscribe = onRecommendationModeChange((status) => setRecMode(status.mode));
+    return unsubscribe;
+  }, []);
 
   const tabs = [
     { id: 0, label: 'Explore', icon: '' },
@@ -76,6 +87,11 @@ const Home = () => {
     }
   };
 
+  const toggleMode = () => {
+    const next = recMode === 'rec_eng' ? 'basic' : 'rec_eng';
+    setRecommendationMode(next, 'Manual toggle');
+  };
+
   return (
     <View style={styles.container}>
       <View style={styles.topNav}>
@@ -94,6 +110,13 @@ const Home = () => {
             </Text>
           </TouchableOpacity>
         ))}
+
+        <TouchableOpacity style={styles.modePill} onPress={toggleMode} activeOpacity={0.75}>
+          <View style={[styles.modeDot, recMode === 'rec_eng' && styles.modeDotActive]} />
+          <Text style={[styles.modePillText, recMode === 'rec_eng' && styles.modePillTextActive]}>
+            {recMode === 'rec_eng' ? 'REC' : 'BASIC'}
+          </Text>
+        </TouchableOpacity>
 
         <Animated.View
           style={[
@@ -175,6 +198,39 @@ const getStyles = (theme) =>
       height: 4,
       backgroundColor: theme.colors.primary,
       borderRadius: 999,
+    },
+    modePill: {
+      position: 'absolute',
+      top: 10,
+      right: 10,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+      backgroundColor: theme.colors.surfaceAlt || theme.colors.surface,
+      borderWidth: 1,
+      borderColor: theme.colors.border,
+      borderRadius: 999,
+      paddingHorizontal: 8,
+      paddingVertical: 4,
+      zIndex: 10,
+    },
+    modeDot: {
+      width: 6,
+      height: 6,
+      borderRadius: 3,
+      backgroundColor: theme.colors.textMuted,
+    },
+    modeDotActive: {
+      backgroundColor: '#22C55E',
+    },
+    modePillText: {
+      fontSize: 10,
+      fontWeight: '700',
+      color: theme.colors.textMuted,
+      letterSpacing: 0.5,
+    },
+    modePillTextActive: {
+      color: '#22C55E',
     },
     pagerView: {
       flex: 1,

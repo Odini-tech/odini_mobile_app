@@ -79,8 +79,8 @@ const validatePayload = ({ listingType, payload }) => {
     if (!payload.reservation_time) return 'reservation_time required for offering bookings';
     if (!payload.quantity) return 'quantity required for offering bookings';
   }
-  if (!payload.guest_firstname || !payload.guest_lastname || !payload.guest_email) {
-    return 'Guest firstname, lastname, and email are required';
+  if (!payload.guest_email) {
+    return 'Guest email is required to complete booking';
   }
   return null;
 };
@@ -135,7 +135,7 @@ export async function createBooking({ userId, hostId, listingId, listingType, pr
     notes: mergedPayload.notes || null,
     check_in: mergedPayload.check_in || null,
     check_out: mergedPayload.check_out || null,
-    nights: mergedPayload.nights || null,
+    // nights is GENERATED ALWAYS AS in the DB — omit it; Postgres computes from check_in/check_out
     event_slot: mergedPayload.event_slot ? new Date(mergedPayload.event_slot).toISOString() : null,
     quantity: mergedPayload.quantity || null,
     reservation_time: mergedPayload.reservation_time ? new Date(mergedPayload.reservation_time).toISOString() : null,
@@ -145,8 +145,10 @@ export async function createBooking({ userId, hostId, listingId, listingType, pr
   try {
     const { data, error } = await supabase.from(BOOKINGS_TABLE).insert(row).select().single();
     if (!error && data) {
-      await runDualMode({
+      // Fire-and-forget interaction tracking — never block or fail the booking
+      runDualMode({
         context: 'bookingService.createBooking',
+        fallbackToBasicOnError: false,
         recEng: async () => {
           await callRecommendationApi('/v1/listings/interactions', {
             method: 'POST',
@@ -155,30 +157,19 @@ export async function createBooking({ userId, hostId, listingId, listingType, pr
               listingId,
               interactionType: 'book',
               score: 7,
-              metadata: {
-                bookingId: data.id,
-                listingType: normalizedType,
-              },
+              metadata: { bookingId: data.id, listingType: normalizedType },
             }),
           });
         },
         basic: async () => {
-          await supabase.functions.invoke('recommendations', {
-            body: {
-              action: 'record_interaction',
-              userId,
-              listingId,
-              interactionType: 'book',
-              context: 'booking',
-              metadata: {
-                bookingId: data.id,
-                listingType: normalizedType,
-              },
-              timestamp: new Date().toISOString(),
-            },
+          await supabase.from('interactions').insert({
+            user_id: userId,
+            listing_id: listingId,
+            score: 7,
+            last_action: JSON.stringify({ action: 'book', metadata: { bookingId: data.id } }),
           });
         },
-      });
+      }).catch(() => undefined);
     }
     return { data, error };
   } catch (e) {

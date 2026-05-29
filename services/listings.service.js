@@ -1,6 +1,141 @@
 import { supabase } from "../lib/supabase";
 
 /**
+ * Takes an array of ListingCard objects returned by the recommendation engine
+ * and enriches them with full Supabase data (profiles, images, type-specific details).
+ * Preserves score/explanation metadata from the rec engine.
+ */
+export async function enrichRecommendationListings(recListings = []) {
+  if (!recListings?.length) return [];
+
+  const ids = recListings.map((l) => l.id).filter(Boolean);
+  if (!ids.length) return [];
+
+  try {
+    const { data, error } = await supabase
+      .from("listings")
+      .select(`
+        id,
+        host_id,
+        listing_type,
+        title,
+        description,
+        is_active,
+        created_at,
+        price,
+        profiles:host_id(username, firstname, lastname, location),
+        stays(durations_nights, max_guests, available_rooms),
+        events(event_time, event_type, capacity),
+        offering(service_type, opening_hours, location, duration_minutes, max_bookings)
+      `)
+      .in("id", ids)
+      .eq("is_active", true);
+
+    if (error || !data) return [];
+
+    // Fetch images for all listings in parallel
+    const enriched = await Promise.all(
+      data.map(async (listing) => {
+        const imageTable = getImageTableName(listing.listing_type);
+        const { data: images } = await supabase
+          .from(imageTable)
+          .select("image_url")
+          .eq("listing_id", listing.id)
+          .limit(1);
+
+        // Find rec engine metadata for this listing
+        const recMeta = recListings.find((r) => r.id === listing.id);
+
+        return {
+          ...listing,
+          image_url: images?.[0]?.image_url || null,
+          rec_score: recMeta?.score ?? null,
+          rec_reason: recMeta?.explanation ?? null,
+        };
+      })
+    );
+
+    // Preserve the ordering from the rec engine (it's ranked by relevance)
+    const orderMap = new Map(ids.map((id, i) => [id, i]));
+    return enriched.sort((a, b) => (orderMap.get(a.id) ?? 999) - (orderMap.get(b.id) ?? 999));
+  } catch (err) {
+    console.error("Error enriching recommendation listings:", err);
+    return [];
+  }
+}
+
+/**
+ * Returns a shuffled array of all active listing IDs.
+ * Used for random-order pagination — fetch IDs once, shuffle, then page through with getListingsByIds.
+ */
+export async function getShuffledListingIds(listingType = null) {
+  try {
+    let query = supabase.from('listings').select('id').eq('is_active', true);
+    if (listingType) query = query.eq('listing_type', listingType);
+    const { data, error } = await query;
+    if (error) throw error;
+    const ids = (data || []).map((r) => r.id);
+    // Fisher-Yates shuffle
+    for (let i = ids.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [ids[i], ids[j]] = [ids[j], ids[i]];
+    }
+    return ids;
+  } catch (error) {
+    console.error('Error fetching listing IDs:', error);
+    throw error;
+  }
+}
+
+/**
+ * Fetch full listing data for a specific set of IDs, preserving the given order.
+ */
+export async function getListingsByIds(ids = []) {
+  if (!ids.length) return [];
+  try {
+    const { data, error } = await supabase
+      .from('listings')
+      .select(`
+        id,
+        host_id,
+        listing_type,
+        title,
+        description,
+        is_active,
+        created_at,
+        price,
+        profiles:host_id(username, firstname, lastname, location),
+        stays(durations_nights, max_guests, available_rooms),
+        events(event_time, event_type, capacity),
+        offering(service_type, opening_hours, location, duration_minutes, max_bookings)
+      `)
+      .in('id', ids)
+      .eq('is_active', true);
+
+    if (error) throw error;
+
+    const enriched = await Promise.all(
+      (data || []).map(async (listing) => {
+        const imageTable = getImageTableName(listing.listing_type);
+        const { data: images } = await supabase
+          .from(imageTable)
+          .select('image_url')
+          .eq('listing_id', listing.id)
+          .limit(1);
+        return { ...listing, image_url: images?.[0]?.image_url || null };
+      })
+    );
+
+    // Preserve the caller's order
+    const orderMap = new Map(ids.map((id, i) => [id, i]));
+    return enriched.sort((a, b) => (orderMap.get(a.id) ?? 999) - (orderMap.get(b.id) ?? 999));
+  } catch (error) {
+    console.error('Error fetching listings by IDs:', error);
+    throw error;
+  }
+}
+
+/**
  * Get all listings with their specific details and images
  * @param {string} listingType - Optional filter: 'stay', 'event', or 'offering'
  * @returns {Promise<Array>} Array of enriched listing objects
@@ -155,6 +290,146 @@ export async function isFavorited(userId, listingId) {
   } catch (error) {
     console.error("Error checking favorites:", error);
     return false;
+  }
+}
+
+/**
+ * Get listings the user has favorited (interactions with score >= 5)
+ */
+export async function getUserFavoriteListings(userId) {
+  try {
+    const { data: interactions, error: intErr } = await supabase
+      .from('interactions')
+      .select('listing_id, score, updated_at')
+      .eq('user_id', userId)
+      .gte('score', 5)
+      .order('updated_at', { ascending: false })
+      .limit(20);
+
+    if (intErr || !interactions?.length) return [];
+
+    const listingIds = [...new Set(interactions.map((i) => i.listing_id))];
+
+    const { data, error } = await supabase
+      .from('listings')
+      .select(`
+        id, host_id, listing_type, title, description, is_active, created_at, price,
+        profiles:host_id(username, firstname, lastname, location),
+        stays(durations_nights, max_guests, available_rooms),
+        events(event_time, event_type, capacity),
+        offering(service_type, opening_hours, location, duration_minutes, max_bookings)
+      `)
+      .in('id', listingIds)
+      .eq('is_active', true);
+
+    if (error || !data) return [];
+
+    const enriched = await Promise.all(
+      data.map(async (listing) => {
+        const imageTable = getImageTableName(listing.listing_type);
+        const { data: images } = await supabase
+          .from(imageTable)
+          .select('image_url')
+          .eq('listing_id', listing.id)
+          .limit(1);
+        return { ...listing, image_url: images?.[0]?.image_url || null, is_favorited: true };
+      })
+    );
+
+    return enriched;
+  } catch (error) {
+    console.error('Error fetching favorite listings:', error);
+    return [];
+  }
+}
+
+/**
+ * Get listings the user has recently viewed (click/view interactions)
+ */
+export async function getUserRecentlyViewedListings(userId, limit = 8) {
+  try {
+    const { data: interactions, error: intErr } = await supabase
+      .from('interactions')
+      .select('listing_id, last_action, updated_at')
+      .eq('user_id', userId)
+      .in('score', [1, 3])
+      .order('updated_at', { ascending: false })
+      .limit(limit * 2);
+
+    if (intErr || !interactions?.length) return [];
+
+    const seen = new Set();
+    const uniqueIds = [];
+    for (const i of interactions) {
+      if (!seen.has(i.listing_id)) {
+        seen.add(i.listing_id);
+        uniqueIds.push(i.listing_id);
+        if (uniqueIds.length >= limit) break;
+      }
+    }
+
+    if (!uniqueIds.length) return [];
+
+    const { data, error } = await supabase
+      .from('listings')
+      .select(`
+        id, host_id, listing_type, title, description, is_active, created_at, price,
+        profiles:host_id(username, firstname, lastname, location),
+        stays(durations_nights, max_guests, available_rooms),
+        events(event_time, event_type, capacity),
+        offering(service_type, opening_hours, location, duration_minutes, max_bookings)
+      `)
+      .in('id', uniqueIds)
+      .eq('is_active', true);
+
+    if (error || !data) return [];
+
+    const enriched = await Promise.all(
+      data.map(async (listing) => {
+        const imageTable = getImageTableName(listing.listing_type);
+        const { data: images } = await supabase
+          .from(imageTable)
+          .select('image_url')
+          .eq('listing_id', listing.id)
+          .limit(1);
+        return { ...listing, image_url: images?.[0]?.image_url || null };
+      })
+    );
+
+    return enriched;
+  } catch (error) {
+    console.error('Error fetching recently viewed listings:', error);
+    return [];
+  }
+}
+
+/**
+ * Get listing IDs that the user has hidden
+ */
+export async function getUserHiddenListingIds(userId) {
+  try {
+    const { data, error } = await supabase
+      .from('interactions')
+      .select('listing_id, last_action')
+      .eq('user_id', userId)
+      .eq('score', -1);
+
+    if (error || !data) return new Set();
+
+    const hidden = data
+      .filter((i) => {
+        try {
+          const action = JSON.parse(i.last_action || '{}');
+          return action.action === 'hide';
+        } catch (_) {
+          return false;
+        }
+      })
+      .map((i) => i.listing_id);
+
+    return new Set(hidden);
+  } catch (_) {
+    return new Set();
   }
 }
 
