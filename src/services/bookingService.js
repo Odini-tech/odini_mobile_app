@@ -136,7 +136,11 @@ export async function createBooking({ userId, hostId, listingId, listingType, pr
     check_in: mergedPayload.check_in || null,
     check_out: mergedPayload.check_out || null,
     // nights is GENERATED ALWAYS AS in the DB — omit it; Postgres computes from check_in/check_out
-    event_slot: mergedPayload.event_slot ? new Date(mergedPayload.event_slot).toISOString() : null,
+    // DB check constraint requires event_slot IS NOT NULL for event bookings —
+    // fall back to reservation_time or now when the event has no specific slot set
+    event_slot: normalizedType === 'event'
+      ? new Date(mergedPayload.event_slot || mergedPayload.reservation_time || new Date()).toISOString()
+      : (mergedPayload.event_slot ? new Date(mergedPayload.event_slot).toISOString() : null),
     quantity: mergedPayload.quantity || null,
     reservation_time: mergedPayload.reservation_time ? new Date(mergedPayload.reservation_time).toISOString() : null,
     status: mergedPayload.status || 'pending',

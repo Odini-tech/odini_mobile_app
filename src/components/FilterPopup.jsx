@@ -1,5 +1,8 @@
 import { useEffect, useState } from 'react';
 import { Modal, StyleSheet, Switch, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import burgundyTheme from '../theme/burgundyTheme';
+
+const t = burgundyTheme.colors;
 
 export default function FilterPopup({ visible, onClose, onApply, initialFilters = {} }) {
   const [type, setType] = useState(initialFilters.type || null);
@@ -15,13 +18,12 @@ export default function FilterPopup({ visible, onClose, onApply, initialFilters 
   }, [initialFilters, visible]);
 
   function apply() {
-    const parsed = {
+    onApply({
       type: type || null,
       price_min: priceMin ? Number(priceMin) : null,
       price_max: priceMax ? Number(priceMax) : null,
       active: !!onlyActive,
-    };
-    onApply(parsed);
+    });
   }
 
   return (
@@ -32,31 +34,25 @@ export default function FilterPopup({ visible, onClose, onApply, initialFilters 
 
           <Text style={styles.label}>Listing Type</Text>
           <View style={styles.typeRow}>
-            <TouchableOpacity
-              style={[styles.typeBtn, type === 'stay' && styles.typeBtnActive]}
-              onPress={() => setType('stay')}
-            >
-              <Text style={[styles.typeText, type === 'stay' && styles.typeTextActive]}>Stay</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.typeBtn, type === 'event' && styles.typeBtnActive]}
-              onPress={() => setType('event')}
-            >
-              <Text style={[styles.typeText, type === 'event' && styles.typeTextActive]}>Event</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.typeBtn, type === 'offering' && styles.typeBtnActive]}
-              onPress={() => setType('offering')}
-            >
-              <Text style={[styles.typeText, type === 'offering' && styles.typeTextActive]}>Offering</Text>
-            </TouchableOpacity>
+            {['stay', 'event', 'offering'].map((opt) => (
+              <TouchableOpacity
+                key={opt}
+                style={[styles.typeBtn, type === opt && styles.typeBtnActive]}
+                onPress={() => setType(type === opt ? null : opt)}
+              >
+                <Text style={[styles.typeText, type === opt && styles.typeTextActive]}>
+                  {opt.charAt(0).toUpperCase() + opt.slice(1)}
+                </Text>
+              </TouchableOpacity>
+            ))}
           </View>
 
-          <Text style={styles.label}>Price range</Text>
+          <Text style={styles.label}>Price range (ZMW)</Text>
           <View style={styles.row}>
             <TextInput
               style={styles.input}
               placeholder="Min"
+              placeholderTextColor={t.textSubtle}
               keyboardType="numeric"
               value={priceMin.toString()}
               onChangeText={setPriceMin}
@@ -64,6 +60,7 @@ export default function FilterPopup({ visible, onClose, onApply, initialFilters 
             <TextInput
               style={styles.input}
               placeholder="Max"
+              placeholderTextColor={t.textSubtle}
               keyboardType="numeric"
               value={priceMax.toString()}
               onChangeText={setPriceMax}
@@ -72,15 +69,23 @@ export default function FilterPopup({ visible, onClose, onApply, initialFilters 
 
           <View style={styles.rowSpace}>
             <Text style={styles.label}>Only active listings</Text>
-            <Switch value={onlyActive} onValueChange={setOnlyActive} />
+            <Switch
+              value={onlyActive}
+              onValueChange={setOnlyActive}
+              trackColor={{ false: t.border, true: t.primarySoft }}
+              thumbColor={t.white}
+            />
           </View>
 
           <View style={styles.actions}>
-            <TouchableOpacity style={styles.clearBtn} onPress={() => { setType(null); setPriceMin(''); setPriceMax(''); setOnlyActive(true); }}>
-              <Text style={styles.clearText}>Clear</Text>
+            <TouchableOpacity
+              style={styles.clearBtn}
+              onPress={() => { setType(null); setPriceMin(''); setPriceMax(''); setOnlyActive(true); }}
+            >
+              <Text style={styles.clearText}>Clear all</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.applyBtn} onPress={apply}>
-              <Text style={styles.applyText}>Apply</Text>
+              <Text style={styles.applyText}>Apply Filters</Text>
             </TouchableOpacity>
           </View>
 
@@ -94,23 +99,110 @@ export default function FilterPopup({ visible, onClose, onApply, initialFilters 
 }
 
 const styles = StyleSheet.create({
-  backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' },
-  container: { backgroundColor: '#fff', padding: 16, borderTopLeftRadius: 12, borderTopRightRadius: 12 },
-  title: { fontSize: 18, fontWeight: '700', marginBottom: 12 },
-  label: { fontSize: 14, fontWeight: '600', marginTop: 8 },
-  row: { flexDirection: 'row', gap: 8, marginTop: 8 },
-  rowSpace: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 12 },
-  typeRow: { flexDirection: 'row', gap: 8, marginTop: 8 },
-  typeBtn: { paddingHorizontal: 10, paddingVertical: 8, borderRadius: 8, backgroundColor: '#F5F5F5' },
-  typeBtnActive: { backgroundColor: '#4A90E2' },
-  typeText: { color: '#333' },
-  typeTextActive: { color: '#fff', fontWeight: '700' },
-  input: { flex: 1, height: 40, borderRadius: 8, backgroundColor: '#F5F5F5', paddingHorizontal: 8 },
-  actions: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 16 },
-  clearBtn: { padding: 10 },
-  clearText: { color: '#666' },
-  applyBtn: { backgroundColor: '#4A90E2', paddingHorizontal: 16, paddingVertical: 10, borderRadius: 8 },
-  applyText: { color: '#fff', fontWeight: '700' },
-  close: { alignSelf: 'center', marginTop: 12 },
-  closeText: { color: '#4A90E2' },
+  backdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.45)',
+    justifyContent: 'flex-end',
+  },
+  container: {
+    backgroundColor: t.surface,
+    padding: 20,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    paddingBottom: 32,
+  },
+  title: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: t.text,
+    marginBottom: 16,
+  },
+  label: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: t.textMuted,
+    marginTop: 12,
+  },
+  row: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 10,
+  },
+  rowSpace: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 16,
+  },
+  typeRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 10,
+  },
+  typeBtn: {
+    paddingHorizontal: 14,
+    paddingVertical: 9,
+    borderRadius: 20,
+    backgroundColor: t.surfaceAlt,
+    borderWidth: 1.5,
+    borderColor: t.border,
+  },
+  typeBtnActive: {
+    backgroundColor: t.primaryTint,
+    borderColor: t.primary,
+  },
+  typeText: {
+    color: t.textMuted,
+    fontWeight: '500',
+    fontSize: 14,
+  },
+  typeTextActive: {
+    color: t.primary,
+    fontWeight: '700',
+  },
+  input: {
+    flex: 1,
+    height: 44,
+    borderRadius: 10,
+    backgroundColor: t.surfaceAlt,
+    paddingHorizontal: 12,
+    color: t.text,
+    borderWidth: 1,
+    borderColor: t.border,
+    fontSize: 15,
+  },
+  actions: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 20,
+  },
+  clearBtn: {
+    padding: 10,
+  },
+  clearText: {
+    color: t.textMuted,
+    fontSize: 15,
+  },
+  applyBtn: {
+    backgroundColor: t.primary,
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 10,
+  },
+  applyText: {
+    color: t.white,
+    fontWeight: '700',
+    fontSize: 15,
+  },
+  close: {
+    alignSelf: 'center',
+    marginTop: 16,
+    padding: 6,
+  },
+  closeText: {
+    color: t.primary,
+    fontSize: 15,
+    fontWeight: '500',
+  },
 });

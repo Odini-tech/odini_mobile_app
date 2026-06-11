@@ -10,15 +10,22 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { supabase } from '../lib/supabase';
+import { useAppMode } from '../src/context/AppModeContext';
+import { useBottomNavScroll } from '../src/context/BottomNavVisibilityContext';
 
 export default function SearchPage() {
   const router = useRouter();
+  const { theme } = useAppMode();
+  const insets = useSafeAreaInsets();
+  const bottomNavScroll = useBottomNavScroll();
   const [query, setQuery] = useState('');
   const [popularCategories, setPopularCategories] = useState([]);
   const [personalCategories, setPersonalCategories] = useState([]);
   const [popularLoading, setPopularLoading] = useState(false);
   const [personalLoading, setPersonalLoading] = useState(false);
+  const styles = getStyles(theme, insets);
 
   useEffect(() => {
     fetchPopularCategories();
@@ -38,7 +45,6 @@ export default function SearchPage() {
         return;
       }
 
-      const listingIds = Array.from(new Set(catListings.map((c) => c.listing_id)));
       const { data: bookings } = await supabase.from('bookings').select('listing_id');
 
       const bookingCountByListing = {};
@@ -132,6 +138,7 @@ export default function SearchPage() {
         <TextInput
           style={styles.searchInput}
           placeholder="Search stays, events, offerings..."
+          placeholderTextColor={theme.colors.textSubtle}
           value={query}
           onChangeText={setQuery}
           returnKeyType="search"
@@ -142,30 +149,36 @@ export default function SearchPage() {
         </TouchableOpacity>
       </View>
 
-      <ScrollView style={styles.content} contentContainerStyle={styles.contentContainer}>
+      <ScrollView
+        style={styles.content}
+        contentContainerStyle={styles.contentContainer}
+        {...bottomNavScroll}
+      >
         <Text style={styles.sectionTitle}>Popular Today</Text>
         {popularLoading ? (
           <View style={styles.loaderRow}>
-            <ActivityIndicator size="small" color="#4A90E2" />
+            <ActivityIndicator size="small" color={theme.colors.primary} />
           </View>
         ) : (
           <CategoryGrid
             categories={popularCategories}
             fallbackText="No trending categories yet."
             onPress={handleCategoryPress}
+            theme={theme}
           />
         )}
 
         <Text style={styles.sectionTitle}>You May Like</Text>
         {personalLoading ? (
           <View style={styles.loaderRow}>
-            <ActivityIndicator size="small" color="#4A90E2" />
+            <ActivityIndicator size="small" color={theme.colors.primary} />
           </View>
         ) : (
           <CategoryGrid
             categories={personalCategories}
-            fallbackText="Nothing personalized yet."
+            fallbackText="Nothing personalised yet."
             onPress={handleCategoryPress}
+            theme={theme}
           />
         )}
       </ScrollView>
@@ -173,136 +186,105 @@ export default function SearchPage() {
   );
 }
 
-function CategoryGrid({ categories, onPress, fallbackText }) {
+function CategoryGrid({ categories, onPress, fallbackText, theme }) {
   if (!categories.length) {
-    return <Text style={styles.fallbackText}>{fallbackText}</Text>;
+    return <Text style={{ fontSize: 14, color: theme.colors.textMuted, paddingHorizontal: 16, marginTop: 8 }}>{fallbackText}</Text>;
   }
-
   return (
-    <View style={styles.categoriesGrid}>
+    <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', paddingHorizontal: 16, marginTop: 8 }}>
       {categories.map((category) => (
-        <CategoryTile key={category.id} category={category} onPress={() => onPress(category)} />
+        <CategoryTile key={category.id} category={category} theme={theme} onPress={() => onPress(category)} />
       ))}
     </View>
   );
 }
 
-function CategoryTile({ category, onPress }) {  
+function CategoryTile({ category, onPress, theme }) {
   const hasImage = !!category.image_url;
-  const content = (
-    <View style={styles.categoryOverlay}>
-      <Text style={styles.categoryName}>{category.name}</Text>
-    
+  const overlay = (
+    <View style={{ backgroundColor: 'rgba(0,0,0,0.38)', padding: 10 }}>
+      <Text style={{ fontSize: 15, fontWeight: '700', color: '#FFF' }}>{category.name}</Text>
     </View>
   );
 
   return (
-    <TouchableOpacity style={styles.categoryTile} onPress={onPress} activeOpacity={0.85}>
+    <TouchableOpacity
+      style={{ width: '48%', aspectRatio: 1.05, borderRadius: 14, marginBottom: 12, overflow: 'hidden', backgroundColor: theme.colors.surfaceAlt }}
+      onPress={onPress}
+      activeOpacity={0.85}
+    >
       {hasImage ? (
         <ImageBackground
           source={{ uri: category.image_url }}
-          style={styles.categoryImage}
-          imageStyle={styles.categoryImageStyle}
+          style={{ flex: 1, justifyContent: 'flex-end' }}
+          imageStyle={{ borderRadius: 14 }}
         >
-          {content}
+          {overlay}
         </ImageBackground>
       ) : (
-        <View style={[styles.categoryImage, styles.categoryFallback]}>
-          {content}
+        <View style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: theme.colors.primaryTint }}>
+          {overlay}
         </View>
       )}
     </TouchableOpacity>
   );
 }
 
-const styles = StyleSheet.create({
-  page: {
-    flex: 1,
-    backgroundColor: '#FFF',
-  },
-  topSearch: {
-    flexDirection: 'row',
-    padding: 12,
-    gap: 8,
-  },
-  searchInput: {
-    flex: 1,
-    height: 44,
-    borderRadius: 8,
-    backgroundColor: '#F5F5F5',
-    paddingHorizontal: 12,
-  },
-  searchBtn: {
-    backgroundColor: '#4A90E2',
-    paddingHorizontal: 16,
-    justifyContent: 'center',
-    borderRadius: 8,
-  },
-  searchBtnText: {
-    color: '#FFF',
-    fontWeight: '700',
-  },
-  content: {
-    flex: 1,
-  },
-  contentContainer: {
-    paddingBottom: 24,
-  },
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    marginTop: 12,
-    marginHorizontal: 12,
-  },
-  loaderRow: {
-    paddingHorizontal: 12,
-    marginTop: 8,
-  },
-  categoriesGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
-    paddingHorizontal: 12,
-    marginTop: 8,
-  },
-  categoryTile: {
-    width: '48%',
-    aspectRatio: 1.05,
-    borderRadius: 14,
-    marginBottom: 12,
-    overflow: 'hidden',
-    backgroundColor: '#F3F6FB',
-  },
-  categoryImage: {
-    flex: 1,
-    justifyContent: 'flex-end',
-  },
-  categoryImageStyle: {
-    borderRadius: 14,
-  },
-  categoryOverlay: {
-    backgroundColor: 'rgba(0,0,0,0.4)',
-    padding: 10,
-  },
-  categoryName: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#FFF',
-  },
-  categoryCount: {
-    fontSize: 12,
-    color: '#FFF',
-    marginTop: 4,
-  },
-  categoryFallback: {
-    padding: 12,
-    justifyContent: 'flex-end',
-    backgroundColor: '#E5E8EF',
-  },
-  fallbackText: {
-    fontSize: 14,
-    color: '#666',
-    paddingHorizontal: 12,
-    marginTop: 8,
-  },
-});
+const getStyles = (theme, insets) =>
+  StyleSheet.create({
+    page: {
+      flex: 1,
+      backgroundColor: theme.colors.background,
+    },
+    topSearch: {
+      flexDirection: 'row',
+      paddingTop: insets.top + 12,
+      paddingBottom: 12,
+      paddingHorizontal: 16,
+      gap: 8,
+      backgroundColor: theme.colors.surface,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: theme.colors.border,
+    },
+    searchInput: {
+      flex: 1,
+      height: 44,
+      borderRadius: 10,
+      backgroundColor: theme.colors.surfaceAlt,
+      paddingHorizontal: 14,
+      color: theme.colors.text,
+      borderWidth: 1,
+      borderColor: theme.colors.border,
+      fontSize: 15,
+    },
+    searchBtn: {
+      backgroundColor: theme.colors.primary,
+      paddingHorizontal: 16,
+      justifyContent: 'center',
+      borderRadius: 10,
+      height: 44,
+    },
+    searchBtnText: {
+      color: theme.colors.white,
+      fontWeight: '700',
+      fontSize: 15,
+    },
+    content: {
+      flex: 1,
+    },
+    contentContainer: {
+      paddingBottom: 32,
+    },
+    sectionTitle: {
+      fontSize: 17,
+      fontWeight: '700',
+      color: theme.colors.text,
+      marginTop: 20,
+      marginHorizontal: 16,
+      marginBottom: 4,
+    },
+    loaderRow: {
+      paddingHorizontal: 16,
+      marginTop: 12,
+    },
+  });

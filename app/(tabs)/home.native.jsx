@@ -8,6 +8,7 @@ import {
   View,
 } from 'react-native';
 import PagerView from 'react-native-pager-view';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Dash from '../../src/components/homeTabs/dash';
 import Explore from '../../src/components/homeTabs/explore';
 import { ForYouPage } from '../../src/components/homeTabs/myFeed';
@@ -22,7 +23,8 @@ const { width } = Dimensions.get('window');
 
 const Home = () => {
   const { theme } = useAppMode();
-  const styles = getStyles(theme);
+  const insets = useSafeAreaInsets();
+  const styles = getStyles(theme, insets);
   const [activeTab, setActiveTab] = useState(1);
   const [pendingAction, setPendingAction] = useState(null);
   const [recMode, setRecMode] = useState(() => getRecommendationModeStatus().mode);
@@ -151,7 +153,7 @@ const Home = () => {
   );
 };
 
-const getStyles = (theme) =>
+const getStyles = (theme, insets) =>
   StyleSheet.create({
     container: {
       flex: 1,
@@ -162,7 +164,7 @@ const getStyles = (theme) =>
       backgroundColor: theme.colors.surface,
       borderBottomWidth: 1,
       borderBottomColor: theme.colors.border,
-      paddingTop: 12,
+      paddingTop: (insets?.top ?? 0) + 12,
       paddingBottom: 8,
       position: 'relative',
     },
@@ -201,7 +203,7 @@ const getStyles = (theme) =>
     },
     modePill: {
       position: 'absolute',
-      top: 10,
+      top: (insets?.top ?? 0) + 10,
       right: 10,
       flexDirection: 'row',
       alignItems: 'center',

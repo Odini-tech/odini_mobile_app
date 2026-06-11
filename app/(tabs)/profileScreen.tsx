@@ -21,6 +21,38 @@ import { useAppMode } from '../../src/context/AppModeContext';
 import { useBottomNavScroll } from '../../src/context/BottomNavVisibilityContext';
 import { CURRENCIES, useCurrency } from '../../src/context/CurrencyContext';
 
+interface CurrencyItem { code: string; name: string; symbol: string; flag: string }
+interface CurrencyCtx {
+  selectedCurrency: CurrencyItem;
+  selectedCode: string;
+  setCurrency: (code: string) => void;
+  formatPrice: (zmwAmount: number) => string;
+  rates: Record<string, number>;
+}
+
+const ZMW_BASE = 1000;
+
+// Always-available fallback so every currency shows a real conversion even before API loads
+const BUILT_IN_RATES: Record<string, number> = {
+  USD: 1, ZMW: 27.4, GBP: 0.793, EUR: 0.921,
+  ZAR: 18.72, KES: 129.5, NGN: 1580, CAD: 1.362, AUD: 1.531, CNY: 7.243,
+};
+
+function conversionLabel(currency: CurrencyItem, rates: Record<string, number> | null | undefined): string {
+  if (currency.code === 'ZMW') return 'ZK 1,000';
+  // If context rates are populated use them, otherwise fall back to built-in table
+  const r = (rates && Object.keys(rates).length > 2) ? rates : BUILT_IN_RATES;
+  const zmwPerUsd = r['ZMW'] ?? BUILT_IN_RATES['ZMW'];
+  const targetPerUsd = r[currency.code] ?? BUILT_IN_RATES[currency.code] ?? 1;
+  const converted = (ZMW_BASE / zmwPerUsd) * targetPerUsd;
+  const decimals = ['NGN', 'KES'].includes(currency.code) ? 0 : 2;
+  const formatted = converted.toLocaleString('en-US', {
+    minimumFractionDigits: decimals,
+    maximumFractionDigits: decimals,
+  });
+  return `ZK 1,000 = ${currency.symbol}${formatted}`;
+}
+
 interface Profile {
   id: string;
   username: string | null;
@@ -100,7 +132,7 @@ export default function ProfileScreen() {
   const bottomNavScroll = useBottomNavScroll();
   const router = useRouter();
   const { clearMode, theme, colorScheme, setColorScheme } = useAppMode();
-  const { selectedCurrency, setCurrency } = useCurrency();
+  const { selectedCurrency, setCurrency, rates } = useCurrency() as CurrencyCtx;
   const styles = getStyles(theme);
   const isDark = colorScheme === 'dark';
 
@@ -524,7 +556,7 @@ export default function ProfileScreen() {
           <View style={{ width: 48 }} />
         </View>
         <ScrollView style={{ flex: 1, backgroundColor: theme.colors.background }}>
-          {CURRENCIES.map((c) => (
+          {(CURRENCIES as CurrencyItem[]).map((c) => (
             <TouchableOpacity
               key={c.code}
               style={[
@@ -547,7 +579,7 @@ export default function ProfileScreen() {
                   {c.name}
                 </Text>
                 <Text style={styles.currencyCode}>
-                  {c.code} · {c.symbol}
+                  {conversionLabel(c, rates)}
                 </Text>
               </View>
               {selectedCurrency.code === c.code && (

@@ -9,7 +9,9 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { useCurrency } from '../../context/CurrencyContext';
 import StayBookingModal from '../booking/StayBooking';
+import SuggestionCarousel from '../SuggestionCarousel';
 import ImageCarousel from '../shared/ImageCarousel';
 import burgundyTheme, { getListingTypeColor } from '../../theme/burgundyTheme';
 
@@ -17,6 +19,8 @@ const STAY_ACCENT = getListingTypeColor('stay');
 
 export default function StayDetail({ listing, onClose }) {
   const [showBooking, setShowBooking] = useState(false);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const { formatPrice } = useCurrency();
 
   const stayDetails = listing.stays?.[0] || {};
 
@@ -120,7 +124,7 @@ export default function StayDetail({ listing, onClose }) {
             <View style={styles.bookingSection}>
               <View>
                 <Text style={styles.priceLabel}>Price per night</Text>
-                <Text style={styles.price}>${listing.price || 0}</Text>
+                <Text style={styles.price}>{formatPrice(listing.price || 0)}</Text>
               </View>
               <TouchableOpacity style={styles.bookButton} onPress={() => setShowBooking(true)}>
                 <Text style={styles.bookButtonText}>Book Now</Text>
@@ -136,9 +140,16 @@ export default function StayDetail({ listing, onClose }) {
             onClose={() => setShowBooking(false)}
             onConfirm={() => {
               setShowBooking(false);
+              setShowSuggestions(true);
             }}
           />
         )}
+
+        <SuggestionCarousel
+          visible={showSuggestions}
+          onClose={() => { setShowSuggestions(false); onClose(); }}
+          excludeListingId={listing.id}
+        />
       </SafeAreaView>
     </Modal>
   );

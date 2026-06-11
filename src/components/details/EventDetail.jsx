@@ -9,7 +9,9 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { useCurrency } from '../../context/CurrencyContext';
 import EventBookingModal from '../booking/EventBooking';
+import SuggestionCarousel from '../SuggestionCarousel';
 import ImageCarousel from '../shared/ImageCarousel';
 import burgundyTheme, { getListingTypeColor } from '../../theme/burgundyTheme';
 
@@ -17,6 +19,8 @@ const EVENT_ACCENT = getListingTypeColor('event');
 
 export default function EventDetail({ listing, onClose }) {
   const [showBooking, setShowBooking] = useState(false);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const { formatPrice } = useCurrency();
 
   const eventDetails = listing.events?.[0] || {};
 
@@ -139,7 +143,7 @@ export default function EventDetail({ listing, onClose }) {
             <View style={styles.bookingSection}>
               <View>
                 <Text style={styles.priceLabel}>Price per ticket</Text>
-                <Text style={styles.price}>${listing.price || 0}</Text>
+                <Text style={styles.price}>{formatPrice(listing.price || 0)}</Text>
               </View>
               <TouchableOpacity style={styles.bookButton} onPress={() => setShowBooking(true)}>
                 <Text style={styles.bookButtonText}>Get Tickets</Text>
@@ -155,9 +159,16 @@ export default function EventDetail({ listing, onClose }) {
             onClose={() => setShowBooking(false)}
             onConfirm={() => {
               setShowBooking(false);
+              setShowSuggestions(true);
             }}
           />
         )}
+
+        <SuggestionCarousel
+          visible={showSuggestions}
+          onClose={() => { setShowSuggestions(false); onClose(); }}
+          excludeListingId={listing.id}
+        />
       </SafeAreaView>
     </Modal>
   );

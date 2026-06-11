@@ -1,122 +1,82 @@
-import { Ionicons, MaterialIcons } from '@expo/vector-icons';
+import { Ionicons } from '@expo/vector-icons';
 import { useSegments } from 'expo-router';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAppMode } from '../../../src/context/AppModeContext';
 
 export default function BottomNav({
   onHomePress = () => {},
-  onListingsPress = () => {},
+  onChatPress = () => {},
   onSearchPress = () => {},
   onProfilePress = () => {},
-  onSignOutPress = () => {},
-  showSignOut = false,
 }) {
   const segments = useSegments();
   const { theme } = useAppMode();
-  const styles = getStyles(theme);
+  const insets = useSafeAreaInsets();
+  const styles = getStyles(theme, insets);
 
   const isActive = (name) => {
     if (!segments || segments.length === 0) return name === 'home';
     return segments.includes(name);
   };
 
+  const NAV_ITEMS = [
+    { name: 'home',    icon: 'home-outline',       label: 'Home',     onPress: onHomePress },
+    { name: 'chat',    icon: 'chatbubble-outline',  label: 'Advisory', onPress: onChatPress },
+    { name: 'search',  icon: 'search-outline',      label: 'Search',   onPress: onSearchPress },
+    { name: 'profile', icon: 'person-outline',      label: 'Profile',  onPress: onProfilePress },
+  ];
+
   return (
     <View style={styles.container}>
-      <Pressable
-        style={[styles.button, isActive('home') && styles.buttonActive]}
-        onPress={onHomePress}
-        accessibilityRole="button"
-        accessibilityLabel="Open home"
-      >
-        <Ionicons
-          name="home-outline"
-          size={24}
-          color={isActive('home') ? theme.colors.primary : theme.colors.textMuted}
-        />
-        <Text style={[styles.label, isActive('home') && styles.labelActive]}>Home</Text>
-      </Pressable>
-
-      <Pressable
-        style={[styles.button, isActive('listings') && styles.buttonActive]}
-        onPress={onListingsPress}
-        accessibilityRole="button"
-        accessibilityLabel="Open listings"
-      >
-        <Ionicons
-          name="chat"
-          size={24}
-          color={isActive('listings') ? theme.colors.primary : theme.colors.textMuted}
-        />
-        <Text style={[styles.label, isActive('listings') && styles.labelActive]}>Advisory</Text>
-      </Pressable>
-
-      <Pressable
-        style={[styles.button, isActive('search') && styles.buttonActive]}
-        onPress={onSearchPress}
-        accessibilityRole="button"
-        accessibilityLabel="Open search"
-      >
-        <Ionicons
-          name="search-outline"
-          size={24}
-          color={isActive('search') ? theme.colors.primary : theme.colors.textMuted}
-        />
-        <Text style={[styles.label, isActive('search') && styles.labelActive]}>Search</Text>
-      </Pressable>
-
-      <Pressable
-        style={[styles.button, isActive('profile') && styles.buttonActive]}
-        onPress={onProfilePress}
-        accessibilityRole="button"
-        accessibilityLabel="Open profile"
-      >
-        <Ionicons
-          name="person"
-          size={24}
-          color={isActive('profile') ? theme.colors.primary : theme.colors.textMuted}
-        />
-        <Text style={[styles.label, isActive('profile') && styles.labelActive]}>Profile</Text>
-      </Pressable>
-
-      {showSignOut ? (
-        <Pressable
-          style={styles.button}
-          onPress={onSignOutPress}
-          accessibilityRole="button"
-          accessibilityLabel="Sign out"
-        >
-          <MaterialIcons name="logout" size={24} color={theme.colors.textMuted} />
-          <Text style={styles.label}>Sign out</Text>
-        </Pressable>
-      ) : null}
+      {NAV_ITEMS.map(({ name, icon, label, onPress }) => {
+        const active = isActive(name);
+        return (
+          <Pressable
+            key={name}
+            style={[styles.button, active && styles.buttonActive]}
+            onPress={onPress}
+            accessibilityRole="button"
+            accessibilityLabel={label}
+          >
+            <Ionicons
+              name={icon}
+              size={24}
+              color={active ? theme.colors.primary : theme.colors.textMuted}
+            />
+            <Text style={[styles.label, active && styles.labelActive]}>{label}</Text>
+          </Pressable>
+        );
+      })}
     </View>
   );
 }
 
-const getStyles = (theme) =>
+const getStyles = (theme, insets) =>
   StyleSheet.create({
     container: {
       flexDirection: 'row',
       justifyContent: 'space-around',
       alignItems: 'center',
-      paddingVertical: 12,
-      paddingHorizontal: 24,
+      paddingTop: 10,
+      paddingBottom: Math.max(14, insets.bottom + 6),
+      paddingHorizontal: 8,
       borderTopWidth: StyleSheet.hairlineWidth,
       borderTopColor: theme.colors.border,
       backgroundColor: theme.colors.surface,
     },
     button: {
+      flex: 1,
       alignItems: 'center',
       justifyContent: 'center',
       borderRadius: 14,
       paddingVertical: 6,
-      paddingHorizontal: 10,
     },
     buttonActive: {
       backgroundColor: theme.colors.primaryTint,
     },
     label: {
-      fontSize: 12,
+      fontSize: 11,
       color: theme.colors.textMuted,
       marginTop: 4,
     },

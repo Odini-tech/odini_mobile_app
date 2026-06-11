@@ -54,6 +54,10 @@ function RootLayoutContent() {
     router.push("/search" as any);
   };
 
+  const handleChat = () => {
+    router.push("/chat" as any);
+  };
+
   const handleSignOut = async () => {
     try {
       await clearMode();
@@ -111,10 +115,9 @@ function RootLayoutContent() {
           >
             <BottomNav
               onHomePress={handleHome}
-              onProfilePress={handleProfile}
-              onSignOutPress={handleSignOut}
+              onChatPress={handleChat}
               onSearchPress={handleSearch}
-              showSignOut={true}
+              onProfilePress={handleProfile}
             />
           </Animated.View>
         </Animated.View>
