@@ -13,6 +13,7 @@ import { useCurrency } from '../../context/CurrencyContext';
 import OfferingBookingModal from '../booking/OfferingBooking';
 import SuggestionCarousel from '../SuggestionCarousel';
 import ImageCarousel from '../shared/ImageCarousel';
+import ListingMap from '../shared/ListingMap';
 import burgundyTheme, { getListingTypeColor } from '../../theme/burgundyTheme';
 
 const OFFERING_ACCENT = getListingTypeColor('offering');
@@ -97,6 +98,12 @@ export default function OfferingDetail({ listing, onClose }) {
                   {listing.address_city}, {listing.address_country}
                 </Text>
               </View>
+              <ListingMap
+                listing_id={listing.id}
+                height={200}
+                markerTitle={listing.title}
+                markerDescription={[listing.address_city, listing.address_country].filter(Boolean).join(', ')}
+              />
             </View>
 
             <View style={styles.section}>
@@ -333,6 +340,7 @@ const styles = StyleSheet.create({
     backgroundColor: burgundyTheme.colors.surface,
     borderWidth: 1,
     borderColor: burgundyTheme.colors.border,
+    marginBottom: 10,
   },
   locationText: {
     fontSize: 14,

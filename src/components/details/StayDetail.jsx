@@ -13,6 +13,7 @@ import { useCurrency } from '../../context/CurrencyContext';
 import StayBookingModal from '../booking/StayBooking';
 import SuggestionCarousel from '../SuggestionCarousel';
 import ImageCarousel from '../shared/ImageCarousel';
+import ListingMap from '../shared/ListingMap';
 import burgundyTheme, { getListingTypeColor } from '../../theme/burgundyTheme';
 
 const STAY_ACCENT = getListingTypeColor('stay');
@@ -80,6 +81,13 @@ export default function StayDetail({ listing, onClose }) {
                   {listing.address_city}, {listing.address_country}
                 </Text>
               </View>
+              <ListingMap
+                listing_id={listing.id}
+                height={200}
+                markerTitle={listing.title}
+                markerDescription={[listing.address_city, listing.address_country].filter(Boolean).join(', ')}
+                style={styles.map}
+              />
             </View>
 
             <View style={styles.section}>
@@ -283,6 +291,11 @@ const styles = StyleSheet.create({
     backgroundColor: burgundyTheme.colors.surface,
     borderWidth: 1,
     borderColor: burgundyTheme.colors.border,
+    marginBottom: 10,
+  },
+  map: {
+    borderRadius: 12,
+    overflow: 'hidden',
   },
   locationText: {
     fontSize: 14,
