@@ -26,7 +26,7 @@ export async function enrichRecommendationListings(recListings = []) {
         profiles:host_id(username, firstname, lastname, location),
         stays(durations_nights, max_guests, available_rooms),
         events(event_time, event_type, capacity),
-        offering(service_type, opening_hours, location, duration_minutes, max_bookings)
+        offering(service_type, opening_hours, duration_minutes, max_bookings)
       `)
       .in("id", ids)
       .eq("is_active", true);
@@ -107,7 +107,7 @@ export async function getListingsByIds(ids = []) {
         profiles:host_id(username, firstname, lastname, location),
         stays(durations_nights, max_guests, available_rooms),
         events(event_time, event_type, capacity),
-        offering(service_type, opening_hours, location, duration_minutes, max_bookings)
+        offering(service_type, opening_hours, duration_minutes, max_bookings)
       `)
       .in('id', ids)
       .eq('is_active', true);
@@ -155,7 +155,7 @@ export async function getListings(listingType = null) {
         profiles:host_id(username, firstname, lastname, location),
         stays(durations_nights, max_guests, available_rooms),
         events(event_time, event_type, capacity),
-        offering(service_type, opening_hours, location, duration_minutes, max_bookings),
+        offering(service_type, opening_hours, duration_minutes, max_bookings),
         price
       `)
       .eq("is_active", true)
@@ -211,7 +211,7 @@ export async function getListingById(listingId) {
         profiles:host_id(username, firstname, lastname, location),
         stays(durations_nights, max_guests, available_rooms),
         events(event_time, event_type, capacity),
-        offering(service_type, opening_hours, location, duration_minutes, max_bookings),
+        offering(service_type, opening_hours, duration_minutes, max_bookings),
         price
       `)
       .eq("id", listingId)
@@ -317,7 +317,7 @@ export async function getUserFavoriteListings(userId) {
         profiles:host_id(username, firstname, lastname, location),
         stays(durations_nights, max_guests, available_rooms),
         events(event_time, event_type, capacity),
-        offering(service_type, opening_hours, location, duration_minutes, max_bookings)
+        offering(service_type, opening_hours, duration_minutes, max_bookings)
       `)
       .in('id', listingIds)
       .eq('is_active', true);
@@ -377,7 +377,7 @@ export async function getUserRecentlyViewedListings(userId, limit = 8) {
         profiles:host_id(username, firstname, lastname, location),
         stays(durations_nights, max_guests, available_rooms),
         events(event_time, event_type, capacity),
-        offering(service_type, opening_hours, location, duration_minutes, max_bookings)
+        offering(service_type, opening_hours, duration_minutes, max_bookings)
       `)
       .in('id', uniqueIds)
       .eq('is_active', true);

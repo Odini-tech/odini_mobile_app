@@ -1,15 +1,9 @@
 import React, { useEffect, useState } from 'react'
 import { View, Text, StyleSheet, ActivityIndicator } from 'react-native'
-import MapView, { Marker, UrlTile, Region } from 'react-native-maps'
+import { WebView } from 'react-native-webview'
 import { getListingLocation, ListingLocation } from '@/utils/useListingLocation'
 
 const MAPTILER_API_KEY = process.env.EXPO_PUBLIC_MAPTILER_API_KEY ?? ''
-const MAPTILER_TILE_URL = `https://api.maptiler.com/maps/streets-v2/256/{z}/{x}/{y}.png?key=${MAPTILER_API_KEY}`
-
-const DEFAULT_DELTA = {
-  latitudeDelta: 0.01,
-  longitudeDelta: 0.01,
-}
 
 type ListingMapProps = {
   listing_id: string
@@ -17,6 +11,35 @@ type ListingMapProps = {
   markerTitle?: string
   markerDescription?: string
   onLocationLoaded?: (location: ListingLocation) => void
+}
+
+function buildMapHTML(lat: number, lng: number, apiKey: string, title?: string): string {
+  const safeTitle = title ? title.replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/[\n\r]/g, ' ') : ''
+  const popupCode = safeTitle ? `.bindPopup('${safeTitle}').openPopup()` : ''
+
+  return `<!DOCTYPE html>
+<html>
+<head>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body, #map { width: 100%; height: 100%; }
+  </style>
+</head>
+<body>
+  <div id="map"></div>
+  <script>
+    var map = L.map('map', { attributionControl: false, zoomControl: true }).setView([${lat}, ${lng}], 15);
+    L.tileLayer('https://api.maptiler.com/maps/streets-v2/{z}/{x}/{y}.png?key=${apiKey}', {
+      maxZoom: 19,
+      tileSize: 256
+    }).addTo(map);
+    L.marker([${lat}, ${lng}])${popupCode}.addTo(map);
+  </script>
+</body>
+</html>`
 }
 
 export default function ListingMap({
@@ -72,34 +95,22 @@ export default function ListingMap({
     )
   }
 
-  const region: Region = {
-    latitude: location.lat,
-    longitude: location.lng,
-    ...DEFAULT_DELTA,
-  }
+  const html = buildMapHTML(
+    location.lat,
+    location.lng,
+    MAPTILER_API_KEY,
+    markerTitle ?? location.formatted_address ?? undefined,
+  )
 
   return (
     <View style={[styles.mapWrapper, { height }]}>
-      <MapView
+      <WebView
+        source={{ html }}
         style={styles.map}
-        initialRegion={region}
-        mapType="none"
-        rotateEnabled={false}
-      >
-        <UrlTile
-          urlTemplate={MAPTILER_TILE_URL}
-          maximumZ={19}
-          flipY={false}
-          tileSize={256}
-        />
-        <Marker
-          coordinate={{ latitude: location.lat, longitude: location.lng }}
-          title={markerTitle ?? location.formatted_address ?? 'Listing'}
-          description={markerDescription ?? [location.city, location.country].filter(Boolean).join(', ')}
-          pinColor="#1D9E75"
-        />
-      </MapView>
-
+        scrollEnabled={false}
+        javaScriptEnabled
+        originWhitelist={['*']}
+      />
       {location.formatted_address && (
         <View style={styles.addressBadge}>
           <Text style={styles.addressText} numberOfLines={1}>
