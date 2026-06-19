@@ -55,6 +55,7 @@ export default function Dash({ onItemClick }: { onItemClick?: (listing: Listing)
   const [favoritePlaces, setFavoritePlaces] = useState<Listing[]>([]);
   const [recentlyViewed, setRecentlyViewed] = useState<Listing[]>([]);
   const [madeForYou, setMadeForYou] = useState<Listing[]>([]);
+  const [pastBookings, setPastBookings] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [userName, setUserName] = useState('there');
@@ -149,9 +150,18 @@ export default function Dash({ onItemClick }: { onItemClick?: (listing: Listing)
         getListings(),
         uid ? getUserFavoriteListings(uid) : Promise.resolve([]),
         uid ? getUserRecentlyViewedListings(uid, 8) : Promise.resolve([]),
+        uid
+          ? supabase
+              .from('bookings')
+              .select('id, booking_ref, listing_type, status, check_in, event_slot, reservation_time, created_at, listings(id, title, listing_type, image_url)')
+              .eq('user_id', uid)
+              .order('created_at', { ascending: false })
+              .limit(10)
+          : Promise.resolve({ data: [] }),
       ];
 
-      const [allListings, favorites, recentlyViewedData] = await Promise.all(tasks);
+      const [allListings, favorites, recentlyViewedData, bookingsResult] = await Promise.all(tasks);
+      setPastBookings(bookingsResult?.data || []);
 
       const events = (allListings || []).filter((l: Listing) => l.listing_type === 'event').slice(0, 6);
       setUpcomingEvents(events);
@@ -249,6 +259,66 @@ export default function Dash({ onItemClick }: { onItemClick?: (listing: Listing)
 
   const getDisplayItems = (items: Listing[], sectionId: string) => {
     return expandedSection === sectionId ? items : items.slice(0, 4);
+  };
+
+  const renderBookingCard = (booking: any) => {
+    const listing = booking.listings;
+    const statusColors: Record<string, string> = {
+      completed: '#22C55E',
+      confirmed: '#3B82F6',
+      pending: '#F59E0B',
+      cancelled_by_user: '#6B7280',
+      cancelled_by_host: '#6B7280',
+      rejected: '#EF4444',
+    };
+    const statusColor = statusColors[booking.status] || '#6B7280';
+    const dateStr = booking.check_in || booking.event_slot || booking.reservation_time || booking.created_at;
+    const displayDate = dateStr
+      ? new Date(dateStr).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })
+      : null;
+    const typeColor =
+      (listing?.listing_type || booking.listing_type) === 'event'
+        ? '#A63456'
+        : (listing?.listing_type || booking.listing_type) === 'offering'
+        ? '#8B4B61'
+        : '#7A1E3A';
+
+    return (
+      <View key={booking.id} style={styles.bookingCard}>
+        {listing?.image_url ? (
+          <Image source={{ uri: listing.image_url }} style={styles.bookingCardImage} />
+        ) : (
+          <View style={[styles.bookingCardImage, styles.bookingCardImagePlaceholder]}>
+            <MaterialCommunityIcons
+              name={
+                (listing?.listing_type || booking.listing_type) === 'event'
+                  ? 'calendar'
+                  : (listing?.listing_type || booking.listing_type) === 'offering'
+                  ? 'briefcase'
+                  : 'home'
+              }
+              size={24}
+              color={typeColor}
+            />
+          </View>
+        )}
+        <View style={styles.bookingCardBody}>
+          <Text style={styles.bookingCardTitle} numberOfLines={2}>
+            {listing?.title || 'Booking'}
+          </Text>
+          {displayDate && (
+            <Text style={styles.bookingCardDate}>{displayDate}</Text>
+          )}
+          <View style={[styles.bookingStatusPill, { backgroundColor: statusColor + '22' }]}>
+            <View style={[styles.bookingStatusDot, { backgroundColor: statusColor }]} />
+            <Text style={[styles.bookingStatusText, { color: statusColor }]}>
+              {booking.status.replace(/_/g, ' ')}
+            </Text>
+          </View>
+          <Text style={styles.bookingRef}>{booking.booking_ref}</Text>
+        </View>
+      </View>
+    );
   };
 
   const renderCollectionCard = (collection: { id: number; title: string; description: string; count: number; image: string | null }) => {
@@ -433,6 +503,25 @@ export default function Dash({ onItemClick }: { onItemClick?: (listing: Listing)
               contentContainerStyle={styles.horizontalScroll}
             >
               {recentlyViewed.map((l) => renderListingCard(l, 'small'))}
+            </ScrollView>
+          </View>
+        )}
+
+        {/* Past Bookings */}
+        {pastBookings.length > 0 && (
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <View>
+                <Text style={styles.sectionTitle}>Past Bookings</Text>
+                <Text style={styles.sectionSubtitle}>Your booking history</Text>
+              </View>
+            </View>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.horizontalScroll}
+            >
+              {pastBookings.map(renderBookingCard)}
             </ScrollView>
           </View>
         )}
@@ -764,5 +853,65 @@ const styles = StyleSheet.create({
   cardPrice: {
     fontSize: 12,
     fontWeight: '700',
+  },
+  bookingCard: {
+    width: 200,
+    backgroundColor: burgundyTheme.colors.surface,
+    borderRadius: 14,
+    overflow: 'hidden',
+    borderWidth: 0.5,
+    borderColor: burgundyTheme.colors.border,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
+    shadowRadius: 3,
+  },
+  bookingCardImage: {
+    width: '100%',
+    height: 100,
+    backgroundColor: burgundyTheme.colors.surfaceAlt,
+  },
+  bookingCardImagePlaceholder: {
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  bookingCardBody: {
+    padding: 10,
+    gap: 4,
+  },
+  bookingCardTitle: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: burgundyTheme.colors.text,
+  },
+  bookingCardDate: {
+    fontSize: 11,
+    color: burgundyTheme.colors.textMuted,
+  },
+  bookingStatusPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    alignSelf: 'flex-start',
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+    borderRadius: 20,
+    marginTop: 2,
+  },
+  bookingStatusDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+  },
+  bookingStatusText: {
+    fontSize: 10,
+    fontWeight: '600',
+    textTransform: 'capitalize',
+  },
+  bookingRef: {
+    fontSize: 10,
+    color: burgundyTheme.colors.textMuted,
+    marginTop: 2,
   },
 });

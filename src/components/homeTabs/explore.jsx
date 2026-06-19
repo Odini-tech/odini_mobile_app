@@ -8,9 +8,13 @@ import {
 } from '../../../services/listings.service';
 import { RecommendationService } from '../../services/recommendationService';
 import { getRecommendationModeStatus } from '../../services/recommendationGateway';
+import { InteractionService } from '../../services/interactionService';
 import burgundyTheme from '../../theme/burgundyTheme';
 import ExploreCard from '../ExploreCard';
 import { GridCardSkeleton } from '../shared/CardSkeleton';
+import StayDetail from '../details/StayDetail';
+import EventDetail from '../details/EventDetail';
+import OfferingDetail from '../details/OfferingDetail';
 
 const PAGE_SIZE = 6;
 const NUM_COLUMNS = 2;
@@ -21,14 +25,34 @@ export default function Explore({ onItemClick }) {
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(true);
   const [error, setError] = useState(null);
+  const [selectedListing, setSelectedListing] = useState(null);
+  const [detailsType, setDetailsType] = useState(null);
+  const [userId, setUserId] = useState(null);
 
   const shuffledIdsRef = useRef([]);
   const loadedCountRef = useRef(0);
   const allRecListingsRef = useRef([]);
 
   useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => {
+      if (data?.user?.id) setUserId(data.user.id);
+    });
     initialLoad();
   }, []);
+
+  const handleCardPress = (item) => {
+    setSelectedListing(item);
+    setDetailsType(item.listing_type);
+    onItemClick?.(item);
+    if (userId) {
+      InteractionService.trackClick(userId, item.id).catch(() => {});
+    }
+  };
+
+  const handleCloseDetails = () => {
+    setSelectedListing(null);
+    setDetailsType(null);
+  };
 
   const initialLoad = async () => {
     try {
@@ -102,7 +126,7 @@ export default function Explore({ onItemClick }) {
 
   const renderItem = ({ item }) => (
     <View style={styles.gridItem}>
-      <ExploreCard item={item} onPress={() => onItemClick?.(item)} />
+      <ExploreCard item={item} onPress={() => handleCardPress(item)} />
     </View>
   );
 
@@ -158,20 +182,32 @@ export default function Explore({ onItemClick }) {
   }
 
   return (
-    <View style={styles.container}>
-      <FlatList
-        data={listings}
-        keyExtractor={(item) => String(item?.id)}
-        renderItem={renderItem}
-        numColumns={NUM_COLUMNS}
-        columnWrapperStyle={styles.row}
-        ListFooterComponent={renderFooter}
-        onEndReached={loadMore}
-        onEndReachedThreshold={0.4}
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.gridContent}
-      />
-    </View>
+    <>
+      <View style={styles.container}>
+        <FlatList
+          data={listings}
+          keyExtractor={(item) => String(item?.id)}
+          renderItem={renderItem}
+          numColumns={NUM_COLUMNS}
+          columnWrapperStyle={styles.row}
+          ListFooterComponent={renderFooter}
+          onEndReached={loadMore}
+          onEndReachedThreshold={0.4}
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={styles.gridContent}
+        />
+      </View>
+
+      {selectedListing && detailsType === 'stay' && (
+        <StayDetail listing={selectedListing} onClose={handleCloseDetails} />
+      )}
+      {selectedListing && detailsType === 'event' && (
+        <EventDetail listing={selectedListing} onClose={handleCloseDetails} />
+      )}
+      {selectedListing && detailsType === 'offering' && (
+        <OfferingDetail listing={selectedListing} onClose={handleCloseDetails} />
+      )}
+    </>
   );
 }
 
