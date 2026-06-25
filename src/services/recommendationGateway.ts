@@ -63,26 +63,12 @@ const trimTrailingSlash = (value: string) => value.replace(/\/+$/, '');
 const buildModeMessage = (status: RecommendationModeStatus) =>
   `[ODINI mode] ${status.mode === 'rec_eng' ? 'REC_ENG mode' : 'BASIC mode'} active (${status.reason})`;
 
-const getAlertFn = (): ((message?: string) => void) | null => {
-  if (typeof globalThis === 'undefined') return null;
-  const candidate = (globalThis as unknown as { alert?: (message?: string) => void }).alert;
-  return typeof candidate === 'function' ? candidate : null;
-};
-
 const emitMode = () => {
   const status = getRecommendationModeStatus();
   const message = buildModeMessage(status);
 
   if (lastAnnouncedMode !== status.mode) {
     console.info(message);
-    const alertFn = getAlertFn();
-    if (alertFn) {
-      try {
-        alertFn(message);
-      } catch (_) {
-        // no-op
-      }
-    }
     lastAnnouncedMode = status.mode;
   }
 

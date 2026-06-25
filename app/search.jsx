@@ -15,6 +15,15 @@ import { supabase } from '../lib/supabase';
 import { useAppMode } from '../src/context/AppModeContext';
 import { useBottomNavScroll } from '../src/context/BottomNavVisibilityContext';
 
+function shuffle(arr) {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
 export default function SearchPage() {
   const router = useRouter();
   const { theme } = useAppMode();
@@ -35,17 +44,16 @@ export default function SearchPage() {
   async function fetchPopularCategories() {
     setPopularLoading(true);
     try {
-      const { data: catListings } = await supabase
-        .from('category_listings')
-        .select('listing_id, categories(id, name, image_url)')
-        .order('listing_id');
+      const [{ data: catListings }, { data: bookings }, { data: allCats }] = await Promise.all([
+        supabase.from('category_listings').select('listing_id, categories(id, name, image_url)').order('listing_id'),
+        supabase.from('bookings').select('listing_id'),
+        supabase.from('categories').select('id, name, image_url'),
+      ]);
 
       if (!catListings) {
         setPopularCategories([]);
         return;
       }
-
-      const { data: bookings } = await supabase.from('bookings').select('listing_id');
 
       const bookingCountByListing = {};
       bookings?.forEach((b) => {
@@ -60,8 +68,16 @@ export default function SearchPage() {
         catMap[cat.id].count += bookingCountByListing[cl.listing_id] || 0;
       });
 
-      const categoriesArray = Object.values(catMap).sort((a, b) => b.count - a.count);
-      setPopularCategories(categoriesArray.slice(0, 6));
+      const ranked = Object.values(catMap).sort((a, b) => b.count - a.count);
+      const topFive = ranked.slice(0, 5);
+      const topIds = new Set(topFive.map((c) => c.id));
+
+      // Pick one random "discovery" category from outside the top 5
+      const pool = (allCats || []).filter((c) => !topIds.has(c.id));
+      const wildcard = pool.length > 0 ? pool[Math.floor(Math.random() * pool.length)] : null;
+
+      const combined = wildcard ? [...topFive, wildcard] : topFive;
+      setPopularCategories(shuffle(combined));
     } catch (error) {
       console.error('Failed to fetch popular categories', error);
       setPopularCategories([]);
@@ -105,7 +121,7 @@ export default function SearchPage() {
       });
 
       const personal = Object.values(categoryCount).sort((a, b) => b.count - a.count);
-      setPersonalCategories(personal.slice(0, 6));
+      setPersonalCategories(shuffle(personal.slice(0, 6)));
     } catch (error) {
       console.error('Failed to fetch personal categories', error);
       setPersonalCategories([]);

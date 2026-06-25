@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useEffect, useRef, useState } from "react";
-import { ActivityIndicator, Animated, Image, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { ActivityIndicator, Animated, Image, Share, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { supabase } from "../../lib/supabase";
 import { useCurrency } from "../context/CurrencyContext";
 import { InteractionService } from "../services/interactionService";
@@ -185,10 +185,17 @@ export default function ListingCard({ item, onPress, onFavoritePress, favoriteLo
                 />
               )}
             </TouchableOpacity>
-            <TouchableOpacity style={styles.interactionButton} onPress={handleDetails}>
-              <Ionicons name="chatbubble-outline" size={24} color={burgundyTheme.colors.text} />
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.interactionButton}>
+            <TouchableOpacity
+              style={styles.interactionButton}
+              onPress={async () => {
+                try {
+                  await Share.share({
+                    title: item.title,
+                    message: `Check out "${item.title}" on Odini!\n\n${item.description || ''}\n\nPrice: ${item.price ? item.price : 'See listing for details'}`.trim(),
+                  });
+                } catch (_) {}
+              }}
+            >
               <Ionicons name="share-social-outline" size={24} color={burgundyTheme.colors.text} />
             </TouchableOpacity>
           </View>

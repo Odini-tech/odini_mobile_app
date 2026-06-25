@@ -116,6 +116,33 @@ const normalizeApiListingRows = (rows: RecommendationApiListing[]): ListingRow[]
       created_at: row.created_at || new Date().toISOString(),
     }));
 
+async function fetchListingIdsByQueryTaxonomy(query: string): Promise<Set<string>> {
+  const term = `%${query}%`;
+  const [{ data: matchingCats }, { data: matchingTags }] = await Promise.all([
+    supabase.from('categories').select('id').ilike('name', term),
+    supabase.from('tags').select('id').ilike('name', term),
+  ]);
+
+  const catIds = (matchingCats || []).map((c) => c.id);
+  const tagIds = (matchingTags || []).map((t) => t.id);
+
+  if (!catIds.length && !tagIds.length) return new Set<string>();
+
+  const [catRows, tagRows] = await Promise.all([
+    catIds.length
+      ? supabase.from('category_listings').select('listing_id').in('category_id', catIds).then((r) => r.data || [])
+      : Promise.resolve([]),
+    tagIds.length
+      ? supabase.from('tag_listings').select('listing_id').in('tag_id', tagIds).then((r) => r.data || [])
+      : Promise.resolve([]),
+  ]);
+
+  const ids = new Set<string>();
+  catRows.forEach((r) => ids.add(r.listing_id));
+  tagRows.forEach((r) => ids.add(r.listing_id));
+  return ids;
+}
+
 async function fetchListingIdsByTaxonomy(categoryIds: string[], tagIds: string[]): Promise<Set<string> | null> {
   let categorySet: Set<string> | null = null;
   let tagSet: Set<string> | null = null;
@@ -249,7 +276,15 @@ export const searchService = {
         .select('id, host_id, listing_type, title, description, is_active, price, created_at', { count: 'exact' });
 
       if (query.trim()) {
-        listingsQuery = listingsQuery.or(`title.ilike.%${query}%,description.ilike.%${query}%`);
+        const taxonomyIds = await fetchListingIdsByQueryTaxonomy(query);
+        const idList = Array.from(taxonomyIds);
+        if (idList.length > 0) {
+          listingsQuery = listingsQuery.or(
+            `title.ilike.%${query}%,description.ilike.%${query}%,id.in.(${idList.join(',')})`
+          );
+        } else {
+          listingsQuery = listingsQuery.or(`title.ilike.%${query}%,description.ilike.%${query}%`);
+        }
       }
 
       if (listing_type) {
@@ -377,7 +412,17 @@ export const searchService = {
     let listingsQuery = supabase
       .from('listings')
       .select('id, host_id, listing_type, title, description, is_active, price, created_at', { count: 'exact' });
-    if (query.trim()) listingsQuery = listingsQuery.or(`title.ilike.%${query}%,description.ilike.%${query}%`);
+    if (query.trim()) {
+      const taxonomyIds = await fetchListingIdsByQueryTaxonomy(query);
+      const idList = Array.from(taxonomyIds);
+      if (idList.length > 0) {
+        listingsQuery = listingsQuery.or(
+          `title.ilike.%${query}%,description.ilike.%${query}%,id.in.(${idList.join(',')})`
+        );
+      } else {
+        listingsQuery = listingsQuery.or(`title.ilike.%${query}%,description.ilike.%${query}%`);
+      }
+    }
     if (listing_type) listingsQuery = listingsQuery.eq('listing_type', listing_type);
     listingsQuery = listingsQuery.eq('is_active', is_active);
     if (min_price !== undefined) listingsQuery = listingsQuery.gte('price', min_price);

@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import {
   Animated,
   Dimensions,
+  Easing,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -13,39 +14,54 @@ import Dash from '../../src/components/homeTabs/dash';
 import Explore from '../../src/components/homeTabs/explore';
 import { ForYouPage } from '../../src/components/homeTabs/myFeed';
 import { useAppMode } from '../../src/context/AppModeContext';
+import { useBottomNavVisibility } from '../../src/context/BottomNavVisibilityContext';
 import {
   getRecommendationModeStatus,
-  setRecommendationMode,
   onRecommendationModeChange,
 } from '../../src/services/recommendationGateway';
 
 const { width } = Dimensions.get('window');
+const TAB_LABEL_HEIGHT = 40;
 
 const Home = () => {
   const { theme } = useAppMode();
   const insets = useSafeAreaInsets();
-  const styles = getStyles(theme, insets);
+  const { isBottomNavVisible } = useBottomNavVisibility();
   const [activeTab, setActiveTab] = useState(1);
   const [pendingAction, setPendingAction] = useState(null);
   const [recMode, setRecMode] = useState(() => getRecommendationModeStatus().mode);
   const pagerRef = useRef(null);
   const indicatorAnim = useRef(new Animated.Value(width / 3)).current;
+  const labelsAnim = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
     const unsubscribe = onRecommendationModeChange((status) => setRecMode(status.mode));
     return unsubscribe;
   }, []);
 
+  useEffect(() => {
+    Animated.timing(labelsAnim, {
+      toValue: isBottomNavVisible ? 1 : 0,
+      duration: 200,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: false,
+    }).start();
+  }, [isBottomNavVisible]);
+
+  const labelHeight = labelsAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0, TAB_LABEL_HEIGHT],
+  });
+
   const tabs = [
-    { id: 0, label: 'Explore', icon: '' },
-    { id: 1, label: 'FYP', icon: '' },
-    { id: 2, label: 'DASH', icon: '' },
+    { id: 0, label: 'Explore' },
+    { id: 1, label: 'FYP' },
+    { id: 2, label: 'DASH' },
   ];
 
   const handleTabPress = (index) => {
     setActiveTab(index);
     pagerRef.current?.setPage(index);
-
     Animated.spring(indicatorAnim, {
       toValue: (width / 3) * index,
       useNativeDriver: true,
@@ -63,7 +79,6 @@ const Home = () => {
       performItemAction(listing);
       return;
     }
-
     setPendingAction({ tab: tabIndex, action: performItemAction, payload: listing });
     handleTabPress(tabIndex);
   };
@@ -71,14 +86,12 @@ const Home = () => {
   const onPageSelected = (e) => {
     const index = e.nativeEvent.position;
     setActiveTab(index);
-
     Animated.spring(indicatorAnim, {
       toValue: (width / 3) * index,
       useNativeDriver: true,
       tension: 50,
       friction: 7,
     }).start();
-
     if (pendingAction && pendingAction.tab === index) {
       try {
         pendingAction.action(pendingAction.payload);
@@ -89,45 +102,44 @@ const Home = () => {
     }
   };
 
-  const toggleMode = () => {
-    const next = recMode === 'rec_eng' ? 'basic' : 'rec_eng';
-    setRecommendationMode(next, 'Manual toggle');
-  };
+  const styles = getStyles(theme, insets);
 
   return (
     <View style={styles.container}>
-      <View style={styles.topNav}>
-        {tabs.map((tab, index) => (
-          <TouchableOpacity
-            key={tab.id}
-            style={styles.tabButton}
-            onPress={() => handleTabPress(index)}
-            activeOpacity={0.7}
-          >
-            <Text style={[styles.tabIcon, activeTab === index && styles.activeTabIcon]}>
-              {tab.icon}
-            </Text>
-            <Text style={[styles.tabLabel, activeTab === index && styles.activeTabLabel]}>
-              {tab.label}
-            </Text>
-          </TouchableOpacity>
-        ))}
-
-        <TouchableOpacity style={styles.modePill} onPress={toggleMode} activeOpacity={0.75}>
-          <View style={[styles.modeDot, recMode === 'rec_eng' && styles.modeDotActive]} />
-          <Text style={[styles.modePillText, recMode === 'rec_eng' && styles.modePillTextActive]}>
-            {recMode === 'rec_eng' ? 'REC' : 'BASIC'}
-          </Text>
-        </TouchableOpacity>
-
+      <View style={[styles.topNav, { paddingTop: insets?.top ?? 0 }]}>
+        {/* Labels row — animates in/out based on scroll direction */}
         <Animated.View
-          style={[
-            styles.indicator,
-            {
-              transform: [{ translateX: indicatorAnim }],
-            },
-          ]}
-        />
+          pointerEvents={isBottomNavVisible ? 'auto' : 'none'}
+          style={{ height: labelHeight, opacity: labelsAnim, overflow: 'hidden' }}
+        >
+          {/* Green dot on far left, in line with tab labels */}
+          <View style={styles.recDotWrapper}>
+            <View style={[styles.recDot, recMode === 'rec_eng' && styles.recDotActive]} />
+          </View>
+
+          {/* Tab buttons take full width so indicator math stays clean */}
+          <View style={styles.tabsRow}>
+            {tabs.map((tab, index) => (
+              <TouchableOpacity
+                key={tab.id}
+                style={styles.tabButton}
+                onPress={() => handleTabPress(index)}
+                activeOpacity={0.7}
+              >
+                <Text style={[styles.tabLabel, activeTab === index && styles.activeTabLabel]}>
+                  {tab.label}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </Animated.View>
+
+        {/* Indicator track — always visible */}
+        <View style={styles.indicatorTrack}>
+          <Animated.View
+            style={[styles.indicator, { transform: [{ translateX: indicatorAnim }] }]}
+          />
+        </View>
       </View>
 
       <PagerView
@@ -140,11 +152,9 @@ const Home = () => {
         <View key="1" style={styles.page}>
           <Explore onItemClick={(listing) => handleTabItemClick(listing, 0)} />
         </View>
-
         <View key="2" style={styles.page}>
           <ForYouPage onEventClick={(listing) => handleTabItemClick(listing, 1)} />
         </View>
-
         <View key="3" style={styles.page}>
           <Dash onItemClick={(listing) => handleTabItemClick(listing, 2)} />
         </View>
@@ -160,79 +170,56 @@ const getStyles = (theme, insets) =>
       backgroundColor: theme.colors.background,
     },
     topNav: {
-      flexDirection: 'row',
       backgroundColor: theme.colors.surface,
       borderBottomWidth: 1,
       borderBottomColor: theme.colors.border,
-      paddingTop: (insets?.top ?? 0) + 12,
-      paddingBottom: 8,
-      position: 'relative',
+    },
+    tabsRow: {
+      flexDirection: 'row',
+      height: '100%',
     },
     tabButton: {
-      flex: 1,
+      width: width / 3,
       alignItems: 'center',
       justifyContent: 'center',
-      paddingVertical: 12,
-      marginHorizontal: 6,
-      borderRadius: 16,
-    },
-    tabIcon: {
-      fontSize: 20,
-      color: theme.colors.textMuted,
-      marginBottom: 4,
-    },
-    activeTabIcon: {
-      color: theme.colors.primary,
     },
     tabLabel: {
       color: theme.colors.textMuted,
-      fontSize: 14,
+      fontSize: 13,
       fontWeight: '600',
     },
     activeTabLabel: {
       color: theme.colors.primary,
       fontWeight: 'bold',
     },
-    indicator: {
+    recDotWrapper: {
       position: 'absolute',
+      left: 10,
+      top: 0,
       bottom: 0,
-      width: width / 3,
-      height: 4,
-      backgroundColor: theme.colors.primary,
-      borderRadius: 999,
+      justifyContent: 'center',
+      zIndex: 1,
     },
-    modePill: {
-      position: 'absolute',
-      top: (insets?.top ?? 0) + 10,
-      right: 10,
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 4,
-      backgroundColor: theme.colors.surfaceAlt || theme.colors.surface,
-      borderWidth: 1,
-      borderColor: theme.colors.border,
-      borderRadius: 999,
-      paddingHorizontal: 8,
-      paddingVertical: 4,
-      zIndex: 10,
+    recDot: {
+      width: 7,
+      height: 7,
+      borderRadius: 4,
+      backgroundColor: 'transparent',
     },
-    modeDot: {
-      width: 6,
-      height: 6,
-      borderRadius: 3,
-      backgroundColor: theme.colors.textMuted,
-    },
-    modeDotActive: {
+    recDotActive: {
       backgroundColor: '#22C55E',
     },
-    modePillText: {
-      fontSize: 10,
-      fontWeight: '700',
-      color: theme.colors.textMuted,
-      letterSpacing: 0.5,
+    indicatorTrack: {
+      height: 3,
     },
-    modePillTextActive: {
-      color: '#22C55E',
+    indicator: {
+      position: 'absolute',
+      left: 0,
+      top: 0,
+      width: width / 3,
+      height: 3,
+      backgroundColor: theme.colors.primary,
+      borderRadius: 999,
     },
     pagerView: {
       flex: 1,
