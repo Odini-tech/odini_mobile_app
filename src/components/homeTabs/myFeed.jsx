@@ -1,5 +1,6 @@
-import { useEffect, useRef, useState } from "react";
-import { FlatList, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { Ionicons } from '@expo/vector-icons';
+import { useCallback, useEffect, useRef, useState } from "react";
+import { FlatList, RefreshControl, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { supabase } from "../../../lib/supabase";
 import {
   enrichRecommendationListings,
@@ -17,23 +18,40 @@ import EventDetail from "../details/EventDetail";
 import OfferingDetail from "../details/OfferingDetail";
 import StayDetail from "../details/StayDetail";
 
-const PAGE_SIZE = 6;
+const INITIAL_PAGE_SIZE = 18;
+const LOAD_MORE_SIZE = 6;
+const CACHE_TTL = 5 * 60 * 1000;
+
+const _cache = {
+  listings: null,
+  allRec: [],
+  shuffledIds: [],
+  loadedCount: 0,
+  hasMore: true,
+  favIds: new Set(),
+  recMode: 'basic',
+  ts: 0,
+};
+
+function isCacheValid() {
+  return _cache.listings !== null && Date.now() - _cache.ts < CACHE_TTL;
+}
 
 export function ForYouPage({ onEventClick }) {
   const [listings, setListings] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(!isCacheValid());
   const [loadingMore, setLoadingMore] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const [hasMore, setHasMore] = useState(true);
   const [error, setError] = useState(null);
   const [selectedListing, setSelectedListing] = useState(null);
   const [detailsType, setDetailsType] = useState(null);
-  const [recMode, setRecMode] = useState('basic');
+  const [recMode, setRecMode] = useState(() => _cache.recMode);
+  const [favoritedIds, setFavoritedIds] = useState(() => _cache.favIds);
 
-  // For basic mode: store shuffled IDs, track which we've loaded
-  const shuffledIdsRef = useRef([]);
-  const loadedCountRef = useRef(0);
-  // For rec_eng mode: store all enriched results, page through them locally
-  const allRecListingsRef = useRef([]);
+  const shuffledIdsRef = useRef(_cache.shuffledIds);
+  const loadedCountRef = useRef(_cache.loadedCount);
+  const allRecListingsRef = useRef(_cache.allRec);
   const detailRequestRef = useRef(null);
   const bottomNavScroll = useBottomNavScroll();
 
@@ -43,37 +61,78 @@ export function ForYouPage({ onEventClick }) {
     initialLoad(status.mode);
   }, []);
 
-  const initialLoad = async (mode) => {
-    try {
-      setLoading(true);
-      setError(null);
+  const doFetch = async (mode) => {
+    setError(null);
+    const { data: authData } = await supabase.auth.getUser();
+    const uid = authData?.user?.id;
 
-      const { data: authData } = await supabase.auth.getUser();
-      const userId = authData?.user?.id;
+    const favPromise = uid
+      ? supabase.from('interactions').select('listing_id').eq('user_id', uid).gte('score', 5)
+      : Promise.resolve({ data: [] });
 
-      if (mode === 'rec_eng' && userId) {
-        const recListings = await RecommendationService.getForYou(userId);
-        if (recListings.length > 0) {
-          const enriched = await enrichRecommendationListings(recListings);
-          if (enriched.length > 0) {
-            allRecListingsRef.current = enriched;
-            const first = enriched.slice(0, PAGE_SIZE);
-            loadedCountRef.current = first.length;
-            setListings(first);
-            setHasMore(enriched.length > PAGE_SIZE);
-            return;
-          }
+    let finalListings = null;
+    let finalAllRec = [];
+    let finalShuffledIds = [];
+    let finalLoadedCount = 0;
+    let finalHasMore = true;
+
+    if (mode === 'rec_eng' && uid) {
+      const recListings = await RecommendationService.getForYou(uid);
+      if (recListings.length > 0) {
+        const enriched = await enrichRecommendationListings(recListings);
+        if (enriched.length > 0) {
+          finalAllRec = enriched;
+          finalListings = enriched.slice(0, INITIAL_PAGE_SIZE);
+          finalLoadedCount = finalListings.length;
+          finalHasMore = enriched.length > INITIAL_PAGE_SIZE;
         }
       }
+    }
 
-      // Basic mode: shuffle IDs, load first page
+    if (!finalListings) {
       const ids = await getShuffledListingIds();
-      shuffledIdsRef.current = ids;
-      const firstBatch = ids.slice(0, PAGE_SIZE);
-      const data = await getListingsByIds(firstBatch);
-      loadedCountRef.current = firstBatch.length;
-      setListings(data);
-      setHasMore(ids.length > PAGE_SIZE);
+      finalShuffledIds = ids;
+      finalListings = await getListingsByIds(ids.slice(0, INITIAL_PAGE_SIZE));
+      finalLoadedCount = Math.min(ids.length, INITIAL_PAGE_SIZE);
+      finalHasMore = ids.length > INITIAL_PAGE_SIZE;
+    }
+
+    const favResult = await favPromise;
+    const favSet = new Set((favResult.data || []).map(r => r.listing_id));
+
+    shuffledIdsRef.current = finalShuffledIds;
+    allRecListingsRef.current = finalAllRec;
+    loadedCountRef.current = finalLoadedCount;
+
+    setListings(finalListings);
+    setHasMore(finalHasMore);
+    setFavoritedIds(favSet);
+
+    _cache.listings = finalListings;
+    _cache.allRec = finalAllRec;
+    _cache.shuffledIds = finalShuffledIds;
+    _cache.loadedCount = finalLoadedCount;
+    _cache.hasMore = finalHasMore;
+    _cache.favIds = favSet;
+    _cache.recMode = mode;
+    _cache.ts = Date.now();
+  };
+
+  const initialLoad = async (mode) => {
+    if (isCacheValid()) {
+      shuffledIdsRef.current = _cache.shuffledIds;
+      allRecListingsRef.current = _cache.allRec;
+      loadedCountRef.current = _cache.loadedCount;
+      setListings(_cache.listings);
+      setHasMore(_cache.hasMore);
+      setFavoritedIds(_cache.favIds);
+      setRecMode(_cache.recMode);
+      setLoading(false);
+      return;
+    }
+    setLoading(true);
+    try {
+      await doFetch(mode);
     } catch (err) {
       console.error("Error loading feed:", err);
       setError(err.message || "Failed to load listings");
@@ -82,28 +141,50 @@ export function ForYouPage({ onEventClick }) {
     }
   };
 
+  const refresh = useCallback(async () => {
+    const mode = getRecommendationModeStatus().mode;
+    setRefreshing(true);
+    _cache.ts = 0;
+    try {
+      await doFetch(mode);
+    } catch (err) {
+      console.error('Error refreshing feed:', err);
+    } finally {
+      setRefreshing(false);
+    }
+  }, []);
+
   const loadMore = async () => {
     if (loadingMore || !hasMore) return;
     setLoadingMore(true);
     try {
-      // rec_eng mode: page through the already-fetched list
       if (allRecListingsRef.current.length > 0) {
         const start = loadedCountRef.current;
-        const next = allRecListingsRef.current.slice(start, start + PAGE_SIZE);
-        if (next.length === 0) { setHasMore(false); return; }
+        const next = allRecListingsRef.current.slice(start, start + LOAD_MORE_SIZE);
+        if (next.length === 0) { setHasMore(false); _cache.hasMore = false; return; }
         loadedCountRef.current = start + next.length;
-        setListings((prev) => [...prev, ...next]);
+        setListings(prev => {
+          const updated = [...prev, ...next];
+          _cache.listings = updated;
+          _cache.loadedCount = loadedCountRef.current;
+          _cache.hasMore = loadedCountRef.current < allRecListingsRef.current.length;
+          return updated;
+        });
         setHasMore(loadedCountRef.current < allRecListingsRef.current.length);
         return;
       }
-
-      // Basic mode: fetch next batch of IDs from Supabase
       const start = loadedCountRef.current;
-      const nextIds = shuffledIdsRef.current.slice(start, start + PAGE_SIZE);
-      if (nextIds.length === 0) { setHasMore(false); return; }
+      const nextIds = shuffledIdsRef.current.slice(start, start + LOAD_MORE_SIZE);
+      if (nextIds.length === 0) { setHasMore(false); _cache.hasMore = false; return; }
       const data = await getListingsByIds(nextIds);
       loadedCountRef.current = start + nextIds.length;
-      setListings((prev) => [...prev, ...data]);
+      setListings(prev => {
+        const updated = [...prev, ...data];
+        _cache.listings = updated;
+        _cache.loadedCount = loadedCountRef.current;
+        _cache.hasMore = loadedCountRef.current < shuffledIdsRef.current.length;
+        return updated;
+      });
       setHasMore(loadedCountRef.current < shuffledIdsRef.current.length);
     } catch (err) {
       console.error("Error loading more:", err);
@@ -119,10 +200,10 @@ export function ForYouPage({ onEventClick }) {
     onEventClick?.(listing);
 
     const { data: authData } = await supabase.auth.getUser().catch(() => ({ data: null }));
-    const userId = authData?.user?.id;
-    if (userId) {
-      InteractionService.trackClick(userId, listing.id).catch(() => {});
-      RecommendationService.recordInteraction(userId, listing.id, 'click', 'fyp').catch(() => {});
+    const uid = authData?.user?.id;
+    if (uid) {
+      InteractionService.trackClick(uid, listing.id).catch(() => {});
+      RecommendationService.recordInteraction(uid, listing.id, 'click', 'fyp').catch(() => {});
     }
 
     try {
@@ -135,34 +216,45 @@ export function ForYouPage({ onEventClick }) {
     }
   };
 
-  const handleCloseDetails = () => {
+  const handleCloseDetails = useCallback(() => {
     detailRequestRef.current = null;
     setSelectedListing(null);
     setDetailsType(null);
-  };
+  }, []);
 
-  const handleInteractionAction = (actionId, listing) => {
+  const handleInteractionAction = useCallback((actionId, listing) => {
     if (actionId === 'hide' || actionId === 'dislike') {
-      setListings((prev) => prev.filter((l) => l.id !== listing.id));
-      // Also remove from rec cache so it won't reappear on next page
-      allRecListingsRef.current = allRecListingsRef.current.filter((l) => l.id !== listing.id);
+      setListings(prev => {
+        const updated = prev.filter(l => l.id !== listing.id);
+        _cache.listings = updated;
+        return updated;
+      });
+      allRecListingsRef.current = allRecListingsRef.current.filter(l => l.id !== listing.id);
+      _cache.allRec = allRecListingsRef.current;
+    } else if (actionId === 'favorite') {
+      setFavoritedIds(prev => {
+        const next = new Set(prev);
+        if (next.has(listing.id)) next.delete(listing.id); else next.add(listing.id);
+        _cache.favIds = next;
+        return next;
+      });
     }
-  };
+  }, []);
 
-  const renderItem = ({ item }) => (
+  const renderItem = useCallback(({ item }) => (
     <ListingCard
       item={item}
       onPress={() => handleCardPress(item)}
+      isFavorited={favoritedIds.has(item.id)}
       onInteractionAction={handleInteractionAction}
     />
-  );
+  ), [favoritedIds, handleInteractionAction]);
 
   const renderFooter = () => {
     if (loadingMore) {
       return (
-        <View>
-          <FeedCardSkeleton />
-          <FeedCardSkeleton />
+        <View style={styles.loadingMoreRow}>
+          <Text style={styles.loadingMoreText}>Loading more…</Text>
         </View>
       );
     }
@@ -170,6 +262,10 @@ export function ForYouPage({ onEventClick }) {
       return (
         <View style={styles.footer}>
           <Text style={styles.footerText}>You're all caught up</Text>
+          <TouchableOpacity style={styles.refreshButton} onPress={refresh}>
+            <Ionicons name="refresh" size={15} color={burgundyTheme.colors.primary} />
+            <Text style={styles.refreshButtonText}>Refresh</Text>
+          </TouchableOpacity>
         </View>
       );
     }
@@ -215,27 +311,41 @@ export function ForYouPage({ onEventClick }) {
   }
 
   return (
-    <View style={styles.container}>
-      <FlatList
-        data={listings}
-        keyExtractor={(item) => String(item?.id)}
-        renderItem={renderItem}
-        ListHeaderComponent={
-          recMode === 'rec_eng' ? (
-            <View style={styles.modeBanner}>
-              <View style={styles.modeDot} />
-              <Text style={styles.modeText}>Personalised for you</Text>
-            </View>
-          ) : null
-        }
-        ListFooterComponent={renderFooter}
-        onEndReached={loadMore}
-        onEndReachedThreshold={0.4}
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingBottom: 80 }}
-        {...bottomNavScroll}
-      />
-
+    <>
+      <View style={styles.container}>
+        <FlatList
+          data={listings}
+          keyExtractor={(item) => String(item?.id)}
+          renderItem={renderItem}
+          ListHeaderComponent={
+            recMode === 'rec_eng' ? (
+              <View style={styles.modeBanner}>
+                <View style={styles.modeDot} />
+                <Text style={styles.modeText}>Personalised for you</Text>
+              </View>
+            ) : null
+          }
+          ListFooterComponent={renderFooter}
+          onEndReached={loadMore}
+          onEndReachedThreshold={0.3}
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={{ paddingBottom: 80 }}
+          extraData={favoritedIds}
+          removeClippedSubviews
+          maxToRenderPerBatch={4}
+          windowSize={7}
+          initialNumToRender={6}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={refresh}
+              tintColor={burgundyTheme.colors.primary}
+              colors={[burgundyTheme.colors.primary]}
+            />
+          }
+          {...bottomNavScroll}
+        />
+      </View>
       {selectedListing && detailsType === 'stay' && (
         <StayDetail listing={selectedListing} onClose={handleCloseDetails} />
       )}
@@ -245,7 +355,7 @@ export function ForYouPage({ onEventClick }) {
       {selectedListing && detailsType === 'offering' && (
         <OfferingDetail listing={selectedListing} onClose={handleCloseDetails} />
       )}
-    </View>
+    </>
   );
 }
 
@@ -284,8 +394,32 @@ const styles = StyleSheet.create({
   footer: {
     paddingVertical: 32,
     alignItems: 'center',
+    gap: 12,
   },
   footerText: {
+    fontSize: 13,
+    color: burgundyTheme.colors.textSubtle,
+  },
+  refreshButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: burgundyTheme.colors.primary,
+  },
+  refreshButtonText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: burgundyTheme.colors.primary,
+  },
+  loadingMoreRow: {
+    paddingVertical: 20,
+    alignItems: 'center',
+  },
+  loadingMoreText: {
     fontSize: 13,
     color: burgundyTheme.colors.textSubtle,
   },

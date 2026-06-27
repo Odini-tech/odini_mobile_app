@@ -33,29 +33,18 @@ export async function enrichRecommendationListings(recListings = []) {
 
     if (error || !data) return [];
 
-    // Fetch images for all listings in parallel
-    const enriched = await Promise.all(
-      data.map(async (listing) => {
-        const imageTable = getImageTableName(listing.listing_type);
-        const { data: images } = await supabase
-          .from(imageTable)
-          .select("image_url")
-          .eq("listing_id", listing.id)
-          .limit(1);
+    const imageMap = await fetchImagesForListings(data);
 
-        // Find rec engine metadata for this listing
-        const recMeta = recListings.find((r) => r.id === listing.id);
+    const enriched = data.map((listing) => {
+      const recMeta = recListings.find((r) => r.id === listing.id);
+      return {
+        ...listing,
+        image_url: imageMap.get(listing.id) || null,
+        rec_score: recMeta?.score ?? null,
+        rec_reason: recMeta?.explanation ?? null,
+      };
+    });
 
-        return {
-          ...listing,
-          image_url: images?.[0]?.image_url || null,
-          rec_score: recMeta?.score ?? null,
-          rec_reason: recMeta?.explanation ?? null,
-        };
-      })
-    );
-
-    // Preserve the ordering from the rec engine (it's ranked by relevance)
     const orderMap = new Map(ids.map((id, i) => [id, i]));
     return enriched.sort((a, b) => (orderMap.get(a.id) ?? 999) - (orderMap.get(b.id) ?? 999));
   } catch (err) {
@@ -113,20 +102,15 @@ export async function getListingsByIds(ids = []) {
       .eq('is_active', true);
 
     if (error) throw error;
+    if (!data?.length) return [];
 
-    const enriched = await Promise.all(
-      (data || []).map(async (listing) => {
-        const imageTable = getImageTableName(listing.listing_type);
-        const { data: images } = await supabase
-          .from(imageTable)
-          .select('image_url')
-          .eq('listing_id', listing.id)
-          .limit(1);
-        return { ...listing, image_url: images?.[0]?.image_url || null };
-      })
-    );
+    const imageMap = await fetchImagesForListings(data);
 
-    // Preserve the caller's order
+    const enriched = data.map((listing) => ({
+      ...listing,
+      image_url: imageMap.get(listing.id) || null,
+    }));
+
     const orderMap = new Map(ids.map((id, i) => [id, i]));
     return enriched.sort((a, b) => (orderMap.get(a.id) ?? 999) - (orderMap.get(b.id) ?? 999));
   } catch (error) {
@@ -431,6 +415,35 @@ export async function getUserHiddenListingIds(userId) {
   } catch (_) {
     return new Set();
   }
+}
+
+/**
+ * Fetches the first image for each listing in a batch using at most 3 parallel queries
+ * (one per image table type), rather than one query per listing.
+ */
+async function fetchImagesForListings(listings) {
+  const byTable = {};
+  for (const l of listings) {
+    const table = getImageTableName(l.listing_type);
+    if (!byTable[table]) byTable[table] = [];
+    byTable[table].push(l.id);
+  }
+
+  const results = await Promise.all(
+    Object.entries(byTable).map(([table, ids]) =>
+      supabase.from(table).select('listing_id, image_url').in('listing_id', ids).order('id', { ascending: true })
+    )
+  );
+
+  const imageMap = new Map();
+  for (const { data } of results) {
+    for (const row of (data || [])) {
+      if (!imageMap.has(row.listing_id)) {
+        imageMap.set(row.listing_id, row.image_url);
+      }
+    }
+  }
+  return imageMap;
 }
 
 /**

@@ -1,10 +1,10 @@
 import { Session } from "@supabase/supabase-js";
 import { useRouter } from "expo-router";
 import { useEffect, useRef, useState } from "react";
-import { ActivityIndicator, StyleSheet, View } from "react-native";
 import { supabase } from "../lib/supabase";
 import { useAppMode } from "../src/context/AppModeContext";
 import { announceRecommendationMode, onRecommendationModeChange } from "../src/services/recommendationGateway";
+import { TabLoadingScreen } from "../src/components/shared/TabLoadingScreen";
 
 import AuthScreen from "./(tabs)/authScreen";
 
@@ -13,7 +13,7 @@ export default function App() {
   const [loading, setLoading] = useState(true);
   const router = useRouter();
   const prevSessionRef = useRef<Session | null>(null);
-  const { isReady, setMode, theme } = useAppMode();
+  const { isReady, setMode } = useAppMode();
 
   useEffect(() => {
     announceRecommendationMode();
@@ -64,11 +64,7 @@ export default function App() {
   }, [router, setMode]);
 
   if (loading || !isReady) {
-    return (
-      <View style={styles.loadingScreen}>
-        <ActivityIndicator size="large" color={theme.colors.primary} />
-      </View>
-    );
+    return <TabLoadingScreen />;
   }
 
   if (session) {
@@ -78,11 +74,3 @@ export default function App() {
   return <AuthScreen />;
 }
 
-const styles = StyleSheet.create({
-  loadingScreen: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: "#FFFFFF",
-  },
-});

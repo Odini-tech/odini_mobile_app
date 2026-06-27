@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Animated, Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { supabase } from '../../lib/supabase';
 import { useCurrency } from '../context/CurrencyContext';
@@ -7,16 +7,18 @@ import { InteractionService } from '../services/interactionService';
 import burgundyTheme, { getListingTypeColor } from '../theme/burgundyTheme';
 import CardInteractionMenu from './shared/CardInteractionMenu';
 
-export default function ExploreCard({ item, onPress, onInteractionAction }) {
+const ExploreCard = React.memo(function ExploreCard({ item, onPress, onInteractionAction, isFavorited: propIsFavorited }) {
   const { formatPrice } = useCurrency();
   const typeIcon = getTypeIcon(item.listing_type);
   const imageUrl = getFirstImageUrl(item);
   const [menuVisible, setMenuVisible] = useState(false);
-  const [isFavorited, setIsFavorited] = useState(false);
+  const [isFavorited, setIsFavorited] = useState(propIsFavorited ?? false);
   const scaleAnim = useRef(new Animated.Value(1)).current;
+  // Track whether initial value came from props so we can skip the DB round-trip
+  const hasPropRef = useRef(propIsFavorited !== undefined);
 
   useEffect(() => {
-    checkIfFavorited();
+    if (!hasPropRef.current) checkIfFavorited();
   }, [item.id]);
 
   const checkIfFavorited = async () => {
@@ -135,7 +137,9 @@ export default function ExploreCard({ item, onPress, onInteractionAction }) {
       />
     </>
   );
-}
+});
+
+export default ExploreCard;
 
 function getFirstImageUrl(item) {
   if (item.image_url) return item.image_url;

@@ -1,5 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
-import { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { ActivityIndicator, Animated, Image, Share, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { supabase } from "../../lib/supabase";
 import { useCurrency } from "../context/CurrencyContext";
@@ -16,18 +16,19 @@ const LISTING_TYPE_ICONS = {
   offering: { name: "briefcase", color: getListingTypeColor("offering") },
 };
 
-export default function ListingCard({ item, onPress, onFavoritePress, favoriteLoading, onInteractionAction, styles: externalStyles }) {
+const ListingCard = React.memo(function ListingCard({ item, onPress, onFavoritePress, favoriteLoading, onInteractionAction, isFavorited: propIsFavorited, styles: externalStyles }) {
   const styles = externalStyles || localStyles;
   const { formatPrice } = useCurrency();
   const typeIcon = LISTING_TYPE_ICONS[item.listing_type] || LISTING_TYPE_ICONS.stay;
   const hostName = item.profiles?.firstname || item.profiles?.username || "Host";
   const [showDetails, setShowDetails] = useState(false);
   const [menuVisible, setMenuVisible] = useState(false);
-  const [isFavorited, setIsFavorited] = useState(item.is_favorited || false);
+  const [isFavorited, setIsFavorited] = useState(propIsFavorited ?? item.is_favorited ?? false);
   const scaleAnim = useRef(new Animated.Value(1)).current;
+  const hasPropRef = useRef(propIsFavorited !== undefined);
 
   useEffect(() => {
-    checkIfFavorited();
+    if (!hasPropRef.current) checkIfFavorited();
   }, [item.id]);
 
   const checkIfFavorited = async () => {
@@ -239,7 +240,9 @@ export default function ListingCard({ item, onPress, onFavoritePress, favoriteLo
       />
     </>
   );
-}
+});
+
+export default ListingCard;
 
 function getListingMetaText(item) {
   switch (item.listing_type) {
