@@ -1,4 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import {
   Modal,
@@ -18,16 +19,35 @@ import burgundyTheme, { getListingTypeColor } from '../../theme/burgundyTheme';
 
 const OFFERING_ACCENT = getListingTypeColor('offering');
 
-export default function OfferingDetail({ listing, onClose }) {
+export default function OfferingDetail({ listing, onClose, onHostPress }) {
   const [showBooking, setShowBooking] = useState(false);
   const [showSuggestions, setShowSuggestions] = useState(false);
+  const router = useRouter();
   const { formatPrice } = useCurrency();
 
   const offeringDetails = listing.offering?.[0] || {};
+  const hostId = listing.host_id || listing.profiles?.id;
+  const hostName = [listing.profiles?.firstname, listing.profiles?.lastname].filter(Boolean).join(' ').trim()
+    || listing.profiles?.username
+    || 'Host';
 
   const parseHours = (hoursString) => {
     if (!hoursString) return [];
     return hoursString.split(',').map((hour) => hour.trim());
+  };
+
+  const handleHostPress = () => {
+    if (!hostId) return;
+
+    if (onHostPress) {
+      onHostPress(hostId);
+      return;
+    }
+
+    onClose?.();
+    setTimeout(() => {
+      router.push(`/host/${hostId}`);
+    }, 0);
   };
 
   return (
@@ -74,17 +94,23 @@ export default function OfferingDetail({ listing, onClose }) {
             </View>
 
             <View style={styles.hostSection}>
-              <View style={styles.hostInfo}>
-                <View style={styles.hostAvatar}>
-                  <Ionicons name="person" size={24} color={burgundyTheme.colors.white} />
+              <TouchableOpacity
+                style={[styles.hostInfoButton, !hostId && styles.hostInfoButtonDisabled]}
+                onPress={handleHostPress}
+                disabled={!hostId}
+                activeOpacity={0.85}
+              >
+                <View style={styles.hostInfo}>
+                  <View style={styles.hostAvatar}>
+                    <Ionicons name="person" size={24} color={burgundyTheme.colors.white} />
+                  </View>
+                  <View>
+                    <Text style={styles.hostName}>{hostName}</Text>
+                    <Text style={styles.hostRole}>Professional</Text>
+                  </View>
                 </View>
-                <View>
-                  <Text style={styles.hostName}>
-                    {listing.profiles?.firstname || 'Service Provider'}
-                  </Text>
-                  <Text style={styles.hostRole}>Professional</Text>
-                </View>
-              </View>
+                <Ionicons name="chevron-forward" size={20} color={OFFERING_ACCENT} />
+              </TouchableOpacity>
               <TouchableOpacity style={styles.contactButton}>
                 <Ionicons name="chatbubble-outline" size={20} color={OFFERING_ACCENT} />
               </TouchableOpacity>
@@ -295,6 +321,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 12,
   },
+  hostInfoButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+    paddingRight: 10,
+  },
+  hostInfoButtonDisabled: {
+    opacity: 0.7,
+  },
   hostAvatar: {
     width: 48,
     height: 48,
@@ -305,8 +342,8 @@ const styles = StyleSheet.create({
   },
   hostName: {
     fontSize: 14,
-    fontWeight: '600',
-    color: burgundyTheme.colors.text,
+    fontWeight: '700',
+    color: OFFERING_ACCENT,
   },
   hostRole: {
     fontSize: 12,

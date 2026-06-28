@@ -10,26 +10,25 @@ export interface Listing {
   is_active: boolean;
   created_at: string;
   price: number | null;
-  events?: Array<{
+  location: string | null;
+  events?: {
     event_time: string | null;
     event_type: string | null;
     capacity: number | null;
     available_slots: number | null;
-    location: string | null;
     end_time: string | null;
-  }> | null;
-  stays?: Array<{
+  }[] | null;
+  stays?: {
     durations_nights: number | null;
     max_guests: number | null;
     available_rooms: number | null;
-  }> | null;
-  offering?: Array<{
+  }[] | null;
+  offering?: {
     service_type: string | null;
-    location: string | null;
     opening_hours: string | null;
     duration_minutes: number | null;
     max_bookings: number | null;
-  }> | null;
+  }[] | null;
 }
 
 export interface RatingInput {
@@ -81,9 +80,10 @@ const listingSelect = `
   is_active,
   created_at,
   price,
-  events(event_time, event_type, capacity, available_slots, location, end_time),
+  location,
+  events(event_time, event_type, capacity, available_slots, end_time),
   stays(durations_nights, max_guests, available_rooms),
-  offering(service_type, location, opening_hours, duration_minutes, max_bookings)
+  offering(service_type, opening_hours, duration_minutes, max_bookings)
 `;
 
 type RecommendationApiListing = Partial<Listing> & { hostId?: string };
@@ -97,6 +97,7 @@ const normalizeApiListing = (row: RecommendationApiListing): Listing => ({
   is_active: row.is_active ?? true,
   created_at: row.created_at || new Date().toISOString(),
   price: typeof row.price === 'number' ? row.price : Number(row.price || 0),
+  location: row.location || null,
   events: row.events || null,
   stays: row.stays || null,
   offering: row.offering || null,
@@ -435,13 +436,13 @@ export const listingService = {
   /**
    * Get user's trip intents from bookings table
    */
-  async getUserTrips(userId: string): Promise<Array<{
+  async getUserTrips(userId: string): Promise<{
     tripId: string;
     listing: Listing;
     startDate: string | null;
     endDate: string | null;
     status: string;
-  }>> {
+  }[]> {
     try {
       const { data, error } = await supabase
         .from('bookings')

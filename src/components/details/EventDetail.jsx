@@ -1,4 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import {
   Modal,
@@ -18,12 +19,17 @@ import burgundyTheme, { getListingTypeColor } from '../../theme/burgundyTheme';
 
 const EVENT_ACCENT = getListingTypeColor('event');
 
-export default function EventDetail({ listing, onClose }) {
+export default function EventDetail({ listing, onClose, onHostPress }) {
   const [showBooking, setShowBooking] = useState(false);
   const [showSuggestions, setShowSuggestions] = useState(false);
+  const router = useRouter();
   const { formatPrice } = useCurrency();
 
   const eventDetails = listing.events?.[0] || {};
+  const hostId = listing.host_id || listing.profiles?.id;
+  const hostName = [listing.profiles?.firstname, listing.profiles?.lastname].filter(Boolean).join(' ').trim()
+    || listing.profiles?.username
+    || 'Host';
 
   const formatEventTime = (timestamp) => {
     if (!timestamp) return 'TBD';
@@ -34,6 +40,20 @@ export default function EventDetail({ listing, onClose }) {
       hour: '2-digit',
       minute: '2-digit',
     });
+  };
+
+  const handleHostPress = () => {
+    if (!hostId) return;
+
+    if (onHostPress) {
+      onHostPress(hostId);
+      return;
+    }
+
+    onClose?.();
+    setTimeout(() => {
+      router.push(`/host/${hostId}`);
+    }, 0);
   };
 
   return (
@@ -80,15 +100,23 @@ export default function EventDetail({ listing, onClose }) {
             </View>
 
             <View style={styles.hostSection}>
-              <View style={styles.hostInfo}>
-                <View style={styles.hostAvatar}>
-                  <Ionicons name="person" size={24} color={burgundyTheme.colors.white} />
+              <TouchableOpacity
+                style={[styles.hostInfoButton, !hostId && styles.hostInfoButtonDisabled]}
+                onPress={handleHostPress}
+                disabled={!hostId}
+                activeOpacity={0.85}
+              >
+                <View style={styles.hostInfo}>
+                  <View style={styles.hostAvatar}>
+                    <Ionicons name="person" size={24} color={burgundyTheme.colors.white} />
+                  </View>
+                  <View>
+                    <Text style={styles.hostName}>{hostName}</Text>
+                    <Text style={styles.hostRole}>Event Organizer</Text>
+                  </View>
                 </View>
-                <View>
-                  <Text style={styles.hostName}>{listing.profiles?.firstname || 'Host'}</Text>
-                  <Text style={styles.hostRole}>Event Organizer</Text>
-                </View>
-              </View>
+                <Ionicons name="chevron-forward" size={20} color={EVENT_ACCENT} />
+              </TouchableOpacity>
               <TouchableOpacity style={styles.contactButton}>
                 <Ionicons name="chatbubble-outline" size={20} color={EVENT_ACCENT} />
               </TouchableOpacity>
@@ -282,6 +310,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 12,
   },
+  hostInfoButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+    paddingRight: 10,
+  },
+  hostInfoButtonDisabled: {
+    opacity: 0.7,
+  },
   hostAvatar: {
     width: 48,
     height: 48,
@@ -292,8 +331,8 @@ const styles = StyleSheet.create({
   },
   hostName: {
     fontSize: 14,
-    fontWeight: '600',
-    color: burgundyTheme.colors.text,
+    fontWeight: '700',
+    color: EVENT_ACCENT,
   },
   hostRole: {
     fontSize: 12,

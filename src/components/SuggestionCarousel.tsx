@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { startTransition, useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Dimensions,
@@ -25,11 +25,20 @@ const { width: SW, height: SH } = Dimensions.get('window');
 
 interface SuggestionListing {
   id: string;
+  host_id: string;
   title: string;
   description: string | null;
   listing_type: 'stay' | 'event' | 'offering';
   price: number | null;
   image_url: string | null;
+  profiles?: {
+    id?: string | null;
+    username?: string | null;
+    firstname?: string | null;
+    lastname?: string | null;
+    location?: string | null;
+    role?: string | null;
+  } | null;
   events?: any[] | null;
   stays?: any[] | null;
   offering?: any[] | null;
@@ -67,7 +76,8 @@ async function loadSuggestions(excludeId?: string): Promise<SuggestionListing[]>
   let query = supabase
     .from('listings')
     .select(`
-      id, title, description, listing_type, price,
+      id, host_id, title, description, listing_type, price,
+      profiles:host_id(id, username, firstname, lastname, location, role),
       events(event_time, event_type, capacity, available_slots, location, end_time),
       stays(durations_nights, max_guests, available_rooms),
       offering(service_type, location, opening_hours, duration_minutes, max_bookings)
@@ -106,22 +116,44 @@ export default function SuggestionCarousel({ visible, onClose, excludeListingId 
   const [currentIndex, setCurrentIndex] = useState(0);
   const [selectedListing, setSelectedListing] = useState<SuggestionListing | null>(null);
   const listRef = useRef<FlatList>(null);
-  const viewabilityConfig = useRef({ itemVisiblePercentThreshold: 60 }).current;
+  const viewabilityConfig = { itemVisiblePercentThreshold: 60 };
 
   useEffect(() => {
     if (!visible) return;
-    setLoading(true);
-    setCurrentIndex(0);
-    setSelectedListing(null);
-    loadSuggestions(excludeListingId).then((items) => {
-      setListings(items);
-      setLoading(false);
+    let cancelled = false;
+
+    startTransition(() => {
+      setLoading(true);
+      setCurrentIndex(0);
+      setSelectedListing(null);
     });
+
+    loadSuggestions(excludeListingId).then((items) => {
+      if (cancelled) return;
+      startTransition(() => {
+        setListings(items);
+        setLoading(false);
+      });
+    });
+
+    return () => {
+      cancelled = true;
+    };
   }, [visible, excludeListingId]);
 
   const handleClose = () => {
     onClose();
     router.push('/home' as any);
+  };
+
+  const handleHostPress = (hostId: string) => {
+    if (!hostId) return;
+
+    setSelectedListing(null);
+    onClose();
+    setTimeout(() => {
+      router.push(`/host/${hostId}` as any);
+    }, 0);
   };
 
   const onViewableItemsChanged = useCallback(({ viewableItems }: { viewableItems: ViewToken[] }) => {
@@ -254,13 +286,25 @@ export default function SuggestionCarousel({ visible, onClose, excludeListingId 
 
       {/* ── Listing detail modals ── */}
       {selectedListing?.listing_type === 'stay' && (
-        <StayDetail listing={selectedListing} onClose={() => setSelectedListing(null)} />
+        <StayDetail
+          listing={selectedListing}
+          onClose={() => setSelectedListing(null)}
+          onHostPress={handleHostPress}
+        />
       )}
       {selectedListing?.listing_type === 'event' && (
-        <EventDetail listing={selectedListing} onClose={() => setSelectedListing(null)} />
+        <EventDetail
+          listing={selectedListing}
+          onClose={() => setSelectedListing(null)}
+          onHostPress={handleHostPress}
+        />
       )}
       {selectedListing?.listing_type === 'offering' && (
-        <OfferingDetail listing={selectedListing} onClose={() => setSelectedListing(null)} />
+        <OfferingDetail
+          listing={selectedListing}
+          onClose={() => setSelectedListing(null)}
+          onHostPress={handleHostPress}
+        />
       )}
     </Modal>
   );
