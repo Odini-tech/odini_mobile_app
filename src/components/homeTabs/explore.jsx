@@ -1,14 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { FlatList, RefreshControl, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { supabase } from '../../../lib/supabase';
-import {
-  enrichRecommendationListings,
-  getShuffledListingIds,
-  getListingsByIds,
-} from '../../../services/listings.service';
-import { RecommendationService } from '../../services/recommendationService';
-import { getRecommendationModeStatus } from '../../services/recommendationGateway';
+import { useAppData } from '../../context/AppDataContext';
 import { InteractionService } from '../../services/interactionService';
 import burgundyTheme from '../../theme/burgundyTheme';
 import ExploreCard from '../ExploreCard';
@@ -17,136 +10,43 @@ import StayDetail from '../details/StayDetail';
 import EventDetail from '../details/EventDetail';
 import OfferingDetail from '../details/OfferingDetail';
 
-const INITIAL_PAGE_SIZE = 18;
-const LOAD_MORE_SIZE = 6;
 const NUM_COLUMNS = 2;
-const CACHE_TTL = 5 * 60 * 1000;
-
-const _cache = {
-  listings: null,
-  allRec: [],
-  shuffledIds: [],
-  loadedCount: 0,
-  hasMore: true,
-  favIds: new Set(),
-  ts: 0,
-};
-
-function isCacheValid() {
-  return _cache.listings !== null && Date.now() - _cache.ts < CACHE_TTL;
-}
 
 export default function Explore({ onItemClick }) {
+  const {
+    listings: contextListings,
+    isReady,
+    hasMore: contextHasMore,
+    favoritedIds: contextFavIds,
+    userId,
+    loadMoreListings,
+    updateFavoritedId,
+    refresh: contextRefresh,
+  } = useAppData();
+
   const [listings, setListings] = useState([]);
-  const [loading, setLoading] = useState(!isCacheValid());
+  const [hasMore, setHasMore] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
-  const [hasMore, setHasMore] = useState(true);
-  const [error, setError] = useState(null);
+  const [favoritedIds, setFavoritedIds] = useState(() => new Set());
   const [selectedListing, setSelectedListing] = useState(null);
   const [detailsType, setDetailsType] = useState(null);
-  const [userId, setUserId] = useState(null);
-  const [favoritedIds, setFavoritedIds] = useState(() => _cache.favIds);
 
-  const shuffledIdsRef = useRef(_cache.shuffledIds);
-  const loadedCountRef = useRef(_cache.loadedCount);
-  const allRecListingsRef = useRef(_cache.allRec);
-
+  // Seed local state from context once data is ready
+  const seededRef = useRef(false);
   useEffect(() => {
-    initialLoad();
-  }, []);
-
-  const doFetch = async () => {
-    setError(null);
-    const { mode } = getRecommendationModeStatus();
-    const { data: authData } = await supabase.auth.getUser();
-    const uid = authData?.user?.id;
-    if (uid) setUserId(uid);
-
-    const favPromise = uid
-      ? supabase.from('interactions').select('listing_id').eq('user_id', uid).gte('score', 5)
-      : Promise.resolve({ data: [] });
-
-    let finalListings = null;
-    let finalAllRec = [];
-    let finalShuffledIds = [];
-    let finalLoadedCount = 0;
-    let finalHasMore = true;
-
-    if (mode === 'rec_eng' && uid) {
-      const recListings = await RecommendationService.getExplore(uid);
-      if (recListings.length > 0) {
-        const enriched = await enrichRecommendationListings(recListings);
-        if (enriched.length > 0) {
-          finalAllRec = enriched;
-          finalListings = enriched.slice(0, INITIAL_PAGE_SIZE);
-          finalLoadedCount = finalListings.length;
-          finalHasMore = enriched.length > INITIAL_PAGE_SIZE;
-        }
-      }
+    if (isReady && contextListings.length > 0 && !seededRef.current) {
+      seededRef.current = true;
+      setListings(contextListings);
+      setHasMore(contextHasMore);
+      setFavoritedIds(new Set(contextFavIds));
     }
+  }, [isReady, contextListings, contextHasMore, contextFavIds]);
 
-    if (!finalListings) {
-      const ids = await getShuffledListingIds();
-      finalShuffledIds = ids;
-      finalListings = await getListingsByIds(ids.slice(0, INITIAL_PAGE_SIZE));
-      finalLoadedCount = Math.min(ids.length, INITIAL_PAGE_SIZE);
-      finalHasMore = ids.length > INITIAL_PAGE_SIZE;
-    }
-
-    const favResult = await favPromise;
-    const favSet = new Set((favResult.data || []).map(r => r.listing_id));
-
-    shuffledIdsRef.current = finalShuffledIds;
-    allRecListingsRef.current = finalAllRec;
-    loadedCountRef.current = finalLoadedCount;
-
-    setListings(finalListings);
-    setHasMore(finalHasMore);
-    setFavoritedIds(favSet);
-
-    _cache.listings = finalListings;
-    _cache.allRec = finalAllRec;
-    _cache.shuffledIds = finalShuffledIds;
-    _cache.loadedCount = finalLoadedCount;
-    _cache.hasMore = finalHasMore;
-    _cache.favIds = favSet;
-    _cache.ts = Date.now();
-  };
-
-  const initialLoad = async () => {
-    if (isCacheValid()) {
-      shuffledIdsRef.current = _cache.shuffledIds;
-      allRecListingsRef.current = _cache.allRec;
-      loadedCountRef.current = _cache.loadedCount;
-      setListings(_cache.listings);
-      setHasMore(_cache.hasMore);
-      setFavoritedIds(_cache.favIds);
-      setLoading(false);
-      return;
-    }
-    setLoading(true);
-    try {
-      await doFetch();
-    } catch (err) {
-      console.error('Error loading explore:', err);
-      setError(err instanceof Error ? err.message : 'Failed to load listings');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const refresh = useCallback(async () => {
-    setRefreshing(true);
-    _cache.ts = 0;
-    try {
-      await doFetch();
-    } catch (err) {
-      console.error('Error refreshing explore:', err);
-    } finally {
-      setRefreshing(false);
-    }
-  }, []);
+  // Keep favoritedIds in sync with context changes
+  useEffect(() => {
+    setFavoritedIds(new Set(contextFavIds));
+  }, [contextFavIds]);
 
   const handleCardPress = useCallback((item) => {
     setSelectedListing(item);
@@ -164,53 +64,46 @@ export default function Explore({ onItemClick }) {
 
   const handleInteractionAction = useCallback((actionId, listing) => {
     if (actionId === 'favorite') {
-      setFavoritedIds(prev => {
-        const next = new Set(prev);
-        if (next.has(listing.id)) next.delete(listing.id); else next.add(listing.id);
-        _cache.favIds = next;
-        return next;
-      });
+      const next = new Set(favoritedIds);
+      const isFav = next.has(listing.id);
+      if (isFav) next.delete(listing.id); else next.add(listing.id);
+      setFavoritedIds(next);
+      updateFavoritedId(listing.id, !isFav);
     }
-  }, []);
+  }, [favoritedIds, updateFavoritedId]);
 
-  const loadMore = async () => {
+  const loadMore = useCallback(async () => {
     if (loadingMore || !hasMore) return;
     setLoadingMore(true);
     try {
-      if (allRecListingsRef.current.length > 0) {
-        const start = loadedCountRef.current;
-        const next = allRecListingsRef.current.slice(start, start + LOAD_MORE_SIZE);
-        if (next.length === 0) { setHasMore(false); _cache.hasMore = false; return; }
-        loadedCountRef.current = start + next.length;
-        setListings(prev => {
-          const updated = [...prev, ...next];
-          _cache.listings = updated;
-          _cache.loadedCount = loadedCountRef.current;
-          _cache.hasMore = loadedCountRef.current < allRecListingsRef.current.length;
-          return updated;
-        });
-        setHasMore(loadedCountRef.current < allRecListingsRef.current.length);
-        return;
+      const next = await loadMoreListings();
+      if (next.length === 0) {
+        setHasMore(false);
+      } else {
+        setListings((prev) => [...prev, ...next]);
       }
-      const start = loadedCountRef.current;
-      const nextIds = shuffledIdsRef.current.slice(start, start + LOAD_MORE_SIZE);
-      if (nextIds.length === 0) { setHasMore(false); _cache.hasMore = false; return; }
-      const data = await getListingsByIds(nextIds);
-      loadedCountRef.current = start + nextIds.length;
-      setListings(prev => {
-        const updated = [...prev, ...data];
-        _cache.listings = updated;
-        _cache.loadedCount = loadedCountRef.current;
-        _cache.hasMore = loadedCountRef.current < shuffledIdsRef.current.length;
-        return updated;
-      });
-      setHasMore(loadedCountRef.current < shuffledIdsRef.current.length);
     } catch (err) {
-      console.error('Error loading more explore:', err);
+      console.error('Error loading more:', err);
     } finally {
       setLoadingMore(false);
     }
-  };
+  }, [loadingMore, hasMore, loadMoreListings]);
+
+  const refresh = useCallback(async () => {
+    setRefreshing(true);
+    seededRef.current = false;
+    await contextRefresh();
+    setRefreshing(false);
+  }, [contextRefresh]);
+
+  // After refresh, re-seed from context
+  useEffect(() => {
+    if (!refreshing && isReady && contextListings.length > 0 && !seededRef.current) {
+      seededRef.current = true;
+      setListings(contextListings);
+      setHasMore(contextHasMore);
+    }
+  }, [refreshing, isReady, contextListings, contextHasMore]);
 
   const renderItem = useCallback(({ item }) => (
     <View style={styles.gridItem}>
@@ -246,7 +139,7 @@ export default function Explore({ onItemClick }) {
     return null;
   };
 
-  if (loading) {
+  if (!isReady || listings.length === 0) {
     return (
       <View style={styles.container}>
         <View style={styles.skeletonRow}>
@@ -260,19 +153,6 @@ export default function Explore({ onItemClick }) {
         <View style={styles.skeletonRow}>
           <View style={styles.gridItem}><GridCardSkeleton /></View>
           <View style={styles.gridItem}><GridCardSkeleton /></View>
-        </View>
-      </View>
-    );
-  }
-
-  if (error) {
-    return (
-      <View style={styles.container}>
-        <View style={styles.centerBox}>
-          <Text style={styles.errorText}>{error}</Text>
-          <TouchableOpacity style={styles.retryButton} onPress={initialLoad}>
-            <Text style={styles.retryText}>Retry</Text>
-          </TouchableOpacity>
         </View>
       </View>
     );
@@ -368,28 +248,5 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '600',
     color: burgundyTheme.colors.primary,
-  },
-  centerBox: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 24,
-  },
-  errorText: {
-    fontSize: 14,
-    color: burgundyTheme.colors.textMuted,
-    textAlign: 'center',
-    marginBottom: 16,
-  },
-  retryButton: {
-    backgroundColor: burgundyTheme.colors.primary,
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    borderRadius: 8,
-  },
-  retryText: {
-    color: '#fff',
-    fontWeight: '600',
-    fontSize: 14,
   },
 });

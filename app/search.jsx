@@ -1,7 +1,6 @@
 import { useRouter } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import {
-  ActivityIndicator,
   ImageBackground,
   ScrollView,
   StyleSheet,
@@ -11,124 +10,18 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { supabase } from '../lib/supabase';
 import { useAppMode } from '../src/context/AppModeContext';
+import { useAppData } from '../src/context/AppDataContext';
 import { useBottomNavScroll } from '../src/context/BottomNavVisibilityContext';
-
-function shuffle(arr) {
-  const a = [...arr];
-  for (let i = a.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [a[i], a[j]] = [a[j], a[i]];
-  }
-  return a;
-}
 
 export default function SearchPage() {
   const router = useRouter();
   const { theme } = useAppMode();
   const insets = useSafeAreaInsets();
   const bottomNavScroll = useBottomNavScroll();
+  const { popularCategories, personalCategories } = useAppData();
   const [query, setQuery] = useState('');
-  const [popularCategories, setPopularCategories] = useState([]);
-  const [personalCategories, setPersonalCategories] = useState([]);
-  const [popularLoading, setPopularLoading] = useState(false);
-  const [personalLoading, setPersonalLoading] = useState(false);
   const styles = getStyles(theme, insets);
-
-  useEffect(() => {
-    fetchPopularCategories();
-    fetchPersonalCategories();
-  }, []);
-
-  async function fetchPopularCategories() {
-    setPopularLoading(true);
-    try {
-      const [{ data: catListings }, { data: bookings }, { data: allCats }] = await Promise.all([
-        supabase.from('category_listings').select('listing_id, categories(id, name, image_url)').order('listing_id'),
-        supabase.from('bookings').select('listing_id'),
-        supabase.from('categories').select('id, name, image_url'),
-      ]);
-
-      if (!catListings) {
-        setPopularCategories([]);
-        return;
-      }
-
-      const bookingCountByListing = {};
-      bookings?.forEach((b) => {
-        bookingCountByListing[b.listing_id] = (bookingCountByListing[b.listing_id] || 0) + 1;
-      });
-
-      const catMap = {};
-      catListings.forEach((cl) => {
-        const cat = cl.categories;
-        if (!cat) return;
-        catMap[cat.id] = catMap[cat.id] || { ...cat, count: 0 };
-        catMap[cat.id].count += bookingCountByListing[cl.listing_id] || 0;
-      });
-
-      const ranked = Object.values(catMap).sort((a, b) => b.count - a.count);
-      const topFive = ranked.slice(0, 5);
-      const topIds = new Set(topFive.map((c) => c.id));
-
-      // Pick one random "discovery" category from outside the top 5
-      const pool = (allCats || []).filter((c) => !topIds.has(c.id));
-      const wildcard = pool.length > 0 ? pool[Math.floor(Math.random() * pool.length)] : null;
-
-      const combined = wildcard ? [...topFive, wildcard] : topFive;
-      setPopularCategories(shuffle(combined));
-    } catch (error) {
-      console.error('Failed to fetch popular categories', error);
-      setPopularCategories([]);
-    } finally {
-      setPopularLoading(false);
-    }
-  }
-
-  async function fetchPersonalCategories() {
-    setPersonalLoading(true);
-    try {
-      const { data: userResult } = await supabase.auth.getUser();
-      const user = userResult?.user;
-      if (!user) {
-        setPersonalCategories([]);
-        return;
-      }
-
-      const { data: userBookings } = await supabase
-        .from('bookings')
-        .select('listing_id')
-        .eq('user_id', user.id);
-
-      const userListingIds = Array.from(new Set(userBookings?.map((b) => b.listing_id) || []));
-      if (!userListingIds.length) {
-        setPersonalCategories([]);
-        return;
-      }
-
-      const { data: catListings } = await supabase
-        .from('category_listings')
-        .select('listing_id, categories(id, name, image_url)')
-        .in('listing_id', userListingIds);
-
-      const categoryCount = {};
-      catListings?.forEach((cl) => {
-        const cat = cl.categories;
-        if (!cat) return;
-        categoryCount[cat.id] = categoryCount[cat.id] || { ...cat, count: 0 };
-        categoryCount[cat.id].count += 1;
-      });
-
-      const personal = Object.values(categoryCount).sort((a, b) => b.count - a.count);
-      setPersonalCategories(shuffle(personal.slice(0, 6)));
-    } catch (error) {
-      console.error('Failed to fetch personal categories', error);
-      setPersonalCategories([]);
-    } finally {
-      setPersonalLoading(false);
-    }
-  }
 
   const handleSearchSubmit = () => {
     const trimmed = query.trim();
@@ -171,32 +64,20 @@ export default function SearchPage() {
         {...bottomNavScroll}
       >
         <Text style={styles.sectionTitle}>Popular Today</Text>
-        {popularLoading ? (
-          <View style={styles.loaderRow}>
-            <ActivityIndicator size="small" color={theme.colors.primary} />
-          </View>
-        ) : (
-          <CategoryGrid
-            categories={popularCategories}
-            fallbackText="No trending categories yet."
-            onPress={handleCategoryPress}
-            theme={theme}
-          />
-        )}
+        <CategoryGrid
+          categories={popularCategories}
+          fallbackText="No trending categories yet."
+          onPress={handleCategoryPress}
+          theme={theme}
+        />
 
         <Text style={styles.sectionTitle}>You May Like</Text>
-        {personalLoading ? (
-          <View style={styles.loaderRow}>
-            <ActivityIndicator size="small" color={theme.colors.primary} />
-          </View>
-        ) : (
-          <CategoryGrid
-            categories={personalCategories}
-            fallbackText="Nothing personalised yet."
-            onPress={handleCategoryPress}
-            theme={theme}
-          />
-        )}
+        <CategoryGrid
+          categories={personalCategories}
+          fallbackText="Nothing personalised yet."
+          onPress={handleCategoryPress}
+          theme={theme}
+        />
       </ScrollView>
     </View>
   );
@@ -298,9 +179,5 @@ const getStyles = (theme, insets) =>
       marginTop: 20,
       marginHorizontal: 16,
       marginBottom: 4,
-    },
-    loaderRow: {
-      paddingHorizontal: 16,
-      marginTop: 12,
     },
   });

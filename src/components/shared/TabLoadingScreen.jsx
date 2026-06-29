@@ -1,51 +1,53 @@
 import { useEffect, useRef } from 'react';
-import { Animated, StyleSheet, Text, View } from 'react-native';
+import { Animated, Dimensions, StyleSheet, Text, View } from 'react-native';
 import burgundyTheme from '../../theme/burgundyTheme';
 
-export function TabLoadingScreen({ message = 'Finding listings for you' }) {
-  const d1 = useRef(new Animated.Value(0.2)).current;
-  const d2 = useRef(new Animated.Value(0.2)).current;
-  const d3 = useRef(new Animated.Value(0.2)).current;
+const { width } = Dimensions.get('window');
+
+const MESSAGES = [
+  'Finding listings for you',
+  'Loading your dashboard',
+  'Preparing search',
+  'Almost there',
+];
+
+export function TabLoadingScreen({ progress = 0, message = undefined }) {
+  const barWidth = useRef(new Animated.Value(0)).current;
+  const messageIndex = Math.min(
+    Math.floor((progress / 100) * MESSAGES.length),
+    MESSAGES.length - 1
+  );
+  const displayMessage = message || MESSAGES[messageIndex];
 
   useEffect(() => {
-    const pulse = (dot, delay) =>
-      Animated.sequence([
-        Animated.delay(delay),
-        Animated.loop(
-          Animated.sequence([
-            Animated.timing(dot, { toValue: 1, duration: 280, useNativeDriver: true }),
-            Animated.timing(dot, { toValue: 0.2, duration: 280, useNativeDriver: true }),
-          ])
-        ),
-      ]);
+    Animated.timing(barWidth, {
+      toValue: progress,
+      duration: 350,
+      useNativeDriver: false,
+    }).start();
+  }, [progress]);
 
-    const a1 = pulse(d1, 0);
-    const a2 = pulse(d2, 190);
-    const a3 = pulse(d3, 380);
-    a1.start();
-    a2.start();
-    a3.start();
-    return () => {
-      a1.stop();
-      a2.stop();
-      a3.stop();
-    };
-  }, []);
+  const animatedWidth = barWidth.interpolate({
+    inputRange: [0, 100],
+    outputRange: [0, width - 80],
+    extrapolate: 'clamp',
+  });
 
   return (
     <View style={styles.container}>
       <Text style={styles.brand}>odini</Text>
-      <Text style={styles.message}>{message}</Text>
-      <View style={styles.dotsRow}>
-        <Animated.View style={[styles.dot, { opacity: d1 }]} />
-        <Animated.View style={[styles.dot, { opacity: d2 }]} />
-        <Animated.View style={[styles.dot, { opacity: d3 }]} />
+      <Text style={styles.message}>{displayMessage}</Text>
+
+      <View style={styles.barTrack}>
+        <Animated.View style={[styles.barFill, { width: animatedWidth }]} />
       </View>
+
+      <Text style={styles.percent}>{Math.round(progress)}%</Text>
     </View>
   );
 }
 
-// Fades in children from transparent on mount — use when transitioning from a loading screen
+// Fades in children from transparent on mount
 export function FadeInView({ children, style, duration = 380 }) {
   const opacity = useRef(new Animated.Value(0)).current;
   useEffect(() => {
@@ -60,7 +62,7 @@ const styles = StyleSheet.create({
     backgroundColor: burgundyTheme.colors.background,
     justifyContent: 'center',
     alignItems: 'center',
-    gap: 16,
+    gap: 14,
   },
   brand: {
     fontSize: 42,
@@ -73,15 +75,23 @@ const styles = StyleSheet.create({
     color: burgundyTheme.colors.textMuted,
     letterSpacing: 0.3,
   },
-  dotsRow: {
-    flexDirection: 'row',
-    gap: 10,
+  barTrack: {
+    width: width - 80,
+    height: 4,
+    borderRadius: 4,
+    backgroundColor: burgundyTheme.colors.border,
+    overflow: 'hidden',
     marginTop: 4,
   },
-  dot: {
-    width: 8,
-    height: 8,
+  barFill: {
+    height: '100%',
     borderRadius: 4,
     backgroundColor: burgundyTheme.colors.primary,
+  },
+  percent: {
+    fontSize: 12,
+    color: burgundyTheme.colors.textMuted,
+    fontWeight: '600',
+    marginTop: -4,
   },
 });

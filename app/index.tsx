@@ -3,6 +3,7 @@ import { useRouter } from "expo-router";
 import { useEffect, useRef, useState } from "react";
 import { supabase } from "../lib/supabase";
 import { useAppMode } from "../src/context/AppModeContext";
+import { useAppData } from "../src/context/AppDataContext";
 import { announceRecommendationMode, onRecommendationModeChange } from "../src/services/recommendationGateway";
 import { TabLoadingScreen } from "../src/components/shared/TabLoadingScreen";
 
@@ -10,16 +11,16 @@ import AuthScreen from "./(tabs)/authScreen";
 
 export default function App() {
   const [session, setSession] = useState<Session | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [authLoading, setAuthLoading] = useState(true);
   const router = useRouter();
   const prevSessionRef = useRef<Session | null>(null);
-  const { isReady, setMode } = useAppMode();
+  const hasNavigatedRef = useRef(false);
+  const { isReady: appModeReady, setMode } = useAppMode();
+  const { progress, isReady: dataReady } = useAppData();
 
   useEffect(() => {
     announceRecommendationMode();
-    const unsubscribe = onRecommendationModeChange(() => {
-      // Mode updates are announced from recommendationGateway.
-    });
+    const unsubscribe = onRecommendationModeChange(() => {});
     return unsubscribe;
   }, []);
 
@@ -29,30 +30,25 @@ export default function App() {
     supabase.auth.getSession().then(({ data }) => {
       if (!mounted) return;
       setSession(data.session);
-      setLoading(false);
+      setAuthLoading(false);
       prevSessionRef.current = data.session;
       if (data.session) {
         setMode('user').catch((error) => {
           console.warn('Failed to set default app mode:', error);
         });
-        router.replace('/home' as any);
       }
     });
 
     const { data: listener } = supabase.auth.onAuthStateChange(
       (_event, newSession) => {
-        // prevent unnecessary repeated replaces by checking previous state
         const prev = prevSessionRef.current;
         setSession(newSession);
-
         if (!prev && newSession) {
-          // signed in
-          router.replace('/home' as any);
+          // signed in — will navigate once data is also ready
         } else if (prev && !newSession) {
-          // signed out
+          hasNavigatedRef.current = false;
           router.replace('/' as any);
         }
-
         prevSessionRef.current = newSession;
       }
     );
@@ -63,14 +59,24 @@ export default function App() {
     };
   }, [router, setMode]);
 
-  if (loading || !isReady) {
-    return <TabLoadingScreen />;
+  // Navigate once auth AND app data are both ready
+  useEffect(() => {
+    if (!authLoading && session && dataReady && appModeReady && !hasNavigatedRef.current) {
+      hasNavigatedRef.current = true;
+      router.replace('/home' as any);
+    }
+  }, [authLoading, session, dataReady, appModeReady, router]);
+
+  const loading = authLoading || !appModeReady || (!!session && !dataReady);
+
+  if (loading) {
+    return <TabLoadingScreen progress={progress} />;
   }
 
   if (session) {
-    return <></>;
+    // Already navigated via the effect above; render nothing while transition happens
+    return <TabLoadingScreen progress={100} />;
   }
 
   return <AuthScreen />;
 }
-

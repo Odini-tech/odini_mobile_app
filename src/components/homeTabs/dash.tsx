@@ -13,16 +13,9 @@ import {
 } from 'react-native';
 
 import { supabase } from '../../../lib/supabase';
-import {
-  getUserFavoriteListings,
-  getUserRecentlyViewedListings,
-  getListings,
-  enrichRecommendationListings,
-} from '../../../services/listings.service';
 import { useCurrency } from '../../context/CurrencyContext';
+import { useAppData } from '../../context/AppDataContext';
 import { InteractionService } from '../../services/interactionService';
-import { RecommendationService } from '../../services/recommendationService';
-import { getRecommendationModeStatus } from '../../services/recommendationGateway';
 import CurrencyPicker from '../settings/CurrencyPicker';
 import burgundyTheme from '../../theme/burgundyTheme';
 import CardInteractionMenu from '../shared/CardInteractionMenu';
@@ -49,6 +42,20 @@ interface Listing {
 
 export default function Dash({ onItemClick }: { onItemClick?: (listing: Listing) => void }) {
   const { formatPrice, selectedCurrency } = useCurrency();
+  const {
+    isReady,
+    upcomingEvents: ctxEvents,
+    favoritePlaces: ctxFavorites,
+    recentlyViewed: ctxRecent,
+    madeForYou: ctxMadeForYou,
+    pastBookings: ctxBookings,
+    collections: ctxCollections,
+    userName: ctxUserName,
+    userId: ctxUserId,
+    refresh: ctxRefresh,
+    updateFavoritedId,
+  } = useAppData();
+
   const [currencyPickerVisible, setCurrencyPickerVisible] = useState(false);
   const [collections, setCollections] = useState<any[]>([]);
   const [upcomingEvents, setUpcomingEvents] = useState<Listing[]>([]);
@@ -68,138 +75,27 @@ export default function Dash({ onItemClick }: { onItemClick?: (listing: Listing)
   const [detailsType, setDetailsType] = useState<string | null>(null);
   const detailRequestRef = useRef<string | null>(null);
 
+  // Seed from context once data is ready
+  const seededRef = useRef(false);
   useEffect(() => {
-    initUser();
-  }, []);
-
-  const initUser = async () => {
-    try {
-      const { data: authData } = await supabase.auth.getUser();
-      const uid = authData?.user?.id;
-      if (!uid) return;
-      setUserId(uid);
-
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('firstname, username')
-        .eq('id', uid)
-        .maybeSingle();
-
-      const name = profile?.firstname || profile?.username || authData.user?.email?.split('@')[0] || 'there';
-      setUserName(name);
-    } catch (_) {}
-  };
-
-  const loadDashboardData = async (uid: string | null = userId) => {
-    try {
-      setLoading(true);
-      await Promise.all([
-        fetchCategories(),
-        fetchAllContent(uid),
-      ]);
-    } catch (err) {
-      console.error('Error loading dashboard:', err);
-    } finally {
+    if (isReady && !seededRef.current) {
+      seededRef.current = true;
+      setUpcomingEvents((ctxEvents as Listing[]) || []);
+      setFavoritePlaces((ctxFavorites as Listing[]) || []);
+      setRecentlyViewed((ctxRecent as Listing[]) || []);
+      setMadeForYou((ctxMadeForYou as Listing[]) || []);
+      setPastBookings(ctxBookings || []);
+      setCollections(ctxCollections.length ? ctxCollections : getDefaultCollections());
+      setUserName(ctxUserName);
+      setUserId(ctxUserId);
       setLoading(false);
     }
-  };
-
-  useEffect(() => {
-    if (userId !== null) {
-      loadDashboardData(userId);
-    } else {
-      // Still load without personalization once we know there's no user
-      const timer = setTimeout(() => {
-        if (!userId) loadDashboardData(null);
-      }, 800);
-      return () => clearTimeout(timer);
-    }
-  }, [userId]);
-
-  const fetchCategories = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('categories')
-        .select('*')
-        .limit(6);
-
-      if (error || !data?.length) {
-        setCollections(getDefaultCollections());
-        return;
-      }
-
-      setCollections(
-        data.map((category, index) => ({
-          id: index + 1,
-          title: category.name,
-          description: category.description || 'Curated picks for you',
-          count: 12,
-          image: category.image_url,
-        }))
-      );
-    } catch (_) {
-      setCollections(getDefaultCollections());
-    }
-  };
-
-  const fetchAllContent = async (uid: string | null) => {
-    try {
-      const { mode } = getRecommendationModeStatus();
-
-      const tasks: Promise<any>[] = [
-        getListings(),
-        uid ? getUserFavoriteListings(uid) : Promise.resolve([]),
-        uid ? getUserRecentlyViewedListings(uid, 8) : Promise.resolve([]),
-        uid
-          ? supabase
-              .from('bookings')
-              .select('id, booking_ref, listing_type, status, check_in, event_slot, reservation_time, created_at, listings(id, title, listing_type, image_url)')
-              .eq('user_id', uid)
-              .order('created_at', { ascending: false })
-              .limit(10)
-          : Promise.resolve({ data: [] }),
-      ];
-
-      const [allListings, favorites, recentlyViewedData, bookingsResult] = await Promise.all(tasks);
-      setPastBookings(bookingsResult?.data || []);
-
-      const events = (allListings || []).filter((l: Listing) => l.listing_type === 'event').slice(0, 6);
-      setUpcomingEvents(events);
-
-      setFavoritePlaces(favorites || []);
-      setRecentlyViewed(recentlyViewedData || []);
-
-      // Use rec engine for Made For You when available
-      if (mode === 'rec_eng' && uid) {
-        try {
-          const recListings = await RecommendationService.getForYou(uid);
-          if (recListings.length > 0) {
-            const enriched = await enrichRecommendationListings(recListings);
-            if (enriched.length > 0) {
-              setMadeForYou(enriched);
-              return;
-            }
-          }
-        } catch (_) {
-          // fall through to basic personalization
-        }
-      }
-
-      const personalized = uid
-        ? (favorites.length > 0
-            ? [...favorites.slice(0, 2), ...allListings.slice(0, 4)]
-            : allListings.slice(0, 6))
-        : (allListings || []).slice(0, 6);
-
-      setMadeForYou(personalized);
-    } catch (err) {
-      console.error('Error fetching content:', err);
-    }
-  };
+  }, [isReady, ctxEvents, ctxFavorites, ctxRecent, ctxMadeForYou, ctxBookings, ctxCollections, ctxUserName, ctxUserId]);
 
   const handleRefresh = async () => {
     setRefreshing(true);
-    await loadDashboardData(userId);
+    seededRef.current = false;
+    await ctxRefresh();
     setRefreshing(false);
   };
 
@@ -230,8 +126,11 @@ export default function Dash({ onItemClick }: { onItemClick?: (listing: Listing)
     try {
       if (actionId === 'favorite') {
         await InteractionService.trackSave(userId, listing.id);
-        const updated = await getUserFavoriteListings(userId);
-        setFavoritePlaces(updated);
+        const isFav = favoritePlaces.some((l) => l.id === listing.id);
+        if (!isFav) {
+          setFavoritePlaces((prev) => [listing, ...prev]);
+          updateFavoritedId(listing.id, true);
+        }
       } else if (actionId === 'dislike') {
         await InteractionService.trackSwipe(userId, listing.id, 'left');
         setMadeForYou((prev) => prev.filter((l) => l.id !== listing.id));

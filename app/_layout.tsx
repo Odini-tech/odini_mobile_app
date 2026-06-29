@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { Animated, Easing, StyleSheet, View } from "react-native";
 import { supabase } from "../lib/supabase";
 import { AppModeProvider, useAppMode } from "../src/context/AppModeContext";
+import { AppDataProvider } from "../src/context/AppDataContext";
 import {
     BottomNavVisibilityProvider,
     useBottomNavVisibility,
@@ -130,9 +131,11 @@ export default function RootLayout() {
   return (
     <AppModeProvider>
       <CurrencyProvider>
-        <BottomNavVisibilityProvider>
-          <RootLayoutContent />
-        </BottomNavVisibilityProvider>
+        <AppDataProvider>
+          <BottomNavVisibilityProvider>
+            <RootLayoutContent />
+          </BottomNavVisibilityProvider>
+        </AppDataProvider>
       </CurrencyProvider>
     </AppModeProvider>
   );
