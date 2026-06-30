@@ -180,6 +180,7 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
         recentResult,
         bookingsResult,
         popCatResult,
+        collectionsResult,
         recModeListings,
       ] = await Promise.allSettled([
         uid ? getUserFavoriteListings(uid) : Promise.resolve([]),
@@ -195,6 +196,7 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
               .limit(10)
           : Promise.resolve({ data: [] }),
         fetchPopularCategories(),
+        supabase.from('categories').select('id, name, description, image_url').limit(6),
         (() => {
           const { mode } = getRecommendationModeStatus();
           if (mode === 'rec_eng' && uid) {
@@ -218,6 +220,17 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
           : [];
       const popularCategories: SearchCategory[] =
         popCatResult.status === 'fulfilled' ? popCatResult.value : [];
+      const rawCollections =
+        collectionsResult.status === 'fulfilled'
+          ? ((collectionsResult.value as any)?.data ?? [])
+          : [];
+      const collections = rawCollections.map((cat: any, idx: number) => ({
+        id: idx + 1,
+        title: cat.name,
+        description: cat.description || 'Curated picks for you',
+        count: 12,
+        image: cat.image_url,
+      }));
       const recListings: AppListing[] =
         recModeListings.status === 'fulfilled' ? recModeListings.value : [];
 
@@ -239,6 +252,7 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
         madeForYou,
         pastBookings,
         popularCategories,
+        collections,
         favoritedIds,
         progress: 72,
       }));

@@ -98,10 +98,17 @@ function CategoryGrid({ categories, onPress, fallbackText, theme }) {
 
 function CategoryTile({ category, onPress, theme }) {
   const hasImage = !!category.image_url;
-  const overlay = (
-    <View style={{ backgroundColor: 'rgba(0,0,0,0.38)', padding: 10 }}>
-      <Text style={{ fontSize: 15, fontWeight: '700', color: '#FFF' }}>{category.name}</Text>
-    </View>
+
+  const nameBlock = (
+    <>
+      {/* Simulated gradient: three overlapping layers that fade to dark at the bottom */}
+      <View style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: 70, backgroundColor: 'rgba(0,0,0,0.08)' }} />
+      <View style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: 52, backgroundColor: 'rgba(0,0,0,0.22)' }} />
+      <View style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: 38, backgroundColor: 'rgba(0,0,0,0.38)' }} />
+      <View style={{ position: 'absolute', left: 0, right: 0, bottom: 0, padding: 10 }}>
+        <Text style={{ fontSize: 15, fontWeight: '700', color: '#FFF' }}>{category.name}</Text>
+      </View>
+    </>
   );
 
   return (
@@ -113,14 +120,14 @@ function CategoryTile({ category, onPress, theme }) {
       {hasImage ? (
         <ImageBackground
           source={{ uri: category.image_url }}
-          style={{ flex: 1, justifyContent: 'flex-end' }}
+          style={{ flex: 1 }}
           imageStyle={{ borderRadius: 14 }}
         >
-          {overlay}
+          {nameBlock}
         </ImageBackground>
       ) : (
-        <View style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: theme.colors.primaryTint }}>
-          {overlay}
+        <View style={{ flex: 1, backgroundColor: theme.colors.primaryTint }}>
+          {nameBlock}
         </View>
       )}
     </TouchableOpacity>

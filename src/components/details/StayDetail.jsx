@@ -185,6 +185,7 @@ export default function StayDetail({ listing, onClose, onHostPress }) {
           visible={showSuggestions}
           onClose={() => { setShowSuggestions(false); onClose(); }}
           excludeListingId={listing.id}
+          bookedListingType="stay"
         />
       </SafeAreaView>
     </Modal>

@@ -203,6 +203,7 @@ export default function EventDetail({ listing, onClose, onHostPress }) {
           visible={showSuggestions}
           onClose={() => { setShowSuggestions(false); onClose(); }}
           excludeListingId={listing.id}
+          bookedListingType="event"
         />
       </SafeAreaView>
     </Modal>

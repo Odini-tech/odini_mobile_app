@@ -214,6 +214,7 @@ export default function OfferingDetail({ listing, onClose, onHostPress }) {
           visible={showSuggestions}
           onClose={() => { setShowSuggestions(false); onClose(); }}
           excludeListingId={listing.id}
+          bookedListingType="offering"
         />
       </SafeAreaView>
     </Modal>

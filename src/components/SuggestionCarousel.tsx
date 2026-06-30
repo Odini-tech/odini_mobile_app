@@ -48,6 +48,7 @@ interface Props {
   visible: boolean;
   onClose: () => void;
   excludeListingId?: string;
+  bookedListingType?: 'stay' | 'event' | 'offering';
 }
 
 const TYPE_META = {
@@ -71,27 +72,35 @@ const IMAGE_TABLE: Record<string, string> = {
   offering: 'offering_images',
 };
 
-async function loadSuggestions(excludeId?: string): Promise<SuggestionListing[]> {
-  // Fetch all types so the carousel feels varied — fetch more than needed then shuffle
+async function loadSuggestions(
+  excludeId?: string,
+  bookedListingType?: 'stay' | 'event' | 'offering'
+): Promise<SuggestionListing[]> {
   let query = supabase
     .from('listings')
     .select(`
       id, host_id, title, description, listing_type, price,
       profiles:host_id(id, username, firstname, lastname, location, role),
-      events(event_time, event_type, capacity, available_slots, location, end_time),
+      events(event_time, event_type, capacity, available_slots, end_time),
       stays(durations_nights, max_guests, available_rooms),
-      offering(service_type, location, opening_hours, duration_minutes, max_bookings)
+      offering(service_type, opening_hours, duration_minutes, max_bookings)
     `)
     .eq('is_active', true)
-    .limit(30);
+    .limit(24);
+
+  // Stay booking → show only events and services (diversify the experience)
+  if (bookedListingType === 'stay') {
+    query = query.in('listing_type', ['event', 'offering']);
+  }
+  // Event or offering booking → show all types (no filter)
 
   if (excludeId) query = query.neq('id', excludeId);
 
   const { data, error } = await query;
   if (error || !data || data.length === 0) return [];
 
-  // Shuffle before image-enrichment so we only fetch images for the 10 we'll show
-  const shuffled = shuffleArray(data).slice(0, 10);
+  // Shuffle and take 6 — fast and varied
+  const shuffled = shuffleArray(data).slice(0, 6);
 
   const enriched = await Promise.all(
     shuffled.map(async (item) => {
@@ -107,7 +116,7 @@ async function loadSuggestions(excludeId?: string): Promise<SuggestionListing[]>
   return enriched;
 }
 
-export default function SuggestionCarousel({ visible, onClose, excludeListingId }: Props) {
+export default function SuggestionCarousel({ visible, onClose, excludeListingId, bookedListingType }: Props) {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { formatPrice } = useCurrency() as any;
@@ -128,7 +137,7 @@ export default function SuggestionCarousel({ visible, onClose, excludeListingId 
       setSelectedListing(null);
     });
 
-    loadSuggestions(excludeListingId).then((items) => {
+    loadSuggestions(excludeListingId, bookedListingType).then((items) => {
       if (cancelled) return;
       startTransition(() => {
         setListings(items);
@@ -236,7 +245,9 @@ export default function SuggestionCarousel({ visible, onClose, excludeListingId 
           </TouchableOpacity>
           <View style={styles.titleWrap}>
             <Text style={styles.headerTitle}>You might also like</Text>
-            <Text style={styles.headerSub}>Events & services in your area</Text>
+            <Text style={styles.headerSub}>
+              {bookedListingType === 'stay' ? 'Events & services near you' : 'More you might enjoy'}
+            </Text>
           </View>
           {listings.length > 0 && !loading && (
             <Text style={styles.counter}>{currentIndex + 1} / {listings.length}</Text>

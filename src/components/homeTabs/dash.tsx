@@ -406,25 +406,6 @@ export default function Dash({ onItemClick }: { onItemClick?: (listing: Listing)
           </View>
         )}
 
-        {/* Past Bookings */}
-        {pastBookings.length > 0 && (
-          <View style={styles.section}>
-            <View style={styles.sectionHeader}>
-              <View>
-                <Text style={styles.sectionTitle}>Past Bookings</Text>
-                <Text style={styles.sectionSubtitle}>Your booking history</Text>
-              </View>
-            </View>
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.horizontalScroll}
-            >
-              {pastBookings.map(renderBookingCard)}
-            </ScrollView>
-          </View>
-        )}
-
         {/* Coming Up (Events) */}
         {upcomingEvents.length > 0 && (
           <View style={styles.section}>
@@ -472,6 +453,25 @@ export default function Dash({ onItemClick }: { onItemClick?: (listing: Listing)
             <View style={styles.twoColGrid}>
               {getDisplayItems(madeForYou, 'foryou').map((l) => renderListingCard(l, 'medium'))}
             </View>
+          </View>
+        )}
+
+        {/* Your Trips */}
+        {pastBookings.length > 0 && (
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <View>
+                <Text style={styles.sectionTitle}>Your Trips</Text>
+                <Text style={styles.sectionSubtitle}>Recent bookings</Text>
+              </View>
+            </View>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.horizontalScroll}
+            >
+              {pastBookings.map(renderBookingCard)}
+            </ScrollView>
           </View>
         )}
 
