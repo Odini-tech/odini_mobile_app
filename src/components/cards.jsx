@@ -5,6 +5,9 @@ import { supabase } from "../../lib/supabase";
 import { useCurrency } from "../context/CurrencyContext";
 import { InteractionService } from "../services/interactionService";
 import burgundyTheme, { getListingTypeColor } from "../theme/burgundyTheme";
+import EventBookingModal from "./booking/EventBooking";
+import OfferingBookingModal from "./booking/OfferingBooking";
+import StayBookingModal from "./booking/StayBooking";
 import EventDetail from "./details/EventDetail";
 import OfferingDetail from "./details/OfferingDetail";
 import StayDetail from "./details/StayDetail";
@@ -22,6 +25,7 @@ const ListingCard = React.memo(function ListingCard({ item, onPress, onFavoriteP
   const typeIcon = LISTING_TYPE_ICONS[item.listing_type] || LISTING_TYPE_ICONS.stay;
   const hostName = item.profiles?.firstname || item.profiles?.username || "Host";
   const [showDetails, setShowDetails] = useState(false);
+  const [showBooking, setShowBooking] = useState(false);
   const [menuVisible, setMenuVisible] = useState(false);
   const [isFavorited, setIsFavorited] = useState(propIsFavorited ?? item.is_favorited ?? false);
   const scaleAnim = useRef(new Animated.Value(1)).current;
@@ -48,6 +52,7 @@ const ListingCard = React.memo(function ListingCard({ item, onPress, onFavoriteP
   };
 
   const handleCloseDetails = () => setShowDetails(false);
+  const handleCloseBooking = () => setShowBooking(false);
 
   const handleDetails = () => {
     if (onPress) {
@@ -55,6 +60,10 @@ const ListingCard = React.memo(function ListingCard({ item, onPress, onFavoriteP
       return;
     }
     if (item?.listing_type) setShowDetails(true);
+  };
+
+  const handleBooking = () => {
+    setShowBooking(true);
   };
 
   const handleLongPress = () => {
@@ -154,50 +163,60 @@ const ListingCard = React.memo(function ListingCard({ item, onPress, onFavoriteP
           </TouchableOpacity>
 
           <View style={styles.interactions}>
+            <View style={styles.interactionsLeft}>
+              <TouchableOpacity
+                style={styles.interactionButton}
+                onPress={async () => {
+                  const { data: authData } = await supabase.auth.getUser();
+                  const userId = authData?.user?.id;
+                  if (!userId) return;
+                  if (isFavorited) {
+                    await supabase
+                      .from('interactions')
+                      .delete()
+                      .eq('user_id', userId)
+                      .eq('listing_id', item.id)
+                      .gte('score', 5);
+                    setIsFavorited(false);
+                  } else {
+                    await InteractionService.trackSave(userId, item.id);
+                    setIsFavorited(true);
+                  }
+                  onFavoritePress?.(item.id);
+                }}
+                disabled={favoriteLoading}
+              >
+                {favoriteLoading ? (
+                  <ActivityIndicator size="small" color={burgundyTheme.colors.danger} />
+                ) : (
+                  <Ionicons
+                    name={isFavorited ? "heart" : "heart-outline"}
+                    size={24}
+                    color={isFavorited ? burgundyTheme.colors.danger : burgundyTheme.colors.text}
+                  />
+                )}
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.interactionButton}
+                onPress={async () => {
+                  try {
+                    await Share.share({
+                      title: item.title,
+                      message: `Check out "${item.title}" on Odini!\\n\\n${item.description || ''}\\n\\nPrice: ${item.price ? item.price : 'See listing for details'}`.trim(),
+                    });
+                  } catch (_) {}
+                }}
+              >
+                <Ionicons name="share-social-outline" size={24} color={burgundyTheme.colors.text} />
+              </TouchableOpacity>
+            </View>
+
             <TouchableOpacity
-              style={styles.interactionButton}
-              onPress={async () => {
-                const { data: authData } = await supabase.auth.getUser();
-                const userId = authData?.user?.id;
-                if (!userId) return;
-                if (isFavorited) {
-                  await supabase
-                    .from('interactions')
-                    .delete()
-                    .eq('user_id', userId)
-                    .eq('listing_id', item.id)
-                    .gte('score', 5);
-                  setIsFavorited(false);
-                } else {
-                  await InteractionService.trackSave(userId, item.id);
-                  setIsFavorited(true);
-                }
-                onFavoritePress?.(item.id);
-              }}
-              disabled={favoriteLoading}
+              style={[styles.interactionButton, styles.bookButton]}
+              onPress={handleBooking}
             >
-              {favoriteLoading ? (
-                <ActivityIndicator size="small" color={burgundyTheme.colors.danger} />
-              ) : (
-                <Ionicons
-                  name={isFavorited ? "heart" : "heart-outline"}
-                  size={24}
-                  color={isFavorited ? burgundyTheme.colors.danger : burgundyTheme.colors.text}
-                />
-              )}
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.interactionButton}
-              onPress={async () => {
-                try {
-                  await Share.share({
-                    title: item.title,
-                    message: `Check out "${item.title}" on Odini!\n\n${item.description || ''}\n\nPrice: ${item.price ? item.price : 'See listing for details'}`.trim(),
-                  });
-                } catch (_) {}
-              }}
-            >
-              <Ionicons name="share-social-outline" size={24} color={burgundyTheme.colors.text} />
+              <Ionicons name="calendar" size={15} color={burgundyTheme.colors.white} />
             </TouchableOpacity>
           </View>
 
@@ -231,6 +250,15 @@ const ListingCard = React.memo(function ListingCard({ item, onPress, onFavoriteP
       </Animated.View>
 
       {renderDetailModal()}
+      {showBooking && item?.listing_type === 'event' && (
+        <EventBookingModal listing={item} eventDetails={item.events?.[0] || {}} onClose={handleCloseBooking} onConfirm={() => setShowBooking(false)} />
+      )}
+      {showBooking && item?.listing_type === 'offering' && (
+        <OfferingBookingModal listing={item} offeringDetails={item.offering?.[0] || {}} onClose={handleCloseBooking} onConfirm={() => setShowBooking(false)} />
+      )}
+      {showBooking && item?.listing_type === 'stay' && (
+        <StayBookingModal listing={item} stayDetails={item.stays?.[0] || {}} onClose={handleCloseBooking} onConfirm={() => setShowBooking(false)} />
+      )}
 
       <CardInteractionMenu
         visible={menuVisible}
@@ -329,15 +357,32 @@ const localStyles = StyleSheet.create({
   },
   interactions: {
     flexDirection: "row",
+    justifyContent: "space-between",
     paddingHorizontal: 12,
     paddingVertical: 8,
     gap: 12,
     borderBottomWidth: 1,
     borderBottomColor: burgundyTheme.colors.border,
   },
+
+  interactionsLeft: {
+    flexDirection: "row",
+    gap: 12,
+  },
+  interactionsRight: {
+    flexDirection: "row",
+    gap: 1,
+  },
   interactionButton: {
-    padding: 8,
+    padding: 5,
     marginLeft: -8,
+  },
+  bookButton: {
+    backgroundColor: "#000",
+    borderRadius: 999,
+    padding: 10,
+    alignItems: "center",
+    justifyContent: "center",
   },
   caption: {
     padding: 12,

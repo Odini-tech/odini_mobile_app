@@ -1,21 +1,22 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import React, { useState } from 'react';
+import { useState } from 'react';
 import {
-  Modal,
-  SafeAreaView,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
+    Modal,
+    SafeAreaView,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
 } from 'react-native';
 import { useCurrency } from '../../context/CurrencyContext';
+import burgundyTheme, { getListingTypeColor } from '../../theme/burgundyTheme';
 import OfferingBookingModal from '../booking/OfferingBooking';
-import SuggestionCarousel from '../SuggestionCarousel';
 import ImageCarousel from '../shared/ImageCarousel';
 import ListingMap from '../shared/ListingMap';
-import burgundyTheme, { getListingTypeColor } from '../../theme/burgundyTheme';
+import SuggestionCarousel from '../SuggestionCarousel';
+import DetailSuggestionCarousel from './DetailSuggestionCarousel';
 
 const OFFERING_ACCENT = getListingTypeColor('offering');
 
@@ -171,6 +172,8 @@ export default function OfferingDetail({ listing, onClose, onHostPress }) {
               <Text style={styles.sectionTitle}>About this service</Text>
               <Text style={styles.description}>{listing.description}</Text>
             </View>
+
+            <DetailSuggestionCarousel listing={listing} />
 
             {listing.amenities && listing.amenities.length > 0 && (
               <View style={styles.section}>

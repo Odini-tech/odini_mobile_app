@@ -100,9 +100,10 @@ const ExploreCard = React.memo(function ExploreCard({ item, onPress, onInteracti
               </View>
             )}
 
-            <View style={[styles.typeBadge, { backgroundColor: typeIcon.color }]}>
-              <Ionicons name={typeIcon.name} size={12} color={burgundyTheme.colors.white} />
-              <Text style={styles.typeBadgeText}>{item.listing_type.toUpperCase()}</Text>
+            {/* price + type badge placed as overlay at bottom-left of the image */}
+            <View style={styles.priceBadge}>
+              <Ionicons name={typeIcon.name} size={12} color={typeIcon.color} />
+              <Text style={styles.priceBadgeText}>{item.price ? formatPrice(item.price) : '—'}</Text>
             </View>
 
             {isFavorited && (
@@ -118,13 +119,8 @@ const ExploreCard = React.memo(function ExploreCard({ item, onPress, onInteracti
 
           <View style={styles.cardFooter}>
             <Text style={styles.hostName} numberOfLines={1}>
-              by {item.profiles?.firstname || item.profiles?.username || 'Host'}
+              {item.profiles?.location || 'Location not specified'}
             </Text>
-            {item.price ? (
-              <Text style={[styles.price, { color: getTypeIcon(item.listing_type).color }]}>
-                {formatPrice(item.price)}
-              </Text>
-            ) : null}
           </View>
         </TouchableOpacity>
       </Animated.View>
@@ -180,11 +176,11 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: 'transparent',
     overflow: 'hidden',
-    marginHorizontal: 6,
-    marginBottom: 14,
+    marginHorizontal: 3,
+    marginBottom: 8,
   },
   imageContainer: {
-    borderRadius: 12,
+    borderRadius: 6,
     width: '100%',
     aspectRatio: 0.75,
     backgroundColor: burgundyTheme.colors.surfaceAlt,
@@ -205,20 +201,40 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   typeBadge: {
-    position: 'absolute',
-    top: 8,
-    right: 8,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    backgroundColor: burgundyTheme.colors.white,
+    gap: 16,
     paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 6,
+    paddingVertical: 6,
+    borderRadius: 8,
   },
   typeBadgeText: {
-    fontSize: 10,
+    fontSize: 12,
     fontWeight: '700',
-    color: burgundyTheme.colors.white,
+    color: '#000',
+  },
+  priceBadge: {
+    position: 'absolute',
+    right: 8,
+    bottom: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: burgundyTheme.colors.white,
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+    borderRadius: 8,
+    gap: 6,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.12,
+    shadowRadius: 2,
+  },
+  priceBadgeText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#000',
   },
   favoriteBadge: {
     position: 'absolute',

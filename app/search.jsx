@@ -10,8 +10,8 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useAppMode } from '../src/context/AppModeContext';
 import { useAppData } from '../src/context/AppDataContext';
+import { useAppMode } from '../src/context/AppModeContext';
 import { useBottomNavScroll } from '../src/context/BottomNavVisibilityContext';
 
 export default function SearchPage() {
@@ -113,7 +113,7 @@ function CategoryTile({ category, onPress, theme }) {
 
   return (
     <TouchableOpacity
-      style={{ width: '48%', aspectRatio: 1.05, borderRadius: 14, marginBottom: 12, overflow: 'hidden', backgroundColor: theme.colors.surfaceAlt }}
+      style={{ width: '98%', aspectRatio: 2.5, borderRadius: 14, marginBottom: 12, overflow: 'hidden', backgroundColor: theme.colors.surfaceAlt }}
       onPress={onPress}
       activeOpacity={0.85}
     >

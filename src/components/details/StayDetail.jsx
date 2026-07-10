@@ -1,21 +1,22 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import React, { useState } from 'react';
+import { useState } from 'react';
 import {
-  Modal,
-  SafeAreaView,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
+    Modal,
+    SafeAreaView,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
 } from 'react-native';
 import { useCurrency } from '../../context/CurrencyContext';
+import burgundyTheme, { getListingTypeColor } from '../../theme/burgundyTheme';
 import StayBookingModal from '../booking/StayBooking';
-import SuggestionCarousel from '../SuggestionCarousel';
 import ImageCarousel from '../shared/ImageCarousel';
 import ListingMap from '../shared/ListingMap';
-import burgundyTheme, { getListingTypeColor } from '../../theme/burgundyTheme';
+import SuggestionCarousel from '../SuggestionCarousel';
+import DetailSuggestionCarousel from './DetailSuggestionCarousel';
 
 const STAY_ACCENT = getListingTypeColor('stay');
 
@@ -156,6 +157,8 @@ export default function StayDetail({ listing, onClose, onHostPress }) {
               <Text style={styles.sectionTitle}>About this place</Text>
               <Text style={styles.description}>{listing.description}</Text>
             </View>
+
+            <DetailSuggestionCarousel listing={listing} />
 
             <View style={styles.bookingSection}>
               <View>

@@ -219,7 +219,74 @@ export async function getListingById(listingId) {
     throw error;
   }
 }
+export async function getSuggestedListings(excludeId, listingType, limit = 6) {
+  try {
+    const [sameTypeResult, otherTypeResult] = await Promise.all([
+      supabase
+        .from('listings')
+        .select(`
+          id,
+          host_id,
+          listing_type,
+          title,
+          description,
+          is_active,
+          created_at,
+          price,
+          location,
+          profiles:host_id(username, firstname, lastname, location),
+          stays(durations_nights, max_guests, available_rooms),
+          events(event_time, event_type, capacity),
+          offering(service_type, opening_hours, duration_minutes, max_bookings)
+        `)
+        .eq('is_active', true)
+        .eq('listing_type', listingType)
+        .neq('id', excludeId)
+        .order('created_at', { ascending: false })
+        .limit(limit),
+      supabase
+        .from('listings')
+        .select(`
+          id,
+          host_id,
+          listing_type,
+          title,
+          description,
+          is_active,
+          created_at,
+          price,
+          location,
+          profiles:host_id(username, firstname, lastname, location),
+          stays(durations_nights, max_guests, available_rooms),
+          events(event_time, event_type, capacity),
+          offering(service_type, opening_hours, duration_minutes, max_bookings)
+        `)
+        .eq('is_active', true)
+        .neq('id', excludeId)
+        .not('listing_type', 'eq', listingType)
+        .order('created_at', { ascending: false })
+        .limit(limit),
+    ]);
 
+    const sameType = sameTypeResult.data || [];
+    const otherType = otherTypeResult.data || [];
+    const items = [...sameType, ...otherType];
+    const imageMap = await fetchImagesForListings(items);
+
+    const enrich = (item) => ({
+      ...item,
+      image_url: imageMap.get(item.id) || null,
+    });
+
+    return {
+      sameType: sameType.map(enrich),
+      otherType: otherType.map(enrich),
+    };
+  } catch (error) {
+    console.error('Error fetching suggested listings:', error);
+    return { sameType: [], otherType: [] };
+  }
+}
 /**
  * Add listing to favorites
  */

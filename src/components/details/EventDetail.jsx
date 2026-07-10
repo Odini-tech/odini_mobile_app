@@ -1,21 +1,22 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import React, { useState } from 'react';
+import { useState } from 'react';
 import {
-  Modal,
-  SafeAreaView,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
+    Modal,
+    SafeAreaView,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
 } from 'react-native';
 import { useCurrency } from '../../context/CurrencyContext';
+import burgundyTheme, { getListingTypeColor } from '../../theme/burgundyTheme';
 import EventBookingModal from '../booking/EventBooking';
-import SuggestionCarousel from '../SuggestionCarousel';
 import ImageCarousel from '../shared/ImageCarousel';
 import ListingMap from '../shared/ListingMap';
-import burgundyTheme, { getListingTypeColor } from '../../theme/burgundyTheme';
+import SuggestionCarousel from '../SuggestionCarousel';
+import DetailSuggestionCarousel from './DetailSuggestionCarousel';
 
 const EVENT_ACCENT = getListingTypeColor('event');
 
@@ -174,6 +175,8 @@ export default function EventDetail({ listing, onClose, onHostPress }) {
                 </View>
               </View>
             )}
+
+            <DetailSuggestionCarousel listing={listing} />
 
             <View style={styles.bookingSection}>
               <View>
