@@ -1,5 +1,5 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import React, { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Dimensions,
@@ -13,15 +13,15 @@ import {
 } from 'react-native';
 
 import { supabase } from '../../../lib/supabase';
-import { useCurrency } from '../../context/CurrencyContext';
 import { useAppData } from '../../context/AppDataContext';
+import { useCurrency } from '../../context/CurrencyContext';
 import { InteractionService } from '../../services/interactionService';
-import CurrencyPicker from '../settings/CurrencyPicker';
 import burgundyTheme from '../../theme/burgundyTheme';
-import CardInteractionMenu from '../shared/CardInteractionMenu';
 import EventDetail from '../details/EventDetail';
 import OfferingDetail from '../details/OfferingDetail';
 import StayDetail from '../details/StayDetail';
+import CurrencyPicker from '../settings/CurrencyPicker';
+import CardInteractionMenu from '../shared/CardInteractionMenu';
 
 const { width } = Dimensions.get('window');
 
@@ -246,6 +246,9 @@ export default function Dash({ onItemClick }: { onItemClick?: (listing: Listing)
       : listing.listing_type === 'offering'
       ? '#8B4B61'
       : '#7A1E3A';
+    const locationText = (listing as Listing & { location?: string; profiles?: { location?: string } }).profiles?.location
+      || (listing as Listing & { location?: string }).location
+      || null;
 
     return (
       <TouchableOpacity
@@ -279,6 +282,9 @@ export default function Dash({ onItemClick }: { onItemClick?: (listing: Listing)
         </View>
         <View style={styles.cardInfo}>
           <Text style={styles.cardTitle} numberOfLines={2}>{listing.title}</Text>
+          {locationText ? (
+            <Text style={styles.cardLocation} numberOfLines={1}>{locationText}</Text>
+          ) : null}
           {listing.price ? (
             <Text style={[styles.cardPrice, { color: accent }]}>{formatPrice(listing.price)}</Text>
           ) : null}
@@ -450,9 +456,13 @@ export default function Dash({ onItemClick }: { onItemClick?: (listing: Listing)
                 </TouchableOpacity>
               )}
             </View>
-            <View style={styles.twoColGrid}>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.horizontalScroll}
+            >
               {getDisplayItems(madeForYou, 'foryou').map((l) => renderListingCard(l, 'medium'))}
-            </View>
+            </ScrollView>
           </View>
         )}
 
@@ -674,43 +684,45 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   smallCard: {
-    width: 130,
-    backgroundColor: burgundyTheme.colors.surface,
-    borderRadius: 12,
+    width: 220,
+    height: 368,
+    backgroundColor: 'transparent',
+    borderRadius: 5,
     overflow: 'hidden',
-    borderWidth: 0.5,
-    borderColor: burgundyTheme.colors.border,
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.08,
-    shadowRadius: 3,
+    borderWidth: 0,
+    elevation: 0,
   },
   mediumCard: {
-    width: (width - 28 - 12) / 2,
-    backgroundColor: burgundyTheme.colors.surface,
-    borderRadius: 12,
+    width: 220,
+    height: 368,
+    backgroundColor: 'transparent',
+    borderRadius: 5,
     overflow: 'hidden',
-    borderWidth: 0.5,
-    borderColor: burgundyTheme.colors.border,
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.08,
-    shadowRadius: 3,
+    borderWidth: 0,
+    elevation: 0,
   },
   cardImageWrapper: {
     position: 'relative',
+    borderRadius: 5,
+    overflow: 'hidden',
+    backgroundColor: burgundyTheme.colors.surface,
+    elevation: 3,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.12,
+    shadowRadius: 6,
   },
   smallCardImage: {
     width: '100%',
-    height: 90,
+    height: 245,
     backgroundColor: burgundyTheme.colors.surfaceAlt,
+    borderRadius: 5,
   },
   mediumCardImage: {
     width: '100%',
-    height: 120,
+    height: 245,
     backgroundColor: burgundyTheme.colors.surfaceAlt,
+    borderRadius: 5,
   },
   cardImagePlaceholder: {
     justifyContent: 'center',
@@ -741,7 +753,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   cardInfo: {
-    padding: 8,
+    paddingHorizontal: 11,
+    paddingTop: 11,
+    paddingBottom: 0,
+    backgroundColor: 'transparent',
+    justifyContent: 'flex-start',
   },
   cardTitle: {
     fontSize: 12,
@@ -749,26 +765,28 @@ const styles = StyleSheet.create({
     color: burgundyTheme.colors.text,
     marginBottom: 2,
   },
+  cardLocation: {
+    fontSize: 11,
+    color: burgundyTheme.colors.textMuted,
+    marginBottom: 2,
+  },
   cardPrice: {
     fontSize: 12,
     fontWeight: '700',
   },
   bookingCard: {
-    width: 200,
-    backgroundColor: burgundyTheme.colors.surface,
-    borderRadius: 14,
+    width: 220,
+    height: 368,
     overflow: 'hidden',
-    borderWidth: 0.5,
-    borderColor: burgundyTheme.colors.border,
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.08,
-    shadowRadius: 3,
+    borderWidth: 0,
+    elevation: 0,
+    backgroundColor: 'transparent',
   },
+
   bookingCardImage: {
     width: '100%',
-    height: 100,
+    height: 245,
+    borderRadius: 5,
     backgroundColor: burgundyTheme.colors.surfaceAlt,
   },
   bookingCardImagePlaceholder: {
@@ -776,12 +794,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   bookingCardBody: {
-    padding: 10,
+    paddingHorizontal: 11,
+    paddingTop: 11,
+    paddingBottom: 0,
     gap: 4,
+    backgroundColor: 'transparent',
   },
   bookingCardTitle: {
     fontSize: 13,
-    fontWeight: '600',
+    fontWeight: '700',
     color: burgundyTheme.colors.text,
   },
   bookingCardDate: {
