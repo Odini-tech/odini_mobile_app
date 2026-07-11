@@ -13,11 +13,12 @@ import {
 } from 'react-native';
 import { supabase } from '../../../lib/supabase';
 import bookingService from '../../../src/services/bookingService';
-import burgundyTheme, { getListingTypeColor } from '../../theme/burgundyTheme';
-
-const EVENT_ACCENT = getListingTypeColor('event');
+import { useAppMode } from '../../context/AppModeContext';
 
 export default function EventBookingModal({ listing, eventDetails, onClose, onConfirm }) {
+  const { theme } = useAppMode();
+  const EVENT_ACCENT = theme.listingTypeColors.event;
+  const styles = getStyles(theme, EVENT_ACCENT);
   const { formatPrice } = useCurrency();
   const [ticketCount, setTicketCount] = useState('1');
   const [specialRequests, setSpecialRequests] = useState('');
@@ -118,7 +119,7 @@ export default function EventBookingModal({ listing, eventDetails, onClose, onCo
         <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
           <View style={styles.header}>
             <TouchableOpacity onPress={onClose}>
-              <Ionicons name="close" size={24} color={burgundyTheme.colors.text} />
+              <Ionicons name="close" size={24} color={theme.colors.text} />
             </TouchableOpacity>
             <Text style={styles.title}>Get Event Tickets</Text>
             <View style={styles.headerSpacer} />
@@ -126,7 +127,7 @@ export default function EventBookingModal({ listing, eventDetails, onClose, onCo
 
           <View style={styles.eventCard}>
             <View style={styles.eventBadge}>
-              <Ionicons name="calendar" size={14} color={burgundyTheme.colors.white} />
+              <Ionicons name="calendar" size={14} color={theme.colors.white} />
               <Text style={styles.badgeText}>
                 {eventDetails.event_type?.toUpperCase() || 'EVENT'}
               </Text>
@@ -169,14 +170,14 @@ export default function EventBookingModal({ listing, eventDetails, onClose, onCo
             <TextInput
               style={styles.input}
               placeholder="Full Name"
-              placeholderTextColor={burgundyTheme.colors.textSubtle}
+              placeholderTextColor={theme.colors.textSubtle}
               value={guestName}
               onChangeText={setGuestName}
             />
             <TextInput
               style={[styles.input, styles.spacedInput]}
               placeholder="Email"
-              placeholderTextColor={burgundyTheme.colors.textSubtle}
+              placeholderTextColor={theme.colors.textSubtle}
               keyboardType="email-address"
               value={guestEmail}
               onChangeText={setGuestEmail}
@@ -193,7 +194,7 @@ export default function EventBookingModal({ listing, eventDetails, onClose, onCo
               onChangeText={setSpecialRequests}
               multiline
               numberOfLines={4}
-              placeholderTextColor={burgundyTheme.colors.textSubtle}
+              placeholderTextColor={theme.colors.textSubtle}
             />
           </View>
 
@@ -234,10 +235,10 @@ export default function EventBookingModal({ listing, eventDetails, onClose, onCo
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (theme, EVENT_ACCENT) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: burgundyTheme.colors.background,
+    backgroundColor: theme.colors.background,
   },
   content: {
     flex: 1,
@@ -255,18 +256,18 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 20,
     fontWeight: '700',
-    color: burgundyTheme.colors.text,
+    color: theme.colors.text,
   },
   eventCard: {
-    backgroundColor: burgundyTheme.colors.surface,
+    backgroundColor: theme.colors.surface,
     borderRadius: 16,
     padding: 16,
     marginBottom: 24,
     borderLeftWidth: 4,
     borderLeftColor: EVENT_ACCENT,
     borderWidth: 1,
-    borderColor: burgundyTheme.colors.border,
-    ...burgundyTheme.shadow,
+    borderColor: theme.colors.border,
+    ...theme.shadow,
   },
   eventBadge: {
     flexDirection: 'row',
@@ -282,12 +283,12 @@ const styles = StyleSheet.create({
   badgeText: {
     fontSize: 11,
     fontWeight: '700',
-    color: burgundyTheme.colors.white,
+    color: theme.colors.white,
   },
   eventTitle: {
     fontSize: 16,
     fontWeight: '700',
-    color: burgundyTheme.colors.text,
+    color: theme.colors.text,
     marginBottom: 12,
   },
   eventInfo: {
@@ -300,7 +301,7 @@ const styles = StyleSheet.create({
   },
   eventInfoText: {
     fontSize: 13,
-    color: burgundyTheme.colors.textMuted,
+    color: theme.colors.textMuted,
     flex: 1,
   },
   section: {
@@ -309,7 +310,7 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 16,
     fontWeight: '700',
-    color: burgundyTheme.colors.text,
+    color: theme.colors.text,
     marginBottom: 12,
   },
   counter: {
@@ -317,46 +318,46 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-around',
     borderWidth: 1,
-    borderColor: burgundyTheme.colors.border,
+    borderColor: theme.colors.border,
     borderRadius: 14,
     paddingVertical: 16,
-    backgroundColor: burgundyTheme.colors.surface,
+    backgroundColor: theme.colors.surface,
   },
   counterValue: {
     fontSize: 24,
     fontWeight: '700',
-    color: burgundyTheme.colors.text,
+    color: theme.colors.text,
   },
   input: {
     borderWidth: 1,
-    borderColor: burgundyTheme.colors.border,
+    borderColor: theme.colors.border,
     borderRadius: 12,
     paddingHorizontal: 12,
     paddingVertical: 10,
     fontSize: 14,
-    color: burgundyTheme.colors.text,
-    backgroundColor: burgundyTheme.colors.surface,
+    color: theme.colors.text,
+    backgroundColor: theme.colors.surface,
   },
   spacedInput: {
     marginTop: 10,
   },
   textArea: {
     borderWidth: 1,
-    borderColor: burgundyTheme.colors.border,
+    borderColor: theme.colors.border,
     borderRadius: 12,
     paddingHorizontal: 12,
     paddingVertical: 10,
     fontSize: 14,
-    color: burgundyTheme.colors.text,
+    color: theme.colors.text,
     textAlignVertical: 'top',
-    backgroundColor: burgundyTheme.colors.surface,
+    backgroundColor: theme.colors.surface,
   },
   priceBreakdown: {
-    backgroundColor: burgundyTheme.colors.surfaceAlt,
+    backgroundColor: theme.colors.surfaceAlt,
     borderRadius: 16,
     padding: 12,
     borderWidth: 1,
-    borderColor: burgundyTheme.colors.border,
+    borderColor: theme.colors.border,
   },
   priceRow: {
     flexDirection: 'row',
@@ -365,16 +366,16 @@ const styles = StyleSheet.create({
   },
   priceLabel: {
     fontSize: 13,
-    color: burgundyTheme.colors.textMuted,
+    color: theme.colors.textMuted,
   },
   priceValue: {
     fontSize: 13,
     fontWeight: '600',
-    color: burgundyTheme.colors.text,
+    color: theme.colors.text,
   },
   totalRow: {
     borderTopWidth: 1,
-    borderTopColor: burgundyTheme.colors.border,
+    borderTopColor: theme.colors.border,
     paddingTop: 12,
     marginTop: 12,
     marginBottom: 0,
@@ -382,7 +383,7 @@ const styles = StyleSheet.create({
   totalLabel: {
     fontSize: 14,
     fontWeight: '700',
-    color: burgundyTheme.colors.text,
+    color: theme.colors.text,
   },
   totalValue: {
     fontSize: 18,
@@ -394,15 +395,15 @@ const styles = StyleSheet.create({
   },
   termsText: {
     fontSize: 12,
-    color: burgundyTheme.colors.textSubtle,
+    color: theme.colors.textSubtle,
     textAlign: 'center',
     lineHeight: 16,
   },
   footer: {
     padding: 16,
     borderTopWidth: 1,
-    borderTopColor: burgundyTheme.colors.border,
-    backgroundColor: burgundyTheme.colors.surface,
+    borderTopColor: theme.colors.border,
+    backgroundColor: theme.colors.surface,
   },
   button: {
     backgroundColor: EVENT_ACCENT,
@@ -416,6 +417,6 @@ const styles = StyleSheet.create({
   buttonText: {
     fontSize: 16,
     fontWeight: '700',
-    color: burgundyTheme.colors.white,
+    color: theme.colors.white,
   },
 });

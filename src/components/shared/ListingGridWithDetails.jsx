@@ -6,7 +6,7 @@ import ExploreCard from '../ExploreCard';
 import EventDetail from '../details/EventDetail';
 import OfferingDetail from '../details/OfferingDetail';
 import StayDetail from '../details/StayDetail';
-import burgundyTheme from '../../theme/burgundyTheme';
+import { useAppMode } from '../../context/AppModeContext';
 
 export default function ListingGridWithDetails({
   listings = [],
@@ -16,6 +16,8 @@ export default function ListingGridWithDetails({
   contentContainerStyle,
   onListingSelected,
 }) {
+  const { theme } = useAppMode();
+  const styles = getStyles(theme);
   const [selectedListing, setSelectedListing] = useState(null);
   const [detailsType, setDetailsType] = useState(null);
   const detailRequestRef = useRef(null);
@@ -48,7 +50,7 @@ export default function ListingGridWithDetails({
   if (loading) {
     body = (
       <View style={styles.centerContainer}>
-        <ActivityIndicator size="large" color={burgundyTheme.colors.primary} />
+        <ActivityIndicator size="large" color={theme.colors.primary} />
       </View>
     );
   } else if (error) {
@@ -87,7 +89,7 @@ export default function ListingGridWithDetails({
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (theme) => StyleSheet.create({
   wrapper: {
     flex: 1,
   },
@@ -102,7 +104,7 @@ const styles = StyleSheet.create({
   },
   messageText: {
     fontSize: 16,
-    color: burgundyTheme.colors.textMuted,
+    color: theme.colors.textMuted,
     marginTop: 20,
     paddingHorizontal: 16,
     alignSelf: 'center',

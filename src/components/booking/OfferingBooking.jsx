@@ -13,11 +13,12 @@ import {
 } from 'react-native';
 import { supabase } from '../../../lib/supabase';
 import bookingService from '../../../src/services/bookingService';
-import burgundyTheme, { getListingTypeColor } from '../../theme/burgundyTheme';
-
-const OFFERING_ACCENT = getListingTypeColor('offering');
+import { useAppMode } from '../../context/AppModeContext';
 
 export default function OfferingBookingModal({ listing, offeringDetails, onClose, onConfirm }) {
+  const { theme } = useAppMode();
+  const OFFERING_ACCENT = theme.listingTypeColors.offering;
+  const styles = getStyles(theme, OFFERING_ACCENT);
   const { formatPrice } = useCurrency();
   const [serviceDate, setServiceDate] = useState(new Date().toISOString().split('T')[0]);
   const [serviceTime, setServiceTime] = useState('10:00');
@@ -112,7 +113,7 @@ export default function OfferingBookingModal({ listing, offeringDetails, onClose
         <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
           <View style={styles.header}>
             <TouchableOpacity onPress={onClose}>
-              <Ionicons name="close" size={24} color={burgundyTheme.colors.text} />
+              <Ionicons name="close" size={24} color={theme.colors.text} />
             </TouchableOpacity>
             <Text style={styles.title}>Book Service</Text>
             <View style={styles.headerSpacer} />
@@ -120,7 +121,7 @@ export default function OfferingBookingModal({ listing, offeringDetails, onClose
 
           <View style={styles.serviceCard}>
             <View style={styles.serviceBadge}>
-              <Ionicons name="briefcase" size={14} color={burgundyTheme.colors.white} />
+              <Ionicons name="briefcase" size={14} color={theme.colors.white} />
               <Text style={styles.badgeText}>
                 {offeringDetails.service_type?.toUpperCase() || 'SERVICE'}
               </Text>
@@ -150,7 +151,7 @@ export default function OfferingBookingModal({ listing, offeringDetails, onClose
                   value={serviceDate}
                   onChangeText={setServiceDate}
                   placeholder="YYYY-MM-DD"
-                  placeholderTextColor={burgundyTheme.colors.textSubtle}
+                  placeholderTextColor={theme.colors.textSubtle}
                 />
               </View>
               <View style={styles.timeField}>
@@ -160,7 +161,7 @@ export default function OfferingBookingModal({ listing, offeringDetails, onClose
                   value={serviceTime}
                   onChangeText={setServiceTime}
                   placeholder="HH:MM"
-                  placeholderTextColor={burgundyTheme.colors.textSubtle}
+                  placeholderTextColor={theme.colors.textSubtle}
                 />
               </View>
             </View>
@@ -189,14 +190,14 @@ export default function OfferingBookingModal({ listing, offeringDetails, onClose
             <TextInput
               style={styles.input}
               placeholder="Full Name"
-              placeholderTextColor={burgundyTheme.colors.textSubtle}
+              placeholderTextColor={theme.colors.textSubtle}
               value={guestName}
               onChangeText={setGuestName}
             />
             <TextInput
               style={[styles.input, styles.spacedInput]}
               placeholder="Email"
-              placeholderTextColor={burgundyTheme.colors.textSubtle}
+              placeholderTextColor={theme.colors.textSubtle}
               keyboardType="email-address"
               value={guestEmail}
               onChangeText={setGuestEmail}
@@ -205,7 +206,7 @@ export default function OfferingBookingModal({ listing, offeringDetails, onClose
             <TextInput
               style={[styles.input, styles.spacedInput]}
               placeholder="Phone Number"
-              placeholderTextColor={burgundyTheme.colors.textSubtle}
+              placeholderTextColor={theme.colors.textSubtle}
               keyboardType="phone-pad"
               value={guestPhone}
               onChangeText={setGuestPhone}
@@ -221,7 +222,7 @@ export default function OfferingBookingModal({ listing, offeringDetails, onClose
               onChangeText={setSpecialRequests}
               multiline
               numberOfLines={4}
-              placeholderTextColor={burgundyTheme.colors.textSubtle}
+              placeholderTextColor={theme.colors.textSubtle}
             />
           </View>
 
@@ -256,10 +257,10 @@ export default function OfferingBookingModal({ listing, offeringDetails, onClose
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (theme, OFFERING_ACCENT) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: burgundyTheme.colors.background,
+    backgroundColor: theme.colors.background,
   },
   content: {
     flex: 1,
@@ -277,18 +278,18 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 20,
     fontWeight: '700',
-    color: burgundyTheme.colors.text,
+    color: theme.colors.text,
   },
   serviceCard: {
-    backgroundColor: burgundyTheme.colors.surface,
+    backgroundColor: theme.colors.surface,
     borderRadius: 16,
     padding: 16,
     marginBottom: 24,
     borderLeftWidth: 4,
     borderLeftColor: OFFERING_ACCENT,
     borderWidth: 1,
-    borderColor: burgundyTheme.colors.border,
-    ...burgundyTheme.shadow,
+    borderColor: theme.colors.border,
+    ...theme.shadow,
   },
   serviceBadge: {
     flexDirection: 'row',
@@ -304,17 +305,17 @@ const styles = StyleSheet.create({
   badgeText: {
     fontSize: 11,
     fontWeight: '700',
-    color: burgundyTheme.colors.white,
+    color: theme.colors.white,
   },
   serviceTitle: {
     fontSize: 16,
     fontWeight: '700',
-    color: burgundyTheme.colors.text,
+    color: theme.colors.text,
     marginBottom: 8,
   },
   serviceDescription: {
     fontSize: 13,
-    color: burgundyTheme.colors.textMuted,
+    color: theme.colors.textMuted,
     marginBottom: 12,
     lineHeight: 18,
   },
@@ -324,7 +325,7 @@ const styles = StyleSheet.create({
     gap: 12,
     paddingTop: 12,
     borderTopWidth: 1,
-    borderTopColor: burgundyTheme.colors.border,
+    borderTopColor: theme.colors.border,
   },
   providerCopy: {
     flex: 1,
@@ -332,11 +333,11 @@ const styles = StyleSheet.create({
   providerName: {
     fontSize: 13,
     fontWeight: '600',
-    color: burgundyTheme.colors.text,
+    color: theme.colors.text,
   },
   providerRole: {
     fontSize: 11,
-    color: burgundyTheme.colors.textSubtle,
+    color: theme.colors.textSubtle,
     marginTop: 2,
   },
   section: {
@@ -345,7 +346,7 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 16,
     fontWeight: '700',
-    color: burgundyTheme.colors.text,
+    color: theme.colors.text,
     marginBottom: 12,
   },
   dateTimeRow: {
@@ -360,19 +361,19 @@ const styles = StyleSheet.create({
   },
   label: {
     fontSize: 12,
-    color: burgundyTheme.colors.textSubtle,
+    color: theme.colors.textSubtle,
     marginBottom: 6,
     fontWeight: '500',
   },
   input: {
     borderWidth: 1,
-    borderColor: burgundyTheme.colors.border,
+    borderColor: theme.colors.border,
     borderRadius: 12,
     paddingHorizontal: 12,
     paddingVertical: 10,
     fontSize: 14,
-    color: burgundyTheme.colors.text,
-    backgroundColor: burgundyTheme.colors.surface,
+    color: theme.colors.text,
+    backgroundColor: theme.colors.surface,
   },
   spacedInput: {
     marginTop: 10,
@@ -388,33 +389,33 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-around',
     borderWidth: 1,
-    borderColor: burgundyTheme.colors.border,
+    borderColor: theme.colors.border,
     borderRadius: 12,
     paddingVertical: 16,
-    backgroundColor: burgundyTheme.colors.surface,
+    backgroundColor: theme.colors.surface,
   },
   counterValue: {
     fontSize: 24,
     fontWeight: '700',
-    color: burgundyTheme.colors.text,
+    color: theme.colors.text,
   },
   textArea: {
     borderWidth: 1,
-    borderColor: burgundyTheme.colors.border,
+    borderColor: theme.colors.border,
     borderRadius: 12,
     paddingHorizontal: 12,
     paddingVertical: 10,
     fontSize: 14,
-    color: burgundyTheme.colors.text,
+    color: theme.colors.text,
     textAlignVertical: 'top',
-    backgroundColor: burgundyTheme.colors.surface,
+    backgroundColor: theme.colors.surface,
   },
   priceBreakdown: {
-    backgroundColor: burgundyTheme.colors.surfaceAlt,
+    backgroundColor: theme.colors.surfaceAlt,
     borderRadius: 16,
     padding: 12,
     borderWidth: 1,
-    borderColor: burgundyTheme.colors.border,
+    borderColor: theme.colors.border,
   },
   priceRow: {
     flexDirection: 'row',
@@ -424,16 +425,16 @@ const styles = StyleSheet.create({
   },
   priceLabel: {
     fontSize: 13,
-    color: burgundyTheme.colors.textMuted,
+    color: theme.colors.textMuted,
   },
   priceValue: {
     fontSize: 13,
     fontWeight: '600',
-    color: burgundyTheme.colors.text,
+    color: theme.colors.text,
   },
   priceNote: {
     fontSize: 11,
-    color: burgundyTheme.colors.textSubtle,
+    color: theme.colors.textSubtle,
     marginTop: 4,
     fontStyle: 'italic',
   },
@@ -442,15 +443,15 @@ const styles = StyleSheet.create({
   },
   termsText: {
     fontSize: 12,
-    color: burgundyTheme.colors.textSubtle,
+    color: theme.colors.textSubtle,
     textAlign: 'center',
     lineHeight: 16,
   },
   footer: {
     padding: 16,
     borderTopWidth: 1,
-    borderTopColor: burgundyTheme.colors.border,
-    backgroundColor: burgundyTheme.colors.surface,
+    borderTopColor: theme.colors.border,
+    backgroundColor: theme.colors.surface,
   },
   button: {
     backgroundColor: OFFERING_ACCENT,
@@ -464,6 +465,6 @@ const styles = StyleSheet.create({
   buttonText: {
     fontSize: 16,
     fontWeight: '700',
-    color: burgundyTheme.colors.white,
+    color: theme.colors.white,
   },
 });

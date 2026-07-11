@@ -2,14 +2,16 @@ import { Ionicons } from '@expo/vector-icons';
 import React, { useEffect, useRef, useState } from 'react';
 import { Animated, Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { supabase } from '../../lib/supabase';
+import { useAppMode } from '../context/AppModeContext';
 import { useCurrency } from '../context/CurrencyContext';
 import { InteractionService } from '../services/interactionService';
-import burgundyTheme, { getListingTypeColor } from '../theme/burgundyTheme';
 import CardInteractionMenu from './shared/CardInteractionMenu';
 
 const ExploreCard = React.memo(function ExploreCard({ item, onPress, onInteractionAction, isFavorited: propIsFavorited }) {
+  const { theme } = useAppMode();
+  const styles = getStyles(theme);
   const { formatPrice } = useCurrency();
-  const typeIcon = getTypeIcon(item.listing_type);
+  const typeIcon = getTypeIcon(item.listing_type, theme);
   const imageUrl = getFirstImageUrl(item);
   const [menuVisible, setMenuVisible] = useState(false);
   const [isFavorited, setIsFavorited] = useState(propIsFavorited ?? false);
@@ -108,7 +110,7 @@ const ExploreCard = React.memo(function ExploreCard({ item, onPress, onInteracti
 
             {isFavorited && (
               <View style={styles.favoriteBadge}>
-                <Ionicons name="heart" size={12} color={burgundyTheme.colors.danger} />
+                <Ionicons name="heart" size={12} color={theme.colors.danger} />
               </View>
             )}
           </View>
@@ -119,7 +121,7 @@ const ExploreCard = React.memo(function ExploreCard({ item, onPress, onInteracti
 
           <View style={styles.cardFooter}>
             <Text style={styles.hostName} numberOfLines={1}>
-              {item.profiles?.location || 'Location not specified'}
+              {item.profiles?.location || ''}
             </Text>
           </View>
         </TouchableOpacity>
@@ -159,16 +161,16 @@ function getFirstImageUrl(item) {
   return null;
 }
 
-function getTypeIcon(listingType) {
+function getTypeIcon(listingType, theme) {
   const icons = {
-    stay: { name: 'home', color: getListingTypeColor('stay') },
-    event: { name: 'calendar', color: getListingTypeColor('event') },
-    offering: { name: 'briefcase', color: getListingTypeColor('offering') },
+    stay: { name: 'home', color: theme.listingTypeColors.stay },
+    event: { name: 'calendar', color: theme.listingTypeColors.event },
+    offering: { name: 'briefcase', color: theme.listingTypeColors.offering },
   };
   return icons[listingType] || icons.stay;
 }
 
-const styles = StyleSheet.create({
+const getStyles = (theme) => StyleSheet.create({
   cardWrapper: {
     flex: 1,
   },
@@ -183,14 +185,14 @@ const styles = StyleSheet.create({
     borderRadius: 6,
     width: '100%',
     aspectRatio: 0.75,
-    backgroundColor: burgundyTheme.colors.surfaceAlt,
+    backgroundColor: theme.colors.surfaceAlt,
     justifyContent: 'center',
     alignItems: 'center',
     position: 'relative',
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: burgundyTheme.colors.border,
-    ...burgundyTheme.shadow,
+    borderColor: theme.colors.border,
+    ...theme.shadow,
   },
   image: {
     width: '100%',
@@ -203,16 +205,16 @@ const styles = StyleSheet.create({
   typeBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: burgundyTheme.colors.white,
+    backgroundColor: theme.colors.background,
     gap: 16,
     paddingHorizontal: 8,
     paddingVertical: 6,
-    borderRadius: 8,
+    borderRadius: 2
   },
   typeBadgeText: {
     fontSize: 12,
     fontWeight: '700',
-    color: '#000',
+    color: theme.colors.border
   },
   priceBadge: {
     position: 'absolute',
@@ -220,7 +222,7 @@ const styles = StyleSheet.create({
     bottom: 8,
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: burgundyTheme.colors.white,
+    backgroundColor: theme.colors.border,
     paddingHorizontal: 8,
     paddingVertical: 6,
     borderRadius: 8,
@@ -250,7 +252,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 14,
     fontWeight: '600',
-    color: burgundyTheme.colors.text,
+    color: theme.colors.text,
     paddingHorizontal: 10,
     paddingTop: 10,
   },
@@ -267,7 +269,7 @@ const styles = StyleSheet.create({
   },
   hostName: {
     fontSize: 12,
-    color: burgundyTheme.colors.textMuted,
+    color: theme.colors.textMuted,
     flex: 1,
     paddingBottom: 10,
   },

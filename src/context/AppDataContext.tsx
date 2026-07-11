@@ -39,6 +39,13 @@ interface SearchCategory {
   count?: number;
 }
 
+interface CategoryMix {
+  id: string;
+  title: string;
+  reason: string;
+  items: AppListing[];
+}
+
 interface AppDataState {
   // Explore
   listings: AppListing[];
@@ -52,6 +59,7 @@ interface AppDataState {
   recentlyViewed: AppListing[];
   upcomingEvents: AppListing[];
   madeForYou: AppListing[];
+  categoryMixes: CategoryMix[];
   pastBookings: any[];
   collections: any[];
 
@@ -82,6 +90,7 @@ const defaultState: AppDataState = {
   recentlyViewed: [],
   upcomingEvents: [],
   madeForYou: [],
+  categoryMixes: [],
   pastBookings: [],
   collections: [],
   popularCategories: [],
@@ -182,6 +191,7 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
         popCatResult,
         collectionsResult,
         recModeListings,
+        mixesResult,
       ] = await Promise.allSettled([
         uid ? getUserFavoriteListings(uid) : Promise.resolve([]),
         uid ? getUserRecentlyViewedListings(uid, 8) : Promise.resolve([]),
@@ -205,6 +215,25 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
               .catch(() => []);
           }
           return Promise.resolve([]);
+        })(),
+        (() => {
+          const { mode } = getRecommendationModeStatus();
+          if (mode !== 'rec_eng') return Promise.resolve([]);
+          return RecommendationService.getMixes()
+            .then((mixes) =>
+              Promise.all(
+                mixes.map(async (mix) => ({
+                  id: mix.id,
+                  title: mix.title,
+                  reason: mix.reason,
+                  items: await enrichRecommendationListings(
+                    mix.items.map((item) => ({ id: item.id, score: item.score }))
+                  ),
+                }))
+              )
+            )
+            .then((enrichedMixes) => enrichedMixes.filter((m) => m.items.length > 0))
+            .catch(() => []);
         })(),
       ]);
 
@@ -233,6 +262,8 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
       }));
       const recListings: AppListing[] =
         recModeListings.status === 'fulfilled' ? recModeListings.value : [];
+      const categoryMixes: CategoryMix[] =
+        mixesResult.status === 'fulfilled' ? mixesResult.value : [];
 
       const upcomingEvents = listings.filter((l) => l.listing_type === 'event').slice(0, 6);
       const madeForYou: AppListing[] =
@@ -250,6 +281,7 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
         recentlyViewed,
         upcomingEvents,
         madeForYou,
+        categoryMixes,
         pastBookings,
         popularCategories,
         collections,

@@ -1,331 +1,171 @@
 // src/services/recommendationService.ts
+//
+// Frontend gateway to the standalone recommendation engine (see
+// ../../../recommendation-engine repo README for the source of truth on
+// routes/response shapes). User identity for personalization comes from the
+// Supabase JWT attached by recommendationGateway — none of these calls take
+// a userId parameter on the wire.
 
-import { supabase } from '../../lib/supabase';
 import { callRecommendationApi, recommendationApiPath, runDualMode } from './recommendationGateway';
 
-/**
- * Recommendation context types
- */
-export type RecommendationContext = 
-  | 'fyp'           // For You Page
-  | 'explore'       // Explore feed
-  | 'after_booking' // Suggestions after booking
-  | 'trip';         // Trip-specific suggestions
+export type EngineListingType = 'stay' | 'event' | 'offering';
 
-/**
- * Recommendation request payload
- */
-interface RecommendationRequest {
-  context: RecommendationContext;
-  userId: string;
-  params?: {
-    location?: {
-      lat: number;
-      lng: number;
-    };
-    seedListingId?: string;
-    tripId?: string;
-    limit?: number;
-    page?: number;
-    excludeSeen?: boolean;
-  };
-}
-
-/**
- * Listing card returned by recommendations Edge Function
- */
-export interface ListingCard {
+export interface EngineListingCard {
   id: string;
   title: string;
-  description: string;
-  imageUrls: string[];
-  pricePerNight: number;
-  averageRating: number;
-  reviewCount: number;
-  location: {
-    city: string;
-    country: string;
-    lat?: number;
-    lng?: number;
-  };
-  amenities: string[];
-  isAvailable: boolean;
-  hostId: string;
-  score?: number; // Confidence score from recommendation algorithm
-  explanation?: string; // Human-readable reason for recommendation
-  metadata?: Record<string, any>;
-}
-
-/**
- * Recommendation response from Edge Function
- */
-interface RecommendationResponse {
-  listings: ListingCard[];
-  metadata: {
-    context: RecommendationContext;
-    generatedAt: string;
-    totalCount: number;
-    page: number;
-    hasMore: boolean;
-  };
-}
-
-type RecommendationApiListing = {
-  id: string;
-  title?: string;
-  description?: string;
-  price?: number;
-  listing_type?: string;
-  is_active?: boolean;
-  created_at?: string;
-  host_id?: string;
-  hostId?: string;
+  listingType: EngineListingType;
+  price: number | null;
+  coverImageUrl: string | null;
+  location: { city: string | null; country: string | null; lat: number | null; lng: number | null } | null;
+  tags: string[];
+  categories: string[];
   score?: number;
-  reason?: string;      // API returns 'reason'
-  explanation?: string; // normalised alias
-  metadata?: Record<string, any>;
-};
+}
+
+export interface EngineMix {
+  id: string;
+  title: string;
+  reason: string;
+  items: EngineListingCard[];
+}
+
+interface FeedOrExploreResponse {
+  source: 'personalized' | 'cold_start';
+  items: EngineListingCard[];
+  nextCursor: string | null;
+}
+
+interface MixesResponse {
+  source: 'personalized' | 'cold_start';
+  mixes: EngineMix[];
+}
+
+interface SimilarResponse {
+  source: 'pair_affinity' | 'content_fallback';
+  items: EngineListingCard[];
+}
 
 /**
- * Acts as the ONLY frontend gateway to the recommendation system.
- * Calls the Supabase Edge Function "recommendations" for all recommendation logic.
- * Contains NO scoring or ranking logic - only data fetching and forwarding.
+ * Minimal shape the rest of the app works with once a listing comes back
+ * from the engine — just enough for services/listings.service.js to
+ * re-hydrate full Supabase rows in original rec order.
  */
+export interface RecommendedListing {
+  id: string;
+  score?: number;
+}
+
+const toRecommended = (items: EngineListingCard[]): RecommendedListing[] =>
+  items.map((item) => ({ id: item.id, score: item.score }));
+
+const VALID_INTERACTION_ACTIONS = ['view', 'like', 'save', 'unlike', 'unsave'] as const;
+export type EngineInteractionAction = (typeof VALID_INTERACTION_ACTIONS)[number];
+
 export const RecommendationService = {
   /**
-   * Get For You Page recommendations
+   * For You Page feed. `userId` is accepted for call-site compatibility
+   * (callers already gate on having a logged-in user) but identity is
+   * actually carried by the JWT attached in recommendationGateway.
    */
-  async getForYou(userId: string): Promise<ListingCard[]> {
+  async getForYou(userId: string, limit = 20): Promise<RecommendedListing[]> {
+    if (!userId) return [];
     try {
-      const response = await RecommendationService._callRecommendationFunction({
-        context: 'fyp',
-        userId,
-      });
-      return response.listings;
-    } catch (error) {
-      console.error('Error in getForYou:', error);
-      return [];
-    }
-  },
-
-  /**
-   * Get Explore feed recommendations
-   */
-  async getExplore(
-    userId: string, 
-    location?: { lat: number; lng: number }
-  ): Promise<ListingCard[]> {
-    try {
-      const response = await RecommendationService._callRecommendationFunction({
-        context: 'explore',
-        userId,
-        params: location ? { location } : undefined,
-      });
-      return response.listings;
-    } catch (error) {
-      console.error('Error in getExplore:', error);
-      return [];
-    }
-  },
-
-  /**
-   * Get recommendations after booking (similar listings)
-   */
-  async getAfterBooking(
-    userId: string, 
-    seedListingId: string
-  ): Promise<ListingCard[]> {
-    try {
-      const response = await RecommendationService._callRecommendationFunction({
-        context: 'after_booking',
-        userId,
-        params: { seedListingId },
-      });
-      return response.listings;
-    } catch (error) {
-      console.error('Error in getAfterBooking:', error);
-      return [];
-    }
-  },
-
-  /**
-   * Get trip-specific suggestions
-   */
-  async getTripSuggestions(
-    userId: string, 
-    tripId: string
-  ): Promise<ListingCard[]> {
-    try {
-      const response = await RecommendationService._callRecommendationFunction({
-        context: 'trip',
-        userId,
-        params: { tripId },
-      });
-      return response.listings;
-    } catch (error) {
-      console.error('Error in getTripSuggestions:', error);
-      return [];
-    }
-  },
-
-  /**
-   * Private method to call the recommendations Edge Function
-   * Centralizes all Edge Function calls for consistency and error handling
-   */
-  async _callRecommendationFunction(
-    request: RecommendationRequest
-  ): Promise<RecommendationResponse> {
-    const emptyResponse = (): RecommendationResponse => ({
-      listings: [],
-      metadata: {
-        context: request.context,
-        generatedAt: new Date().toISOString(),
-        totalCount: 0,
-        page: request.params?.page ?? 1,
-        hasMore: false,
-      },
-    });
-
-    try {
-      return await runDualMode<RecommendationResponse>({
-        context: `recommendationService._callRecommendationFunction:${request.context}`,
-        // Don't auto-switch mode on failure — keep configured mode so toggle stays meaningful
+      return await runDualMode<RecommendedListing[]>({
+        context: 'recommendationService.getForYou',
         fallbackToBasicOnError: false,
         recEng: async () => {
-          const path = recommendationApiPath('/v1/listings/recommendations', {
-            userId: request.userId,
-            context: request.context,
-            seedListingId: request.params?.seedListingId,
-            tripId: request.params?.tripId,
-            page: request.params?.page,
-            limit: request.params?.limit,
-            excludeSeen: request.params?.excludeSeen,
-            lat: request.params?.location?.lat,
-            lng: request.params?.location?.lng,
-          });
-          const envelope = await callRecommendationApi<RecommendationApiListing[]>(path, { method: 'GET' });
-          return this._normalizeApiRecommendationResponse(request.context, envelope.data || [], request.params);
+          const path = recommendationApiPath('/api/feed', { limit });
+          const envelope = await callRecommendationApi<FeedOrExploreResponse>(path, { method: 'GET' });
+          return toRecommended(envelope.data.items || []);
         },
-        basic: () => this._callSupabaseRecommendationFunction(request),
+        basic: async () => [],
       });
     } catch {
-      // Both paths unavailable — return empty so UI falls back to getListings()
-      return emptyResponse();
+      return [];
     }
-  },
-
-  async _callSupabaseRecommendationFunction(request: RecommendationRequest): Promise<RecommendationResponse> {
-    const emptyResponse = (): RecommendationResponse => ({
-      listings: [],
-      metadata: {
-        context: request.context,
-        generatedAt: new Date().toISOString(),
-        totalCount: 0,
-        page: request.params?.page ?? 1,
-        hasMore: false,
-      },
-    });
-
-    const { data, error } = await supabase.functions.invoke<RecommendationResponse>(
-      'recommendations',
-      {
-        body: {
-          context: request.context,
-          userId: request.userId,
-          ...(request.params && { params: request.params }),
-        },
-      }
-    );
-
-    // Edge Function not deployed or unavailable — degrade silently so UI falls back to getListings()
-    if (error || !data || !Array.isArray(data.listings)) {
-      return emptyResponse();
-    }
-
-    return data;
-  },
-
-  _normalizeApiRecommendationResponse(
-    context: RecommendationContext,
-    listings: RecommendationApiListing[],
-    params?: RecommendationRequest['params']
-  ): RecommendationResponse {
-    const normalizedListings: ListingCard[] = listings.map(item => ({
-      id: item.id,
-      title: item.title || 'Untitled listing',
-      description: item.description || '',
-      imageUrls: [],
-      pricePerNight: Number(item.price || 0),
-      averageRating: 0,
-      reviewCount: 0,
-      location: {
-        city: '',
-        country: '',
-      },
-      amenities: [],
-      isAvailable: item.is_active !== false,
-      hostId: item.hostId || item.host_id || '',
-      score: item.score,
-      // API returns 'reason'; also accept 'explanation' for forward compat
-      explanation: item.reason || item.explanation,
-      metadata: {
-        ...(item.metadata || {}),
-        listing_type: item.listing_type,
-        created_at: item.created_at,
-      },
-    }));
-
-    const page = params?.page || 1;
-    const limit = params?.limit || normalizedListings.length;
-
-    return {
-      listings: normalizedListings,
-      metadata: {
-        context,
-        generatedAt: new Date().toISOString(),
-        totalCount: normalizedListings.length,
-        page,
-        hasMore: normalizedListings.length >= limit,
-      },
-    };
   },
 
   /**
-   * Record user interaction with a recommended listing
-   * Used for feedback loop to improve future recommendations
+   * Explore feed. Location is intentionally not sent — the engine only does
+   * a plain profile-city match today (see README "known simplifications").
+   */
+  async getExplore(userId: string, limit = 20): Promise<RecommendedListing[]> {
+    try {
+      return await runDualMode<RecommendedListing[]>({
+        context: 'recommendationService.getExplore',
+        fallbackToBasicOnError: false,
+        recEng: async () => {
+          const path = recommendationApiPath('/api/explore', { limit });
+          const envelope = await callRecommendationApi<FeedOrExploreResponse>(path, { method: 'GET' });
+          return toRecommended(envelope.data.items || []);
+        },
+        basic: async () => [],
+      });
+    } catch {
+      return [];
+    }
+  },
+
+  /**
+   * Category mixes for the Dashboard carousels. Works for guests too (the
+   * engine falls back to popularity-based mixes when there's no user/history).
+   */
+  async getMixes(): Promise<EngineMix[]> {
+    try {
+      return await runDualMode<EngineMix[]>({
+        context: 'recommendationService.getMixes',
+        fallbackToBasicOnError: false,
+        recEng: async () => {
+          const envelope = await callRecommendationApi<MixesResponse>('/api/mixes', { method: 'GET' });
+          return envelope.data.mixes || [];
+        },
+        basic: async () => [],
+      });
+    } catch {
+      return [];
+    }
+  },
+
+  /**
+   * Listings similar to a given one (pair-affinity, content fallback).
+   * Not user-specific — no auth needed.
+   */
+  async getSimilar(listingId: string, limit = 10): Promise<RecommendedListing[]> {
+    if (!listingId) return [];
+    try {
+      return await runDualMode<RecommendedListing[]>({
+        context: 'recommendationService.getSimilar',
+        fallbackToBasicOnError: false,
+        recEng: async () => {
+          const path = recommendationApiPath(`/api/listings/${encodeURIComponent(listingId)}/similar`, { limit });
+          const envelope = await callRecommendationApi<SimilarResponse>(path, { method: 'GET' });
+          return toRecommended(envelope.data.items || []);
+        },
+        basic: async () => [],
+      });
+    } catch {
+      return [];
+    }
+  },
+
+  /**
+   * Record a user interaction with the engine (best-effort — this is a
+   * secondary signal/cache-invalidation push; InteractionService owns the
+   * canonical Supabase write). Never throws.
    */
   async recordInteraction(
-    userId: string,
     listingId: string,
-    interactionType: 'view' | 'click' | 'save' | 'book' | 'dismiss',
-    context: RecommendationContext,
-    metadata?: Record<string, any>
+    action: EngineInteractionAction,
+    score?: -1 | 0 | 1 | 3 | 5 | 7
   ): Promise<void> {
-    // Pure analytics — never switch mode, never throw
-    runDualMode({
-      context: 'recommendationService.recordInteraction',
-      fallbackToBasicOnError: false,
-      recEng: async () => {
-        await callRecommendationApi('/v1/listings/interactions', {
-          method: 'POST',
-          body: JSON.stringify({
-            userId,
-            listingId,
-            interactionType,
-            context,
-            metadata,
-            timestamp: new Date().toISOString(),
-          }),
-        });
-      },
-      basic: async () => {
-        await supabase.from('interactions').insert({
-          user_id: userId,
-          listing_id: listingId,
-          score: interactionType === 'book' ? 7 : interactionType === 'save' ? 5 : 3,
-          last_action: JSON.stringify({ action: interactionType, context, metadata }),
-        });
-      },
-    }).catch(() => undefined);
+    if (!listingId) return;
+    try {
+      await callRecommendationApi('/api/interactions', {
+        method: 'POST',
+        body: JSON.stringify({ listingId, action, score }),
+      });
+    } catch {
+      // best-effort — swallow
+    }
   },
 };

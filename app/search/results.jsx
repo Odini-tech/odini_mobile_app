@@ -10,10 +10,12 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import FilterPopup from '../../src/components/FilterPopup';
 import ListingGridWithDetails from '../../src/components/shared/ListingGridWithDetails';
 import { searchService } from '../../src/services/searchService';
-import burgundyTheme from '../../src/theme/burgundyTheme';
+import { useAppMode } from '../../src/context/AppModeContext';
 
 export default function SearchResultsPage() {
   const router = useRouter();
+  const { theme } = useAppMode();
+  const styles = getStyles(theme);
   const params = useLocalSearchParams();
   const [queryInput, setQueryInput] = useState(params.query || '');
   const [searchTerm, setSearchTerm] = useState(params.query || '');
@@ -125,7 +127,7 @@ export default function SearchResultsPage() {
           onChangeText={setQueryInput}
           returnKeyType="search"
           onSubmitEditing={handleSearchSubmit}
-          placeholderTextColor={burgundyTheme.colors.textSubtle}
+          placeholderTextColor={theme.colors.textSubtle}
         />
         <TouchableOpacity style={styles.searchBtn} onPress={handleSearchSubmit}>
           <Text style={styles.searchBtnText}>Search</Text>
@@ -176,48 +178,48 @@ function applyClientFilters(items, filters) {
   });
 }
 
-const styles = StyleSheet.create({
+const getStyles = (theme) => StyleSheet.create({
   page: {
     flex: 1,
-    backgroundColor: burgundyTheme.colors.background,
+    backgroundColor: theme.colors.background,
   },
   topSearch: {
     flexDirection: 'row',
     padding: 12,
     gap: 8,
     alignItems: 'center',
-    backgroundColor: burgundyTheme.colors.surface,
+    backgroundColor: theme.colors.surface,
     margin: 12,
     marginBottom: 8,
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: burgundyTheme.colors.border,
-    ...burgundyTheme.shadow,
+    borderColor: theme.colors.border,
+    ...theme.shadow,
   },
   searchInput: {
     flex: 1,
     height: 44,
     borderRadius: 12,
-    backgroundColor: burgundyTheme.colors.surfaceAlt,
+    backgroundColor: theme.colors.surfaceAlt,
     paddingHorizontal: 12,
-    color: burgundyTheme.colors.text,
+    color: theme.colors.text,
     borderWidth: 1,
-    borderColor: burgundyTheme.colors.border,
+    borderColor: theme.colors.border,
   },
   searchBtn: {
-    backgroundColor: burgundyTheme.colors.primary,
+    backgroundColor: theme.colors.primary,
     paddingHorizontal: 16,
     justifyContent: 'center',
     borderRadius: 12,
     height: 44,
   },
   searchBtnText: {
-    color: burgundyTheme.colors.white,
+    color: theme.colors.white,
     fontWeight: '700',
   },
   filterBtn: {
-    backgroundColor: burgundyTheme.colors.primaryTint,
-    borderColor: burgundyTheme.colors.primary,
+    backgroundColor: theme.colors.primaryTint,
+    borderColor: theme.colors.primary,
     borderWidth: 1,
     paddingHorizontal: 12,
     justifyContent: 'center',
@@ -225,7 +227,7 @@ const styles = StyleSheet.create({
     height: 44,
   },
   filterBtnText: {
-    color: burgundyTheme.colors.primary,
+    color: theme.colors.primary,
     fontWeight: '700',
   },
   headerRow: {
@@ -238,11 +240,11 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: burgundyTheme.colors.text,
+    color: theme.colors.text,
   },
   resultsMeta: {
     fontSize: 12,
-    color: burgundyTheme.colors.textMuted,
+    color: theme.colors.textMuted,
   },
   gridContent: {
     paddingHorizontal: 6,

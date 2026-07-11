@@ -10,21 +10,22 @@ import {
     TouchableOpacity,
     View,
 } from 'react-native';
+import { useAppMode } from '../../context/AppModeContext';
 import { useCurrency } from '../../context/CurrencyContext';
-import burgundyTheme, { getListingTypeColor } from '../../theme/burgundyTheme';
 import StayBookingModal from '../booking/StayBooking';
 import ImageCarousel from '../shared/ImageCarousel';
 import ListingMap from '../shared/ListingMap';
 import SuggestionCarousel from '../SuggestionCarousel';
 import DetailSuggestionCarousel from './DetailSuggestionCarousel';
 
-const STAY_ACCENT = getListingTypeColor('stay');
-
 export default function StayDetail({ listing, onClose, onHostPress }) {
+  const { theme } = useAppMode();
   const [showBooking, setShowBooking] = useState(false);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const router = useRouter();
   const { formatPrice } = useCurrency();
+  const STAY_ACCENT = theme.listingTypeColors.stay;
+  const styles = getStyles(theme, STAY_ACCENT);
 
   const stayDetails = listing.stays?.[0] || {};
   const hostId = listing.host_id || listing.profiles?.id;
@@ -51,7 +52,7 @@ export default function StayDetail({ listing, onClose, onHostPress }) {
       <SafeAreaView style={styles.container}>
         <View style={styles.header}>
           <TouchableOpacity onPress={onClose}>
-            <Ionicons name="chevron-back" size={28} color={burgundyTheme.colors.text} />
+            <Ionicons name="chevron-back" size={28} color={theme.colors.text} />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Stay Details</Text>
           <View style={styles.headerSpacer} />
@@ -88,7 +89,7 @@ export default function StayDetail({ listing, onClose, onHostPress }) {
               >
                 <View style={styles.hostInfo}>
                   <View style={styles.hostAvatar}>
-                    <Ionicons name="person" size={24} color={burgundyTheme.colors.white} />
+                    <Ionicons name="person" size={24} color={theme.colors.white} />
                   </View>
                   <View>
                     <Text style={styles.hostName}>{hostName}</Text>
@@ -105,7 +106,7 @@ export default function StayDetail({ listing, onClose, onHostPress }) {
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Location</Text>
               <View style={styles.locationRow}>
-                <Ionicons name="location" size={16} color={burgundyTheme.colors.primary} />
+                <Ionicons name="location" size={16} color={theme.colors.primary} />
                 <Text style={styles.locationText}>
                   {listing.address_city}, {listing.address_country}
                 </Text>
@@ -195,10 +196,10 @@ export default function StayDetail({ listing, onClose, onHostPress }) {
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (theme, STAY_ACCENT) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: burgundyTheme.colors.background,
+    backgroundColor: theme.colors.background,
   },
   header: {
     flexDirection: 'row',
@@ -207,8 +208,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: burgundyTheme.colors.border,
-    backgroundColor: burgundyTheme.colors.surface,
+    borderBottomColor: theme.colors.border,
+    backgroundColor: theme.colors.surface,
   },
   headerSpacer: {
     width: 28,
@@ -216,11 +217,11 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: burgundyTheme.colors.text,
+    color: theme.colors.text,
   },
   imagesContainer: {
     height: 300,
-    backgroundColor: burgundyTheme.colors.surfaceAlt,
+    backgroundColor: theme.colors.surfaceAlt,
   },
   image: {
     width: '100%',
@@ -237,7 +238,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 24,
     fontWeight: '700',
-    color: burgundyTheme.colors.text,
+    color: theme.colors.text,
     marginBottom: 12,
   },
   ratingRow: {
@@ -254,11 +255,11 @@ const styles = StyleSheet.create({
   rating: {
     fontSize: 14,
     fontWeight: '600',
-    color: burgundyTheme.colors.text,
+    color: theme.colors.text,
   },
   reviews: {
     fontSize: 12,
-    color: burgundyTheme.colors.textSubtle,
+    color: theme.colors.textSubtle,
   },
   hostSection: {
     flexDirection: 'row',
@@ -268,10 +269,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     marginBottom: 16,
     borderWidth: 1,
-    borderColor: burgundyTheme.colors.border,
+    borderColor: theme.colors.border,
     borderRadius: 16,
-    backgroundColor: burgundyTheme.colors.surface,
-    ...burgundyTheme.shadow,
+    backgroundColor: theme.colors.surface,
+    ...theme.shadow,
   },
   hostInfo: {
     flexDirection: 'row',
@@ -304,7 +305,7 @@ const styles = StyleSheet.create({
   },
   hostRole: {
     fontSize: 12,
-    color: burgundyTheme.colors.textSubtle,
+    color: theme.colors.textSubtle,
     marginTop: 2,
   },
   contactButton: {
@@ -313,7 +314,7 @@ const styles = StyleSheet.create({
     borderRadius: 22,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: burgundyTheme.colors.surfaceAlt,
+    backgroundColor: theme.colors.surfaceAlt,
   },
   section: {
     marginBottom: 24,
@@ -321,7 +322,7 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 16,
     fontWeight: '700',
-    color: burgundyTheme.colors.text,
+    color: theme.colors.text,
     marginBottom: 12,
   },
   locationRow: {
@@ -331,9 +332,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 12,
     borderRadius: 14,
-    backgroundColor: burgundyTheme.colors.surface,
+    backgroundColor: theme.colors.surface,
     borderWidth: 1,
-    borderColor: burgundyTheme.colors.border,
+    borderColor: theme.colors.border,
     marginBottom: 10,
   },
   map: {
@@ -342,7 +343,7 @@ const styles = StyleSheet.create({
   },
   locationText: {
     fontSize: 14,
-    color: burgundyTheme.colors.textMuted,
+    color: theme.colors.textMuted,
   },
   detailsGrid: {
     flexDirection: 'row',
@@ -351,22 +352,22 @@ const styles = StyleSheet.create({
   },
   detailCard: {
     flex: 1,
-    backgroundColor: burgundyTheme.colors.surface,
+    backgroundColor: theme.colors.surface,
     borderRadius: 16,
     padding: 12,
     alignItems: 'center',
     gap: 8,
     borderWidth: 1,
-    borderColor: burgundyTheme.colors.border,
+    borderColor: theme.colors.border,
   },
   detailValue: {
     fontSize: 18,
     fontWeight: '700',
-    color: burgundyTheme.colors.text,
+    color: theme.colors.text,
   },
   detailLabel: {
     fontSize: 12,
-    color: burgundyTheme.colors.textSubtle,
+    color: theme.colors.textSubtle,
   },
   amenitiesGrid: {
     flexDirection: 'row',
@@ -374,21 +375,21 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   amenityTag: {
-    backgroundColor: burgundyTheme.colors.surfaceAlt,
+    backgroundColor: theme.colors.surfaceAlt,
     borderRadius: 20,
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderWidth: 1,
-    borderColor: burgundyTheme.colors.border,
+    borderColor: theme.colors.border,
   },
   amenityText: {
     fontSize: 12,
-    color: burgundyTheme.colors.textMuted,
+    color: theme.colors.textMuted,
     fontWeight: '500',
   },
   description: {
     fontSize: 14,
-    color: burgundyTheme.colors.textMuted,
+    color: theme.colors.textMuted,
     lineHeight: 20,
   },
   bookingSection: {
@@ -398,18 +399,18 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     paddingTop: 18,
     borderTopWidth: 1,
-    borderTopColor: burgundyTheme.colors.border,
+    borderTopColor: theme.colors.border,
     marginBottom: 20,
   },
   priceLabel: {
     fontSize: 12,
-    color: burgundyTheme.colors.textSubtle,
+    color: theme.colors.textSubtle,
     marginBottom: 4,
   },
   price: {
     fontSize: 24,
     fontWeight: '700',
-    color: burgundyTheme.colors.text,
+    color: theme.colors.text,
   },
   bookButton: {
     backgroundColor: STAY_ACCENT,
@@ -420,6 +421,6 @@ const styles = StyleSheet.create({
   bookButtonText: {
     fontSize: 16,
     fontWeight: '700',
-    color: burgundyTheme.colors.white,
+    color: theme.colors.white,
   },
 });

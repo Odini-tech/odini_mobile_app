@@ -11,7 +11,7 @@ import { useBottomNavScroll } from "../../context/BottomNavVisibilityContext";
 import { RecommendationService } from "../../services/recommendationService";
 import { getRecommendationModeStatus } from "../../services/recommendationGateway";
 import { InteractionService } from "../../services/interactionService";
-import burgundyTheme from "../../theme/burgundyTheme";
+import { useAppMode } from "../../context/AppModeContext";
 import ListingCard from "../cards";
 import { FeedCardSkeleton } from "../shared/CardSkeleton";
 import EventDetail from "../details/EventDetail";
@@ -29,7 +29,6 @@ const _cache = {
   loadedCount: 0,
   hasMore: true,
   favIds: new Set(),
-  recMode: 'basic',
   ts: 0,
 };
 
@@ -38,6 +37,8 @@ function isCacheValid() {
 }
 
 export function ForYouPage({ onEventClick }) {
+  const { theme } = useAppMode();
+  const styles = getStyles(theme);
   const [listings, setListings] = useState([]);
   const [loading, setLoading] = useState(!isCacheValid());
   const [loadingMore, setLoadingMore] = useState(false);
@@ -46,7 +47,6 @@ export function ForYouPage({ onEventClick }) {
   const [error, setError] = useState(null);
   const [selectedListing, setSelectedListing] = useState(null);
   const [detailsType, setDetailsType] = useState(null);
-  const [recMode, setRecMode] = useState(() => _cache.recMode);
   const [favoritedIds, setFavoritedIds] = useState(() => _cache.favIds);
 
   const shuffledIdsRef = useRef(_cache.shuffledIds);
@@ -57,7 +57,6 @@ export function ForYouPage({ onEventClick }) {
 
   useEffect(() => {
     const status = getRecommendationModeStatus();
-    setRecMode(status.mode);
     initialLoad(status.mode);
   }, []);
 
@@ -114,7 +113,6 @@ export function ForYouPage({ onEventClick }) {
     _cache.loadedCount = finalLoadedCount;
     _cache.hasMore = finalHasMore;
     _cache.favIds = favSet;
-    _cache.recMode = mode;
     _cache.ts = Date.now();
   };
 
@@ -126,7 +124,6 @@ export function ForYouPage({ onEventClick }) {
       setListings(_cache.listings);
       setHasMore(_cache.hasMore);
       setFavoritedIds(_cache.favIds);
-      setRecMode(_cache.recMode);
       setLoading(false);
       return;
     }
@@ -202,8 +199,10 @@ export function ForYouPage({ onEventClick }) {
     const { data: authData } = await supabase.auth.getUser().catch(() => ({ data: null }));
     const uid = authData?.user?.id;
     if (uid) {
+      // InteractionService writes to Supabase and (in rec_eng mode) best-effort
+      // pushes the same signal to the engine — no need to also call
+      // RecommendationService.recordInteraction here, that'd just double-post.
       InteractionService.trackClick(uid, listing.id).catch(() => {});
-      RecommendationService.recordInteraction(uid, listing.id, 'click', 'fyp').catch(() => {});
     }
 
     try {
@@ -263,7 +262,7 @@ export function ForYouPage({ onEventClick }) {
         <View style={styles.footer}>
           <Text style={styles.footerText}>You're all caught up</Text>
           <TouchableOpacity style={styles.refreshButton} onPress={refresh}>
-            <Ionicons name="refresh" size={15} color={burgundyTheme.colors.primary} />
+            <Ionicons name="refresh" size={15} color={theme.colors.primary} />
             <Text style={styles.refreshButtonText}>Refresh</Text>
           </TouchableOpacity>
         </View>
@@ -317,14 +316,6 @@ export function ForYouPage({ onEventClick }) {
           data={listings}
           keyExtractor={(item) => String(item?.id)}
           renderItem={renderItem}
-          ListHeaderComponent={
-            recMode === 'rec_eng' ? (
-              <View style={styles.modeBanner}>
-                <View style={styles.modeDot} />
-                <Text style={styles.modeText}>Personalised for you</Text>
-              </View>
-            ) : null
-          }
           ListFooterComponent={renderFooter}
           onEndReached={loadMore}
           onEndReachedThreshold={0.3}
@@ -339,8 +330,8 @@ export function ForYouPage({ onEventClick }) {
             <RefreshControl
               refreshing={refreshing}
               onRefresh={refresh}
-              tintColor={burgundyTheme.colors.primary}
-              colors={[burgundyTheme.colors.primary]}
+              tintColor={theme.colors.primary}
+              colors={[theme.colors.primary]}
             />
           }
           {...bottomNavScroll}
@@ -359,37 +350,16 @@ export function ForYouPage({ onEventClick }) {
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (theme) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: burgundyTheme.colors.background,
+    backgroundColor: theme.colors.background,
   },
   centerBox: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: 24,
-  },
-  modeBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    backgroundColor: burgundyTheme.colors.primaryTint,
-    borderBottomWidth: 1,
-    borderBottomColor: burgundyTheme.colors.border,
-  },
-  modeDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: burgundyTheme.colors.success,
-  },
-  modeText: {
-    fontSize: 12,
-    color: burgundyTheme.colors.primary,
-    fontWeight: '600',
   },
   footer: {
     paddingVertical: 32,
@@ -398,7 +368,7 @@ const styles = StyleSheet.create({
   },
   footerText: {
     fontSize: 13,
-    color: burgundyTheme.colors.textSubtle,
+    color: theme.colors.textSubtle,
   },
   refreshButton: {
     flexDirection: 'row',
@@ -408,12 +378,12 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: burgundyTheme.colors.primary,
+    borderColor: theme.colors.primary,
   },
   refreshButtonText: {
     fontSize: 13,
     fontWeight: '600',
-    color: burgundyTheme.colors.primary,
+    color: theme.colors.primary,
   },
   loadingMoreRow: {
     paddingVertical: 20,
@@ -421,22 +391,22 @@ const styles = StyleSheet.create({
   },
   loadingMoreText: {
     fontSize: 13,
-    color: burgundyTheme.colors.textSubtle,
+    color: theme.colors.textSubtle,
   },
   errorTitle: {
     fontSize: 20,
     fontWeight: '700',
-    color: burgundyTheme.colors.text,
+    color: theme.colors.text,
     marginBottom: 8,
   },
   errorText: {
     fontSize: 14,
-    color: burgundyTheme.colors.textMuted,
+    color: theme.colors.textMuted,
     textAlign: 'center',
     marginBottom: 24,
   },
   retryButton: {
-    backgroundColor: burgundyTheme.colors.primary,
+    backgroundColor: theme.colors.primary,
     paddingHorizontal: 24,
     paddingVertical: 12,
     borderRadius: 8,
@@ -449,12 +419,12 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: burgundyTheme.colors.text,
+    color: theme.colors.text,
     marginBottom: 8,
   },
   emptyText: {
     fontSize: 14,
-    color: burgundyTheme.colors.textMuted,
+    color: theme.colors.textMuted,
     textAlign: 'center',
   },
 });

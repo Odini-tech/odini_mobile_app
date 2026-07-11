@@ -62,7 +62,7 @@ const getStyles = (theme, insets) =>
       paddingBottom: Math.max(14, insets.bottom + 6),
       paddingHorizontal: 8,
       borderTopWidth: StyleSheet.hairlineWidth,
-      borderTopColor: theme.colors.border,
+      borderTopColor: theme.colors.surfaceAlt,
       backgroundColor: theme.colors.surface,
     },
     button: {

@@ -1,48 +1,76 @@
 import { useEffect, useRef } from 'react';
-import { Animated, Dimensions, StyleSheet, Text, View } from 'react-native';
-import burgundyTheme from '../../theme/burgundyTheme';
+import { Animated, Easing, StyleSheet, View } from 'react-native';
+import { useAppMode } from '../../context/AppModeContext';
 
-const { width } = Dimensions.get('window');
+const BUBBLE_COUNT = 3;
+const ORBIT_RADIUS = 20;
+const BUBBLE_SIZE = 12;
+const BUBBLE_COLOR = '#A63456';
 
-const MESSAGES = [
-  'Finding listings for you',
-  'Loading your dashboard',
-  'Preparing search',
-  'Almost there',
-];
-
-export function TabLoadingScreen({ progress = 0, message = undefined }) {
-  const barWidth = useRef(new Animated.Value(0)).current;
-  const messageIndex = Math.min(
-    Math.floor((progress / 100) * MESSAGES.length),
-    MESSAGES.length - 1
-  );
-  const displayMessage = message || MESSAGES[messageIndex];
+function Bubble({ angle, delay }) {
+  const scale = useRef(new Animated.Value(0.5)).current;
 
   useEffect(() => {
-    Animated.timing(barWidth, {
-      toValue: progress,
-      duration: 350,
-      useNativeDriver: false,
-    }).start();
-  }, [progress]);
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.delay(delay),
+        Animated.timing(scale, {
+          toValue: 1,
+          duration: 450,
+          easing: Easing.out(Easing.ease),
+          useNativeDriver: true,
+        }),
+        Animated.timing(scale, {
+          toValue: 0.5,
+          duration: 450,
+          easing: Easing.in(Easing.ease),
+          useNativeDriver: true,
+        }),
+      ])
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [delay, scale]);
 
-  const animatedWidth = barWidth.interpolate({
-    inputRange: [0, 100],
-    outputRange: [0, width - 80],
-    extrapolate: 'clamp',
+  return (
+    <Animated.View
+      style={[
+        styles.bubble,
+        { transform: [{ rotate: `${angle}deg` }, { translateY: -ORBIT_RADIUS }, { scale }] },
+      ]}
+    />
+  );
+}
+
+export function TabLoadingScreen() {
+  const { theme } = useAppMode();
+  const rotation = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.timing(rotation, {
+        toValue: 1,
+        duration: 1600,
+        easing: Easing.linear,
+        useNativeDriver: true,
+      })
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [rotation]);
+
+  const spin = rotation.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['0deg', '360deg'],
   });
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.brand}>odini</Text>
-      <Text style={styles.message}>{displayMessage}</Text>
-
-      <View style={styles.barTrack}>
-        <Animated.View style={[styles.barFill, { width: animatedWidth }]} />
-      </View>
-
-      <Text style={styles.percent}>{Math.round(progress)}%</Text>
+    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
+      <Animated.View style={[styles.orbit, { transform: [{ rotate: spin }] }]}>
+        {Array.from({ length: BUBBLE_COUNT }).map((_, i) => (
+          <Bubble key={i} angle={(360 / BUBBLE_COUNT) * i} delay={i * 160} />
+        ))}
+      </Animated.View>
     </View>
   );
 }
@@ -59,39 +87,20 @@ export function FadeInView({ children, style, duration = 380 }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: burgundyTheme.colors.background,
     justifyContent: 'center',
     alignItems: 'center',
-    gap: 14,
   },
-  brand: {
-    fontSize: 42,
-    fontWeight: '800',
-    color: burgundyTheme.colors.primary,
-    letterSpacing: 3,
+  orbit: {
+    width: ORBIT_RADIUS * 2,
+    height: ORBIT_RADIUS * 2,
   },
-  message: {
-    fontSize: 14,
-    color: burgundyTheme.colors.textMuted,
-    letterSpacing: 0.3,
-  },
-  barTrack: {
-    width: width - 80,
-    height: 4,
-    borderRadius: 4,
-    backgroundColor: burgundyTheme.colors.border,
-    overflow: 'hidden',
-    marginTop: 4,
-  },
-  barFill: {
-    height: '100%',
-    borderRadius: 4,
-    backgroundColor: burgundyTheme.colors.primary,
-  },
-  percent: {
-    fontSize: 12,
-    color: burgundyTheme.colors.textMuted,
-    fontWeight: '600',
-    marginTop: -4,
+  bubble: {
+    position: 'absolute',
+    top: ORBIT_RADIUS - BUBBLE_SIZE / 2,
+    left: ORBIT_RADIUS - BUBBLE_SIZE / 2,
+    width: BUBBLE_SIZE,
+    height: BUBBLE_SIZE,
+    borderRadius: BUBBLE_SIZE / 2,
+    backgroundColor: BUBBLE_COLOR,
   },
 });

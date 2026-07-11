@@ -1,4 +1,5 @@
 import Constants from 'expo-constants';
+import { supabase } from '../../lib/supabase';
 
 export type RecommendationRuntimeMode = 'basic' | 'rec_eng';
 
@@ -41,20 +42,23 @@ const configuredApiBase =
 
 const configuredMode = String(expoExtra.RECOMMENDATION_MODE || '').toLowerCase();
 
-const initialMode: RecommendationRuntimeMode =
-  configuredMode === 'rec_eng' || configuredMode === 'basic'
-    ? (configuredMode as RecommendationRuntimeMode)
-    : configuredApiBase
-      ? 'rec_eng'
-      : 'basic';
+// "Intent" — whether config wants us to try the rec engine at all. The green
+// dot / active mode itself is never trusted from config alone: it only
+// flips to 'rec_eng' once a live /health check confirms the engine is
+// actually reachable. Explicitly configuring RECOMMENDATION_MODE=basic
+// disables the engine outright, no probing.
+const intendsRecEng = configuredMode === 'basic'
+  ? false
+  : configuredMode === 'rec_eng'
+    ? Boolean(configuredApiBase)
+    : Boolean(configuredApiBase);
 
-let activeMode: RecommendationRuntimeMode = initialMode;
-let activeReason =
-  configuredMode === 'rec_eng' || configuredMode === 'basic'
-    ? `Configured by RECOMMENDATION_MODE=${configuredMode}`
-    : configuredApiBase
-      ? 'Defaulted to rec_eng because RECOMMENDATION_API_URL is configured'
-      : 'Defaulted to basic because recommendation API URL is missing';
+let activeMode: RecommendationRuntimeMode = 'basic';
+let activeReason = intendsRecEng
+  ? 'Checking recommendation engine health…'
+  : configuredMode === 'basic'
+    ? 'Configured by RECOMMENDATION_MODE=basic'
+    : 'Defaulted to basic because recommendation API URL is missing';
 let activeUpdatedAt = new Date().toISOString();
 let lastAnnouncedMode: RecommendationRuntimeMode | null = null;
 
@@ -83,23 +87,32 @@ const emitMode = () => {
 
 let recoveryTimer: ReturnType<typeof setTimeout> | null = null;
 
+const checkHealth = async (): Promise<boolean> => {
+  if (!configuredApiBase) return false;
+  const base = trimTrailingSlash(configuredApiBase);
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 6_000);
+  try {
+    const res = await fetch(`${base}/health`, { method: 'GET', signal: controller.signal });
+    return res.ok;
+  } catch {
+    return false;
+  } finally {
+    clearTimeout(timeout);
+  }
+};
+
 const scheduleRecEngRecovery = () => {
   if (recoveryTimer) return; // already scheduled
-  if (!configuredApiBase) return;
-  if (initialMode !== 'rec_eng') return; // only recover if rec_eng was the original intent
+  if (!intendsRecEng) return; // only recover if rec_eng was the original intent
 
   recoveryTimer = setTimeout(async () => {
     recoveryTimer = null;
     if (activeMode === 'rec_eng') return; // already back
-    try {
-      const base = trimTrailingSlash(configuredApiBase!);
-      const res = await fetch(`${base}/health`, { method: 'GET' });
-      if (res.ok) {
-        setModeInternal('rec_eng', 'Auto-recovered after successful health check');
-        return;
-      }
-    } catch {
-      // still down
+    const healthy = await checkHealth();
+    if (healthy) {
+      setModeInternal('rec_eng', 'Auto-recovered after successful health check');
+      return;
     }
     scheduleRecEngRecovery(); // retry again
   }, 60_000);
@@ -110,14 +123,28 @@ const setModeInternal = (mode: RecommendationRuntimeMode, reason: string) => {
   activeReason = reason;
   activeUpdatedAt = new Date().toISOString();
   emitMode();
-  // If we just fell back to basic and rec_eng was the original config, schedule a recovery probe
-  if (mode === 'basic' && initialMode === 'rec_eng') {
+  // If we just fell back to basic and rec_eng was the original intent, schedule a recovery probe
+  if (mode === 'basic' && intendsRecEng) {
     scheduleRecEngRecovery();
   } else if (mode === 'rec_eng' && recoveryTimer) {
     clearTimeout(recoveryTimer);
     recoveryTimer = null;
   }
 };
+
+// Startup probe — the dot only turns green once we've actually confirmed the
+// engine responds, not just because a URL is configured for it.
+if (intendsRecEng) {
+  checkHealth().then((healthy) => {
+    if (healthy) {
+      setModeInternal('rec_eng', 'Health check passed on startup');
+    } else {
+      activeReason = 'Recommendation engine unreachable at startup';
+      emitMode();
+      scheduleRecEngRecovery();
+    }
+  });
+}
 
 export function setRecommendationMode(mode: RecommendationRuntimeMode, reason = 'Manual override'): RecommendationModeStatus {
   setModeInternal(mode, reason);
@@ -181,10 +208,24 @@ export async function callRecommendationApi<T>(
 
   const base = trimTrailingSlash(configuredApiBase);
   const url = `${base}${path.startsWith('/') ? path : `/${path}`}`;
+
+  // Attach the logged-in user's Supabase JWT so the engine can resolve
+  // personalized (vs guest/cold-start) results server-side. Missing/expired
+  // tokens just mean the engine treats the caller as a guest — never throw here.
+  let authHeader: Record<string, string> = {};
+  try {
+    const { data } = await supabase.auth.getSession();
+    const token = data?.session?.access_token;
+    if (token) authHeader = { Authorization: `Bearer ${token}` };
+  } catch {
+    // no session available — proceed as guest
+  }
+
   const response = await fetch(url, {
     ...init,
     headers: {
       'Content-Type': 'application/json',
+      ...authHeader,
       ...(init?.headers || {}),
     },
   });

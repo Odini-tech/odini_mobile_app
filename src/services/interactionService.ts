@@ -34,15 +34,18 @@ const ACTION_SCORE: Record<InteractionType, InteractionRow['score']> = {
   book: 7,
 };
 
-const ACTION_TO_API_ACTION: Record<InteractionType, string> = {
-  view: 'viewed',
-  click: 'viewed',
-  save: 'liked',
-  book: 'liked',
-  swipe_right: 'liked',
-  swipe_left: 'disliked',
-  share: 'shared',
-  message: 'shared',
+// Engine only accepts action: view|like|save|unlike|unsave — map our richer
+// local vocabulary onto the closest one. The actual weight is always sent
+// explicitly via `score`, so this mapping only affects the stored label.
+const ACTION_TO_API_ACTION: Record<InteractionType, 'view' | 'like' | 'save' | 'unlike' | 'unsave'> = {
+  view: 'view',
+  click: 'view',
+  save: 'save',
+  book: 'save',
+  swipe_right: 'like',
+  swipe_left: 'unlike',
+  share: 'like',
+  message: 'like',
 };
 
 const clampAllowedScore = (score: number): InteractionRow['score'] => {
@@ -116,20 +119,9 @@ export const InteractionService = {
   },
 
   async getUserRecentInteractions(userId: string, limit = 50): Promise<InteractionRow[]> {
+    // The engine has no endpoint for reading a user's raw interaction history
+    // back out — it's Supabase-only, in both runtime modes.
     try {
-      const { mode } = getRecommendationModeStatus();
-      if (mode === 'rec_eng') {
-        try {
-          const envelope = await callRecommendationApi<InteractionRow[]>(
-            `/v1/listings/user/${encodeURIComponent(userId)}/interactions?limit=${limit}`,
-            { method: 'GET' }
-          );
-          if (envelope.data?.length) return envelope.data;
-        } catch {
-          // fall through to Supabase
-        }
-      }
-
       const { data, error } = await supabase
         .from('interactions')
         .select('*')
@@ -195,12 +187,11 @@ export const InteractionService = {
       // Best-effort: also push to rec engine if it's configured (never throws, never switches mode)
       const { mode } = getRecommendationModeStatus();
       if (mode === 'rec_eng') {
-        callRecommendationApi('/v1/listings/interactions', {
+        callRecommendationApi('/api/interactions', {
           method: 'POST',
           body: JSON.stringify({
-            userId,
             listingId,
-            action: ACTION_TO_API_ACTION[interactionType] ?? 'viewed',
+            action: ACTION_TO_API_ACTION[interactionType] ?? 'view',
             score,
           }),
         }).catch(() => undefined);

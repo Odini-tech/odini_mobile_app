@@ -10,20 +10,19 @@ import {
     View,
 } from 'react-native';
 import { getSuggestedListings } from '../../../services/listings.service.js';
+import { useAppMode } from '../../context/AppModeContext';
 import { useCurrency } from '../../context/CurrencyContext';
-import burgundyTheme, { getListingTypeColor } from '../../theme/burgundyTheme';
 import EventDetail from './EventDetail';
 import OfferingDetail from './OfferingDetail';
 import StayDetail from './StayDetail';
 
-const TYPE_META = {
-  stay: { icon: 'home', color: getListingTypeColor('stay'), label: 'Stay' },
-  event: { icon: 'calendar', color: getListingTypeColor('event'), label: 'Event' },
-  offering: { icon: 'briefcase', color: getListingTypeColor('offering'), label: 'Service' },
-};
-
-function getTypeMeta(type) {
-  return TYPE_META[type] || TYPE_META.stay;
+function getTypeMeta(type, theme) {
+  const typeMeta = {
+    stay: { icon: 'home', color: theme.listingTypeColors.stay, label: 'Stay' },
+    event: { icon: 'calendar', color: theme.listingTypeColors.event, label: 'Event' },
+    offering: { icon: 'briefcase', color: theme.listingTypeColors.offering, label: 'Service' },
+  };
+  return typeMeta[type] || typeMeta.stay;
 }
 
 function getSectionTitle(type) {
@@ -39,10 +38,12 @@ function getSectionSubtitle(type) {
 }
 
 export default function DetailSuggestionCarousel({ listing }) {
+  const { theme } = useAppMode();
   const [suggestions, setSuggestions] = useState({ sameType: [], otherType: [] });
   const [loading, setLoading] = useState(true);
   const [selectedListing, setSelectedListing] = useState(null);
   const { formatPrice } = useCurrency();
+  const styles = getStyles(theme);
 
   useEffect(() => {
     let cancelled = false;
@@ -72,7 +73,7 @@ export default function DetailSuggestionCarousel({ listing }) {
   }, [listing.id, listing.listing_type]);
 
   const renderCard = (item) => {
-    const typeMeta = getTypeMeta(item.listing_type);
+    const typeMeta = getTypeMeta(item.listing_type, theme);
     const location = item.profiles?.location || item.location || item.address_city || null;
 
     return (
@@ -110,7 +111,7 @@ export default function DetailSuggestionCarousel({ listing }) {
 
   const showSameType = !loading && suggestions.sameType.length > 0;
   const showOtherType = !loading && suggestions.otherType.length > 0;
-  const typeLabel = getTypeMeta(listing.listing_type).label;
+  const typeLabel = getTypeMeta(listing.listing_type, theme).label;
 
   return (
     <>
@@ -121,7 +122,7 @@ export default function DetailSuggestionCarousel({ listing }) {
 
       {loading ? (
         <View style={styles.loadingRow}>
-          <ActivityIndicator size="small" color={burgundyTheme.colors.primary} />
+          <ActivityIndicator size="small" color={theme.colors.primary} />
           <Text style={styles.loadingText}>Loading suggestions…</Text>
         </View>
       ) : (
@@ -188,7 +189,7 @@ export default function DetailSuggestionCarousel({ listing }) {
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (theme) => StyleSheet.create({
   sectionContainer: {
     paddingHorizontal: 16,
     paddingTop: 24,
@@ -197,12 +198,12 @@ const styles = StyleSheet.create({
   sectionHeading: {
     fontSize: 18,
     fontWeight: '700',
-    color: burgundyTheme.colors.text,
+    color: theme.colors.text,
     marginBottom: 4,
   },
   sectionDesc: {
     fontSize: 12,
-    color: burgundyTheme.colors.textMuted,
+    color: theme.colors.textMuted,
   },
   loadingRow: {
     flexDirection: 'row',
@@ -212,7 +213,7 @@ const styles = StyleSheet.create({
     paddingVertical: 18,
   },
   loadingText: {
-    color: burgundyTheme.colors.textMuted,
+    color: theme.colors.textMuted,
     fontSize: 13,
   },
   sectionBlock: {
@@ -229,17 +230,17 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 16,
     fontWeight: '700',
-    color: burgundyTheme.colors.text,
+    color: theme.colors.text,
   },
   sectionSubtitle: {
     fontSize: 12,
-    color: burgundyTheme.colors.textMuted,
+    color: theme.colors.textMuted,
     marginTop: 2,
   },
   sectionTypeLabel: {
     fontSize: 12,
     fontWeight: '700',
-    color: burgundyTheme.colors.primary,
+    color: theme.colors.primary,
     textTransform: 'uppercase',
   },
   scrollRow: {
@@ -256,7 +257,7 @@ const styles = StyleSheet.create({
   cardImageWrapper: {
     borderRadius: 10,
     overflow: 'hidden',
-    backgroundColor: burgundyTheme.colors.surface,
+    backgroundColor: theme.colors.surface,
     height: 240,
   },
   cardImage: {
@@ -266,7 +267,7 @@ const styles = StyleSheet.create({
   cardImagePlaceholder: {
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: burgundyTheme.colors.surfaceAlt,
+    backgroundColor: theme.colors.surfaceAlt,
   },
   typePill: {
     position: 'absolute',
@@ -289,12 +290,12 @@ const styles = StyleSheet.create({
   cardTitle: {
     fontSize: 14,
     fontWeight: '700',
-    color: burgundyTheme.colors.text,
+    color: theme.colors.text,
     marginBottom: 4,
   },
   cardLocation: {
     fontSize: 11,
-    color: burgundyTheme.colors.textMuted,
+    color: theme.colors.textMuted,
     marginBottom: 6,
   },
   cardPrice: {

@@ -1,6 +1,6 @@
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import React, { useRef, useState, useEffect } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Dimensions,
@@ -12,28 +12,28 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { useCurrency } from '../../src/context/CurrencyContext';
-import {
-  fetchHostDashboard,
-  HostBooking,
-  HostDashboardData,
-  HostListing,
-  HostProfile,
-} from '../../src/services/hostService';
 import EventDetail from '../../src/components/details/EventDetail';
 import OfferingDetail from '../../src/components/details/OfferingDetail';
 import StayDetail from '../../src/components/details/StayDetail';
-import burgundyTheme, { getListingTypeColor } from '../../src/theme/burgundyTheme';
+import { useAppMode } from '../../src/context/AppModeContext';
+import { useCurrency } from '../../src/context/CurrencyContext';
+import {
+  fetchHostDashboard,
+  HostDashboardData,
+  HostListing,
+  HostProfile
+} from '../../src/services/hostService';
+import { getThemeForMode } from '../../src/theme/appModeTheme';
 
 const { width } = Dimensions.get('window');
 const CARD_WIDTH = Math.floor((width - 32 - 12) / 2.2);
-
-const REVENUE_STATUSES = new Set(['confirmed', 'completed']);
 
 export default function HostDashboardScreen() {
   const params = useLocalSearchParams<{ hostId?: string | string[] }>();
   const router = useRouter();
   const { formatPrice } = useCurrency();
+  const { theme } = useAppMode();
+  const styles = getStyles(theme);
   const hostId = Array.isArray(params.hostId) ? params.hostId[0] : params.hostId;
 
   const [dashboard, setDashboard] = useState<HostDashboardData | null>(null);
@@ -90,7 +90,7 @@ export default function HostDashboardScreen() {
   if (loading) {
     return (
       <View style={styles.centered}>
-        <ActivityIndicator size="large" color={burgundyTheme.colors.primary} />
+        <ActivityIndicator size="large" color={theme.colors.primary} />
       </View>
     );
   }
@@ -98,7 +98,7 @@ export default function HostDashboardScreen() {
   if (error) {
     return (
       <View style={styles.centered}>
-        <Ionicons name="alert-circle-outline" size={48} color={burgundyTheme.colors.danger} />
+        <Ionicons name="alert-circle-outline" size={48} color={theme.colors.danger} />
         <Text style={styles.errorTitle}>Something went wrong</Text>
         <Text style={styles.errorText}>{error}</Text>
         <TouchableOpacity style={styles.errorButton} onPress={() => router.back()}>
@@ -110,21 +110,11 @@ export default function HostDashboardScreen() {
 
   const profile = dashboard?.profile ?? null;
   const listings = dashboard?.listings ?? [];
-  const bookings = dashboard?.bookings ?? [];
 
-  const activeListings = listings.filter((l) => l.is_active);
-  const upcomingEvents = listings
-    .filter((l) => l.listing_type === 'event' && l.is_active && isFuture(l.events?.[0]?.event_time))
-    .sort((a, b) => new Date(a.events?.[0]?.event_time || 0).getTime() - new Date(b.events?.[0]?.event_time || 0).getTime());
-  const currentStays = listings.filter((l) => l.listing_type === 'stay' && l.is_active);
-  const currentServices = listings.filter((l) => l.listing_type === 'offering' && l.is_active);
-  const pastListings = listings.filter((l) => !l.is_active || (l.listing_type === 'event' && isPast(l.events?.[0]?.event_time)));
-  const allActive = listings.filter((l) => l.is_active);
-
-  const totalEarnings = bookings.reduce((sum, b) => {
-    if (!REVENUE_STATUSES.has(b.status)) return sum;
-    return sum + Number(b.total_price ?? b.price_at_booking ?? 0);
-  }, 0);
+  const activeEvents = listings.filter((l) => l.listing_type === 'event' && l.is_active);
+  const activeStays = listings.filter((l) => l.listing_type === 'stay' && l.is_active);
+  const activeServices = listings.filter((l) => l.listing_type === 'offering' && l.is_active);
+  const pastListings = listings.filter((l) => !l.is_active);
 
   const displayName = getDisplayName(profile);
   const initials = getInitials(profile);
@@ -138,15 +128,12 @@ export default function HostDashboardScreen() {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={handleRefresh}
-            tintColor={burgundyTheme.colors.primary}
+            tintColor={theme.colors.primary}
           />
         }
       >
         {/* Hero */}
         <View style={styles.heroCard}>
-          <View style={styles.heroGlow1} />
-          <View style={styles.heroGlow2} />
-
           <View style={styles.heroTopRow}>
             <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
               <Ionicons name="chevron-back" size={22} color="#fff" />
@@ -172,70 +159,40 @@ export default function HostDashboardScreen() {
             </View>
           </View>
 
-          <View style={styles.heroStats}>
-            <StatPill label="Active" value={String(activeListings.length)} />
-            <StatPill label="Bookings" value={String(bookings.length)} />
-            <StatPill label="Earnings" value={formatPrice(totalEarnings)} />
-          </View>
-
-          <View style={styles.heroChips}>
-            <MiniChip label={`${upcomingEvents.length} Events`} />
-            <MiniChip label={`${currentStays.length} Stays`} />
-            <MiniChip label={`${currentServices.length} Services`} />
-            {pastListings.length > 0 && <MiniChip label={`${pastListings.length} Past`} />}
-          </View>
         </View>
 
-        {/* All Active */}
-        {allActive.length > 0 && (
-          <CarouselSection title="All Listings" subtitle="Everything currently live">
-            {allActive.map((l) => (
-              <ListingCard key={l.id} listing={l} formatPrice={formatPrice} onPress={handleCardPress} />
+        {/* Events */}
+        {activeEvents.length > 0 && (
+          <CarouselSection title="Events" subtitle="Active event listings" styles={styles}>
+            {activeEvents.map((l) => (
+              <ListingCard key={l.id} listing={l} formatPrice={formatPrice} onPress={handleCardPress} theme={theme} styles={styles} />
             ))}
           </CarouselSection>
         )}
 
-        {/* Upcoming Events */}
-        {upcomingEvents.length > 0 && (
-          <CarouselSection title="Upcoming Events" subtitle="Next on the calendar">
-            {upcomingEvents.map((l) => (
-              <ListingCard key={l.id} listing={l} formatPrice={formatPrice} onPress={handleCardPress} />
+        {/* Stays */}
+        {activeStays.length > 0 && (
+          <CarouselSection title="Stays" subtitle="Active stay listings" styles={styles}>
+            {activeStays.map((l) => (
+              <ListingCard key={l.id} listing={l} formatPrice={formatPrice} onPress={handleCardPress} theme={theme} styles={styles} />
             ))}
           </CarouselSection>
         )}
 
-        {/* Current Stays */}
-        {currentStays.length > 0 && (
-          <CarouselSection title="My Stays" subtitle="Active accommodation listings">
-            {currentStays.map((l) => (
-              <ListingCard key={l.id} listing={l} formatPrice={formatPrice} onPress={handleCardPress} />
-            ))}
-          </CarouselSection>
-        )}
-
-        {/* Current Services */}
-        {currentServices.length > 0 && (
-          <CarouselSection title="My Services" subtitle="Open offerings">
-            {currentServices.map((l) => (
-              <ListingCard key={l.id} listing={l} formatPrice={formatPrice} onPress={handleCardPress} />
-            ))}
-          </CarouselSection>
-        )}
-
-        {/* Recent Bookings */}
-        {bookings.length > 0 && (
-          <CarouselSection title="Recent Bookings" subtitle="Latest guest activity">
-            {bookings.slice(0, 10).map((b) => (
-              <BookingCard key={b.id} booking={b} formatPrice={formatPrice} />
+        {/* Services */}
+        {activeServices.length > 0 && (
+          <CarouselSection title="Services" subtitle="Active offering listings" styles={styles}>
+            {activeServices.map((l) => (
+              <ListingCard key={l.id} listing={l} formatPrice={formatPrice} onPress={handleCardPress} theme={theme} styles={styles} />
             ))}
           </CarouselSection>
         )}
 
         {/* Past Listings */}
         {pastListings.length > 0 && (
-          <CarouselSection title="Past Listings" subtitle="Archived and ended">
+          <CarouselSection title="Past Listings" subtitle="Archived and ended listings" styles={styles}>
             {pastListings.map((l) => (
-              <ListingCard key={l.id} listing={l} formatPrice={formatPrice} onPress={handleCardPress} isPast />
+              <ListingCard key={l.id} listing={l} formatPrice={formatPrice} onPress={handleCardPress} isPast theme={theme} styles={styles} />
             ))}
           </CarouselSection>
         )}
@@ -244,13 +201,13 @@ export default function HostDashboardScreen() {
       </ScrollView>
 
       {selectedListing && detailType === 'stay' && (
-        <StayDetail listing={selectedListing} onClose={handleCloseDetail} />
+        <StayDetail listing={selectedListing} onClose={handleCloseDetail} onHostPress={() => {}} />
       )}
       {selectedListing && detailType === 'event' && (
-        <EventDetail listing={selectedListing} onClose={handleCloseDetail} />
+        <EventDetail listing={selectedListing} onClose={handleCloseDetail} onHostPress={() => {}} />
       )}
       {selectedListing && detailType === 'offering' && (
-        <OfferingDetail listing={selectedListing} onClose={handleCloseDetail} />
+        <OfferingDetail listing={selectedListing} onClose={handleCloseDetail} onHostPress={() => {}} />
       )}
     </>
   );
@@ -260,10 +217,12 @@ function CarouselSection({
   title,
   subtitle,
   children,
+  styles,
 }: {
   title: string;
   subtitle: string;
   children: React.ReactNode;
+  styles: ReturnType<typeof getStyles>;
 }) {
   return (
     <View style={styles.section}>
@@ -289,13 +248,17 @@ function ListingCard({
   formatPrice,
   onPress,
   isPast = false,
+  theme,
+  styles,
 }: {
   listing: HostListing;
   formatPrice: (n: number) => string;
   onPress: (l: HostListing) => void;
   isPast?: boolean;
+  theme: ReturnType<typeof getThemeForMode>;
+  styles: ReturnType<typeof getStyles>;
 }) {
-  const accent = getListingTypeColor(listing.listing_type);
+  const accent = theme.listingTypeColors[listing.listing_type] || theme.colors.primary;
   const icon =
     listing.listing_type === 'event'
       ? 'calendar'
@@ -317,84 +280,29 @@ function ListingCard({
             <MaterialCommunityIcons name={icon} size={28} color={accent} />
           </View>
         )}
-        <View style={[styles.typePill, { backgroundColor: accent }]}>
+        <View style={[styles.typePill, { backgroundColor: accent }]}> 
           <Text style={styles.typePillText}>{listing.listing_type.toUpperCase()}</Text>
         </View>
-        {isPast ? (
-          <View style={styles.archivedBadge}>
-            <Text style={styles.archivedBadgeText}>PAST</Text>
+        {listing.is_favorited && (
+          <View style={styles.heartBadge}>
+            <MaterialCommunityIcons name="heart" size={12} color="#E63B6F" />
           </View>
-        ) : listing.booking_count > 0 ? (
-          <View style={styles.bookingBadge}>
-            <MaterialCommunityIcons name="calendar-check" size={10} color="#fff" />
-            <Text style={styles.bookingBadgeText}>{listing.booking_count}</Text>
-          </View>
-        ) : null}
+        )}
       </View>
-      <View style={styles.cardBody}>
+      <View style={styles.cardInfo}>
         <Text style={styles.cardTitle} numberOfLines={2}>{listing.title}</Text>
-        {listing.price ? (
-          <Text style={[styles.cardPrice, { color: accent }]}>{formatPrice(listing.price)}</Text>
-        ) : null}
         {listing.location_label && listing.location_label !== 'Location pending' ? (
           <Text style={styles.cardLocation} numberOfLines={1}>{listing.location_label}</Text>
+        ) : null}
+        {listing.price ? (
+          <Text style={[styles.cardPrice, { color: accent }]}>{formatPrice(listing.price)}</Text>
         ) : null}
       </View>
     </TouchableOpacity>
   );
 }
 
-function BookingCard({
-  booking,
-  formatPrice,
-}: {
-  booking: HostBooking;
-  formatPrice: (n: number) => string;
-}) {
-  const statusConfig = getStatusConfig(booking.status);
-  const dateStr = booking.check_in || booking.event_slot || booking.reservation_time || booking.created_at;
-  const displayDate = dateStr
-    ? new Date(dateStr).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
-    : null;
-  const guestName =
-    [booking.guest_firstname, booking.guest_lastname].filter(Boolean).join(' ').trim() ||
-    booking.guest_email ||
-    booking.booking_ref;
-  const accent =
-    booking.listing_type === 'event'
-      ? getListingTypeColor('event')
-      : booking.listing_type === 'offering'
-      ? getListingTypeColor('offering')
-      : getListingTypeColor('stay');
-
-  return (
-    <View style={styles.bookingCard}>
-      <View style={[styles.bookingAccentBar, { backgroundColor: accent }]} />
-      <View style={styles.bookingCardInner}>
-        <View style={styles.bookingCardTop}>
-          <Text style={styles.bookingRef}>{booking.booking_ref}</Text>
-          <View style={[styles.statusPill, { backgroundColor: statusConfig.bg }]}>
-            <Text style={[styles.statusPillText, { color: statusConfig.color }]}>
-              {statusConfig.label}
-            </Text>
-          </View>
-        </View>
-        <Text style={styles.bookingGuest} numberOfLines={1}>{guestName}</Text>
-        {booking.listing_title ? (
-          <Text style={styles.bookingListing} numberOfLines={1}>{booking.listing_title}</Text>
-        ) : null}
-        <View style={styles.bookingCardBottom}>
-          {displayDate ? <Text style={styles.bookingDate}>{displayDate}</Text> : null}
-          <Text style={[styles.bookingAmount, { color: accent }]}>
-            {formatPrice(Number(booking.total_price ?? booking.price_at_booking ?? 0))}
-          </Text>
-        </View>
-      </View>
-    </View>
-  );
-}
-
-function StatPill({ label, value }: { label: string; value: string }) {
+function StatPill({ label, value, styles }: { label: string; value: string; styles: ReturnType<typeof getStyles> }) {
   return (
     <View style={styles.statPill}>
       <Text style={styles.statPillValue}>{value}</Text>
@@ -403,7 +311,7 @@ function StatPill({ label, value }: { label: string; value: string }) {
   );
 }
 
-function MiniChip({ label }: { label: string }) {
+function MiniChip({ label, styles }: { label: string; styles: ReturnType<typeof getStyles> }) {
   return (
     <View style={styles.miniChip}>
       <Text style={styles.miniChipText}>{label}</Text>
@@ -437,19 +345,19 @@ function isPast(value?: string | null): boolean {
   return !Number.isNaN(d.getTime()) && d.getTime() < Date.now();
 }
 
-function getStatusConfig(status: string): { label: string; bg: string; color: string } {
+function getStatusConfig(status: string, theme: ReturnType<typeof getThemeForMode>): { label: string; bg: string; color: string } {
   const s = status?.toLowerCase() || 'pending';
-  if (s === 'confirmed') return { label: 'Confirmed', bg: '#E7F7EF', color: burgundyTheme.colors.success };
+  if (s === 'confirmed') return { label: 'Confirmed', bg: '#E7F7EF', color: theme.colors.success };
   if (s === 'completed') return { label: 'Completed', bg: '#E8F0FF', color: '#2563EB' };
-  if (s.startsWith('cancelled')) return { label: 'Cancelled', bg: '#FEE2E2', color: burgundyTheme.colors.danger };
-  if (s === 'rejected') return { label: 'Rejected', bg: '#F3F4F6', color: burgundyTheme.colors.textMuted };
+  if (s.startsWith('cancelled')) return { label: 'Cancelled', bg: '#FEE2E2', color: theme.colors.danger };
+  if (s === 'rejected') return { label: 'Rejected', bg: '#F3F4F6', color: theme.colors.textMuted };
   return { label: 'Pending', bg: '#FEF3C7', color: '#B45309' };
 }
 
-const styles = StyleSheet.create({
+const getStyles = (theme: ReturnType<typeof getThemeForMode>) => StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: burgundyTheme.colors.background,
+    backgroundColor: theme.colors.background,
   },
   centered: {
     flex: 1,
@@ -457,22 +365,22 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 12,
     padding: 24,
-    backgroundColor: burgundyTheme.colors.background,
+    backgroundColor: theme.colors.background,
   },
   errorTitle: {
     fontSize: 20,
     fontWeight: '700',
-    color: burgundyTheme.colors.text,
+    color: theme.colors.text,
     textAlign: 'center',
   },
   errorText: {
     fontSize: 14,
-    color: burgundyTheme.colors.textMuted,
+    color: theme.colors.textMuted,
     textAlign: 'center',
   },
   errorButton: {
     marginTop: 8,
-    backgroundColor: burgundyTheme.colors.primary,
+    backgroundColor: theme.colors.primary,
     paddingHorizontal: 20,
     paddingVertical: 12,
     borderRadius: 12,
@@ -484,29 +392,11 @@ const styles = StyleSheet.create({
 
   // Hero
   heroCard: {
-    backgroundColor: burgundyTheme.colors.primaryDeep,
+    backgroundColor: theme.colors.primaryDeep,
     margin: 14,
     borderRadius: 24,
-    padding: 18,
+    padding: 14,
     overflow: 'hidden',
-  },
-  heroGlow1: {
-    position: 'absolute',
-    right: -40,
-    top: -50,
-    width: 180,
-    height: 180,
-    borderRadius: 90,
-    backgroundColor: 'rgba(255,255,255,0.07)',
-  },
-  heroGlow2: {
-    position: 'absolute',
-    left: -30,
-    bottom: -40,
-    width: 140,
-    height: 140,
-    borderRadius: 70,
-    backgroundColor: 'rgba(255,255,255,0.04)',
   },
   heroTopRow: {
     flexDirection: 'row',
@@ -540,13 +430,13 @@ const styles = StyleSheet.create({
   heroBody: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 14,
-    marginBottom: 18,
+    gap: 10,
+    marginBottom: 12,
   },
   avatar: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
     backgroundColor: 'rgba(255,255,255,0.12)',
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.16)',
@@ -555,7 +445,7 @@ const styles = StyleSheet.create({
   },
   avatarText: {
     color: '#fff',
-    fontSize: 26,
+    fontSize: 22,
     fontWeight: '800',
   },
   heroCopy: {
@@ -563,12 +453,12 @@ const styles = StyleSheet.create({
     gap: 3,
   },
   heroName: {
-    fontSize: 26,
+    fontSize: 20,
     fontWeight: '800',
     color: '#fff',
   },
   heroRole: {
-    fontSize: 14,
+    fontSize: 12,
     fontWeight: '600',
     color: 'rgba(255,255,255,0.8)',
   },
@@ -579,7 +469,7 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   heroLocation: {
-    fontSize: 12,
+    fontSize: 11,
     color: 'rgba(255,255,255,0.65)',
   },
   heroStats: {
@@ -637,12 +527,12 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: burgundyTheme.colors.text,
+    color: theme.colors.text,
     marginBottom: 2,
   },
   sectionSubtitle: {
     fontSize: 12,
-    color: burgundyTheme.colors.textMuted,
+    color: theme.colors.textMuted,
   },
   carousel: {
     paddingRight: 14,
@@ -651,34 +541,39 @@ const styles = StyleSheet.create({
 
   // Listing card
   card: {
-    width: CARD_WIDTH,
-    backgroundColor: burgundyTheme.colors.surface,
-    borderRadius: 14,
+    width: 220,
+    height: 368,
+    backgroundColor: 'transparent',
+    borderRadius: 5,
     overflow: 'hidden',
-    borderWidth: 0.5,
-    borderColor: burgundyTheme.colors.border,
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.08,
-    shadowRadius: 3,
+    borderWidth: 0,
+    elevation: 0,
   },
   cardImageWrap: {
     position: 'relative',
+    borderRadius: 5,
+    overflow: 'hidden',
+    backgroundColor: theme.colors.surface,
+    elevation: 3,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.12,
+    shadowRadius: 6,
   },
   cardImage: {
     width: '100%',
-    height: 120,
-    backgroundColor: burgundyTheme.colors.surfaceAlt,
+    height: 245,
+    backgroundColor: theme.colors.surfaceAlt,
+    borderRadius: 5,
   },
   cardImagePlaceholder: {
-    alignItems: 'center',
     justifyContent: 'center',
+    alignItems: 'center',
   },
   typePill: {
     position: 'absolute',
-    bottom: 7,
-    left: 7,
+    bottom: 6,
+    left: 6,
     paddingHorizontal: 7,
     paddingVertical: 3,
     borderRadius: 8,
@@ -687,6 +582,17 @@ const styles = StyleSheet.create({
     fontSize: 9,
     fontWeight: '700',
     color: '#fff',
+  },
+  heartBadge: {
+    position: 'absolute',
+    top: 6,
+    right: 6,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: 'rgba(255,255,255,0.92)',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   archivedBadge: {
     position: 'absolute',
@@ -709,7 +615,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 3,
-    backgroundColor: burgundyTheme.colors.primary,
+    backgroundColor: theme.colors.primary,
     paddingHorizontal: 7,
     paddingVertical: 3,
     borderRadius: 8,
@@ -719,14 +625,17 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#fff',
   },
-  cardBody: {
-    padding: 9,
-    gap: 3,
+  cardInfo: {
+    paddingHorizontal: 11,
+    paddingTop: 11,
+    paddingBottom: 0,
+    backgroundColor: 'transparent',
+    justifyContent: 'flex-start',
   },
   cardTitle: {
     fontSize: 12,
     fontWeight: '600',
-    color: burgundyTheme.colors.text,
+    color: theme.colors.text,
   },
   cardPrice: {
     fontSize: 12,
@@ -734,17 +643,17 @@ const styles = StyleSheet.create({
   },
   cardLocation: {
     fontSize: 11,
-    color: burgundyTheme.colors.textMuted,
+    color: theme.colors.textMuted,
   },
 
   // Booking card
   bookingCard: {
     width: 200,
-    backgroundColor: burgundyTheme.colors.surface,
+    backgroundColor: theme.colors.surface,
     borderRadius: 14,
     overflow: 'hidden',
     borderWidth: 0.5,
-    borderColor: burgundyTheme.colors.border,
+    borderColor: theme.colors.border,
     elevation: 2,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
@@ -768,7 +677,7 @@ const styles = StyleSheet.create({
   },
   bookingRef: {
     fontSize: 10,
-    color: burgundyTheme.colors.textMuted,
+    color: theme.colors.textMuted,
     flex: 1,
   },
   statusPill: {
@@ -783,11 +692,11 @@ const styles = StyleSheet.create({
   bookingGuest: {
     fontSize: 13,
     fontWeight: '700',
-    color: burgundyTheme.colors.text,
+    color: theme.colors.text,
   },
   bookingListing: {
     fontSize: 11,
-    color: burgundyTheme.colors.textMuted,
+    color: theme.colors.textMuted,
   },
   bookingCardBottom: {
     flexDirection: 'row',
@@ -797,7 +706,7 @@ const styles = StyleSheet.create({
   },
   bookingDate: {
     fontSize: 11,
-    color: burgundyTheme.colors.textMuted,
+    color: theme.colors.textMuted,
   },
   bookingAmount: {
     fontSize: 13,

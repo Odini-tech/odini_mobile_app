@@ -9,7 +9,7 @@ const burgundyTheme = {
 
     // Burgundy — accent / brand only
     primary: '#7A1E3A',
-    primaryDeep: '#571126',
+    primaryDeep: '#8a1b3c',
     primarySoft: '#A44E69',
     primaryTint: '#FDF2F5',
     primaryTintStrong: '#FAE0E8',

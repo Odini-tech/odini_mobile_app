@@ -16,7 +16,7 @@ import { supabase } from '../../../lib/supabase';
 import { useAppData } from '../../context/AppDataContext';
 import { useCurrency } from '../../context/CurrencyContext';
 import { InteractionService } from '../../services/interactionService';
-import burgundyTheme from '../../theme/burgundyTheme';
+import { useAppMode } from '../../context/AppModeContext';
 import EventDetail from '../details/EventDetail';
 import OfferingDetail from '../details/OfferingDetail';
 import StayDetail from '../details/StayDetail';
@@ -40,7 +40,16 @@ interface Listing {
   offering?: any[];
 }
 
+interface CategoryMix {
+  id: string;
+  title: string;
+  reason: string;
+  items: Listing[];
+}
+
 export default function Dash({ onItemClick }: { onItemClick?: (listing: Listing) => void }) {
+  const { theme } = useAppMode();
+  const styles = getStyles(theme);
   const { formatPrice, selectedCurrency } = useCurrency();
   const {
     isReady,
@@ -48,6 +57,7 @@ export default function Dash({ onItemClick }: { onItemClick?: (listing: Listing)
     favoritePlaces: ctxFavorites,
     recentlyViewed: ctxRecent,
     madeForYou: ctxMadeForYou,
+    categoryMixes: ctxCategoryMixes,
     pastBookings: ctxBookings,
     collections: ctxCollections,
     userName: ctxUserName,
@@ -62,6 +72,7 @@ export default function Dash({ onItemClick }: { onItemClick?: (listing: Listing)
   const [favoritePlaces, setFavoritePlaces] = useState<Listing[]>([]);
   const [recentlyViewed, setRecentlyViewed] = useState<Listing[]>([]);
   const [madeForYou, setMadeForYou] = useState<Listing[]>([]);
+  const [categoryMixes, setCategoryMixes] = useState<CategoryMix[]>([]);
   const [pastBookings, setPastBookings] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -84,13 +95,14 @@ export default function Dash({ onItemClick }: { onItemClick?: (listing: Listing)
       setFavoritePlaces((ctxFavorites as Listing[]) || []);
       setRecentlyViewed((ctxRecent as Listing[]) || []);
       setMadeForYou((ctxMadeForYou as Listing[]) || []);
+      setCategoryMixes((ctxCategoryMixes as CategoryMix[]) || []);
       setPastBookings(ctxBookings || []);
       setCollections(ctxCollections.length ? ctxCollections : getDefaultCollections());
       setUserName(ctxUserName);
       setUserId(ctxUserId);
       setLoading(false);
     }
-  }, [isReady, ctxEvents, ctxFavorites, ctxRecent, ctxMadeForYou, ctxBookings, ctxCollections, ctxUserName, ctxUserId]);
+  }, [isReady, ctxEvents, ctxFavorites, ctxRecent, ctxMadeForYou, ctxCategoryMixes, ctxBookings, ctxCollections, ctxUserName, ctxUserId]);
 
   const handleRefresh = async () => {
     setRefreshing(true);
@@ -135,6 +147,7 @@ export default function Dash({ onItemClick }: { onItemClick?: (listing: Listing)
         await InteractionService.trackSwipe(userId, listing.id, 'left');
         setMadeForYou((prev) => prev.filter((l) => l.id !== listing.id));
         setUpcomingEvents((prev) => prev.filter((l) => l.id !== listing.id));
+        setCategoryMixes((prev) => prev.map((m) => ({ ...m, items: m.items.filter((l) => l.id !== listing.id) })).filter((m) => m.items.length > 0));
       } else if (actionId === 'hide') {
         await supabase.from('interactions').insert({
           user_id: userId,
@@ -146,6 +159,7 @@ export default function Dash({ onItemClick }: { onItemClick?: (listing: Listing)
         setUpcomingEvents((prev) => prev.filter((l) => l.id !== listing.id));
         setRecentlyViewed((prev) => prev.filter((l) => l.id !== listing.id));
         setFavoritePlaces((prev) => prev.filter((l) => l.id !== listing.id));
+        setCategoryMixes((prev) => prev.map((m) => ({ ...m, items: m.items.filter((l) => l.id !== listing.id) })).filter((m) => m.items.length > 0));
       }
     } catch (err) {
       console.error('Dash interaction error:', err);
@@ -228,7 +242,7 @@ export default function Dash({ onItemClick }: { onItemClick?: (listing: Listing)
     return (
       <TouchableOpacity key={collection.id} style={styles.collectionCard} activeOpacity={0.8}>
         {imageSource && <Image source={imageSource} style={styles.collectionImage} />}
-        <View style={[styles.collectionOverlay, !imageSource && { backgroundColor: burgundyTheme.colors.primary }]} />
+        <View style={[styles.collectionOverlay, !imageSource && { backgroundColor: theme.colors.primary }]} />
         <View style={styles.collectionContent}>
           <Text style={styles.collectionTitle}>{collection.title}</Text>
           <Text style={styles.collectionDesc}>{collection.description}</Text>
@@ -296,7 +310,7 @@ export default function Dash({ onItemClick }: { onItemClick?: (listing: Listing)
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={burgundyTheme.colors.primary} />
+        <ActivityIndicator size="large" color={theme.colors.primary} />
       </View>
     );
   }
@@ -312,7 +326,7 @@ export default function Dash({ onItemClick }: { onItemClick?: (listing: Listing)
           <RefreshControl
             refreshing={refreshing}
             onRefresh={handleRefresh}
-            tintColor={burgundyTheme.colors.primary}
+            tintColor={theme.colors.primary}
           />
         }
       >
@@ -326,7 +340,7 @@ export default function Dash({ onItemClick }: { onItemClick?: (listing: Listing)
               </Text>
               {userId && favoritePlaces.length > 0 && (
                 <View style={styles.heroMeta}>
-                  <MaterialCommunityIcons name="heart" size={14} color={burgundyTheme.colors.danger} />
+                  <MaterialCommunityIcons name="heart" size={14} color={theme.colors.danger} />
                   <Text style={styles.heroMetaText}>
                     {favoritePlaces.length} saved place{favoritePlaces.length !== 1 ? 's' : ''}
                   </Text>
@@ -340,7 +354,7 @@ export default function Dash({ onItemClick }: { onItemClick?: (listing: Listing)
             >
               <Text style={styles.currencyFlag}>{selectedCurrency.flag}</Text>
               <Text style={styles.currencyCode}>{selectedCurrency.code}</Text>
-              <MaterialCommunityIcons name="chevron-down" size={14} color={burgundyTheme.colors.textMuted} />
+              <MaterialCommunityIcons name="chevron-down" size={14} color={theme.colors.textMuted} />
             </TouchableOpacity>
           </View>
         </View>
@@ -466,6 +480,37 @@ export default function Dash({ onItemClick }: { onItemClick?: (listing: Listing)
           </View>
         )}
 
+        {/* Category Mixes — one carousel per tag/interest, from the recommendation engine */}
+        {categoryMixes.map((mix) => {
+          const sectionId = `mix-${mix.id}`;
+          return (
+            <View key={mix.id} style={styles.section}>
+              <View style={styles.sectionHeader}>
+                <View>
+                  <Text style={styles.sectionTitle}>{mix.title}</Text>
+                  <Text style={styles.sectionSubtitle}>{mix.reason}</Text>
+                </View>
+                {mix.items.length > 4 && (
+                  <TouchableOpacity onPress={() => handleShowAll(sectionId)}>
+                    <Text style={styles.showAllText}>
+                      {expandedSection === sectionId ? 'Show less' : 'See all'}
+                    </Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+              <ScrollView
+                horizontal={expandedSection !== sectionId}
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={
+                  expandedSection !== sectionId ? styles.horizontalScroll : styles.wrappedGrid
+                }
+              >
+                {getDisplayItems(mix.items, sectionId).map((l) => renderListingCard(l, 'medium'))}
+              </ScrollView>
+            </View>
+          );
+        })}
+
         {/* Your Trips */}
         {pastBookings.length > 0 && (
           <View style={styles.section}>
@@ -532,23 +577,23 @@ function getDefaultCollections() {
   ];
 }
 
-const styles = StyleSheet.create({
+const getStyles = (theme: any) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: burgundyTheme.colors.background,
+    backgroundColor: theme.colors.background,
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: burgundyTheme.colors.background,
+    backgroundColor: theme.colors.background,
   },
   heroSection: {
     paddingHorizontal: 16,
     paddingTop: 20,
     paddingBottom: 16,
     borderBottomWidth: 1,
-    borderBottomColor: burgundyTheme.colors.border,
+    borderBottomColor: theme.colors.border,
   },
   heroRow: {
     flexDirection: 'row',
@@ -563,9 +608,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    backgroundColor: burgundyTheme.colors.surfaceAlt,
+    backgroundColor: theme.colors.surfaceAlt,
     borderWidth: 1,
-    borderColor: burgundyTheme.colors.border,
+    borderColor: theme.colors.border,
     borderRadius: 20,
     paddingHorizontal: 10,
     paddingVertical: 6,
@@ -577,16 +622,16 @@ const styles = StyleSheet.create({
   currencyCode: {
     fontSize: 12,
     fontWeight: '600',
-    color: burgundyTheme.colors.text,
+    color: theme.colors.text,
   },
   heroSubtitle: {
     fontSize: 13,
-    color: burgundyTheme.colors.textMuted,
+    color: theme.colors.textMuted,
   },
   heroTitle: {
     fontSize: 30,
     fontWeight: '700',
-    color: burgundyTheme.colors.text,
+    color: theme.colors.text,
     letterSpacing: -0.5,
   },
   heroMeta: {
@@ -597,7 +642,7 @@ const styles = StyleSheet.create({
   },
   heroMetaText: {
     fontSize: 12,
-    color: burgundyTheme.colors.textMuted,
+    color: theme.colors.textMuted,
   },
   section: {
     paddingVertical: 14,
@@ -612,16 +657,16 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: burgundyTheme.colors.text,
+    color: theme.colors.text,
     marginBottom: 2,
   },
   sectionSubtitle: {
     fontSize: 12,
-    color: burgundyTheme.colors.textMuted,
+    color: theme.colors.textMuted,
   },
   showAllText: {
     fontSize: 13,
-    color: burgundyTheme.colors.primary,
+    color: theme.colors.primary,
     fontWeight: '600',
     marginTop: 4,
   },
@@ -634,7 +679,7 @@ const styles = StyleSheet.create({
     height: 130,
     borderRadius: 14,
     overflow: 'hidden',
-    backgroundColor: burgundyTheme.colors.surface,
+    backgroundColor: theme.colors.surface,
     elevation: 3,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
@@ -705,7 +750,7 @@ const styles = StyleSheet.create({
     position: 'relative',
     borderRadius: 5,
     overflow: 'hidden',
-    backgroundColor: burgundyTheme.colors.surface,
+    backgroundColor: theme.colors.surface,
     elevation: 3,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
@@ -715,13 +760,13 @@ const styles = StyleSheet.create({
   smallCardImage: {
     width: '100%',
     height: 245,
-    backgroundColor: burgundyTheme.colors.surfaceAlt,
+    backgroundColor: theme.colors.surfaceAlt,
     borderRadius: 5,
   },
   mediumCardImage: {
     width: '100%',
     height: 245,
-    backgroundColor: burgundyTheme.colors.surfaceAlt,
+    backgroundColor: theme.colors.surfaceAlt,
     borderRadius: 5,
   },
   cardImagePlaceholder: {
@@ -762,12 +807,12 @@ const styles = StyleSheet.create({
   cardTitle: {
     fontSize: 12,
     fontWeight: '600',
-    color: burgundyTheme.colors.text,
+    color: theme.colors.text,
     marginBottom: 2,
   },
   cardLocation: {
     fontSize: 11,
-    color: burgundyTheme.colors.textMuted,
+    color: theme.colors.textMuted,
     marginBottom: 2,
   },
   cardPrice: {
@@ -787,7 +832,7 @@ const styles = StyleSheet.create({
     width: '100%',
     height: 245,
     borderRadius: 5,
-    backgroundColor: burgundyTheme.colors.surfaceAlt,
+    backgroundColor: theme.colors.surfaceAlt,
   },
   bookingCardImagePlaceholder: {
     justifyContent: 'center',
@@ -803,11 +848,11 @@ const styles = StyleSheet.create({
   bookingCardTitle: {
     fontSize: 13,
     fontWeight: '700',
-    color: burgundyTheme.colors.text,
+    color: theme.colors.text,
   },
   bookingCardDate: {
     fontSize: 11,
-    color: burgundyTheme.colors.textMuted,
+    color: theme.colors.textMuted,
   },
   bookingStatusPill: {
     flexDirection: 'row',
@@ -831,7 +876,7 @@ const styles = StyleSheet.create({
   },
   bookingRef: {
     fontSize: 10,
-    color: burgundyTheme.colors.textMuted,
+    color: theme.colors.textMuted,
     marginTop: 2,
   },
 });

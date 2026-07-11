@@ -4,7 +4,7 @@ import { ActivityIndicator, Animated, Image, Share, StyleSheet, Text, TouchableO
 import { supabase } from "../../lib/supabase";
 import { useCurrency } from "../context/CurrencyContext";
 import { InteractionService } from "../services/interactionService";
-import burgundyTheme, { getListingTypeColor } from "../theme/burgundyTheme";
+import { useAppMode } from "../context/AppModeContext";
 import EventBookingModal from "./booking/EventBooking";
 import OfferingBookingModal from "./booking/OfferingBooking";
 import StayBookingModal from "./booking/StayBooking";
@@ -13,16 +13,16 @@ import OfferingDetail from "./details/OfferingDetail";
 import StayDetail from "./details/StayDetail";
 import CardInteractionMenu from "./shared/CardInteractionMenu";
 
-const LISTING_TYPE_ICONS = {
-  stay: { name: "home", color: getListingTypeColor("stay") },
-  event: { name: "calendar", color: getListingTypeColor("event") },
-  offering: { name: "briefcase", color: getListingTypeColor("offering") },
-};
-
 const ListingCard = React.memo(function ListingCard({ item, onPress, onFavoritePress, favoriteLoading, onInteractionAction, isFavorited: propIsFavorited, styles: externalStyles }) {
-  const styles = externalStyles || localStyles;
+  const { theme } = useAppMode();
+  const listingTypeIcons = {
+    stay: { name: "home", color: theme.listingTypeColors.stay },
+    event: { name: "calendar", color: theme.listingTypeColors.event },
+    offering: { name: "briefcase", color: theme.listingTypeColors.offering },
+  };
+  const styles = externalStyles || getStyles(theme);
   const { formatPrice } = useCurrency();
-  const typeIcon = LISTING_TYPE_ICONS[item.listing_type] || LISTING_TYPE_ICONS.stay;
+  const typeIcon = listingTypeIcons[item.listing_type] || listingTypeIcons.stay;
   const hostName = item.profiles?.firstname || item.profiles?.username || "Host";
   const [showDetails, setShowDetails] = useState(false);
   const [showBooking, setShowBooking] = useState(false);
@@ -134,7 +134,7 @@ const ListingCard = React.memo(function ListingCard({ item, onPress, onFavoriteP
           <View style={styles.postHeader}>
             <View style={styles.userInfo}>
               <View style={[styles.avatar, { backgroundColor: typeIcon.color }]}>
-                <Ionicons name={typeIcon.name} size={20} color={burgundyTheme.colors.white} />
+                <Ionicons name={typeIcon.name} size={20} color={theme.colors.white} />
               </View>
               <View style={styles.userDetails}>
                 <Text style={styles.username} numberOfLines={1}>{item.title}</Text>
@@ -148,7 +148,7 @@ const ListingCard = React.memo(function ListingCard({ item, onPress, onFavoriteP
               hitSlop={{ top: 10, right: 10, bottom: 10, left: 10 }}
               activeOpacity={0.6}
             >
-              <Ionicons name="ellipsis-horizontal" size={20} color={burgundyTheme.colors.textMuted} />
+              <Ionicons name="ellipsis-horizontal" size={20} color={theme.colors.textMuted} />
             </TouchableOpacity>
           </View>
 
@@ -187,12 +187,12 @@ const ListingCard = React.memo(function ListingCard({ item, onPress, onFavoriteP
                 disabled={favoriteLoading}
               >
                 {favoriteLoading ? (
-                  <ActivityIndicator size="small" color={burgundyTheme.colors.danger} />
+                  <ActivityIndicator size="small" color={theme.colors.danger} />
                 ) : (
                   <Ionicons
                     name={isFavorited ? "heart" : "heart-outline"}
                     size={24}
-                    color={isFavorited ? burgundyTheme.colors.danger : burgundyTheme.colors.text}
+                    color={isFavorited ? theme.colors.danger : theme.colors.text}
                   />
                 )}
               </TouchableOpacity>
@@ -208,7 +208,7 @@ const ListingCard = React.memo(function ListingCard({ item, onPress, onFavoriteP
                   } catch (_) {}
                 }}
               >
-                <Ionicons name="share-social-outline" size={24} color={burgundyTheme.colors.text} />
+                <Ionicons name="share-social-outline" size={24} color={theme.colors.text} />
               </TouchableOpacity>
             </View>
 
@@ -216,7 +216,7 @@ const ListingCard = React.memo(function ListingCard({ item, onPress, onFavoriteP
               style={[styles.interactionButton, styles.bookButton]}
               onPress={handleBooking}
             >
-              <Ionicons name="calendar" size={15} color={burgundyTheme.colors.white} />
+              <Ionicons name="calendar" size={15} color={theme.colors.white} />
             </TouchableOpacity>
           </View>
 
@@ -293,16 +293,16 @@ function getListingMetaText(item) {
   }
 }
 
-const localStyles = StyleSheet.create({
+const getStyles = (theme) => StyleSheet.create({
   postContainer: {
-    backgroundColor: burgundyTheme.colors.surface,
+    backgroundColor: theme.colors.surface,
     marginTop: 16,
     borderWidth: 1,
-    borderColor: burgundyTheme.colors.border,
+    borderColor: theme.colors.border,
     borderRadius: 0,
     overflow: "hidden",
     marginHorizontal: 0,
-    ...burgundyTheme.shadow,
+    ...theme.shadow,
   },
   postHeader: {
     flexDirection: "row",
@@ -311,7 +311,7 @@ const localStyles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 10,
     borderBottomWidth: 1,
-    borderBottomColor: burgundyTheme.colors.border,
+    borderBottomColor: theme.colors.border,
   },
   userInfo: {
     flexDirection: "row",
@@ -332,17 +332,17 @@ const localStyles = StyleSheet.create({
   username: {
     fontSize: 14,
     fontWeight: "600",
-    color: burgundyTheme.colors.text,
+    color: theme.colors.text,
   },
   location: {
     fontSize: 12,
-    color: burgundyTheme.colors.textMuted,
+    color: theme.colors.textMuted,
     marginTop: 2,
   },
   imageContainer: {
     width: "100%",
     aspectRatio: 1,
-    backgroundColor: burgundyTheme.colors.surfaceAlt,
+    backgroundColor: theme.colors.surfaceAlt,
     justifyContent: "center",
     alignItems: "center",
     overflow: "hidden",
@@ -362,7 +362,7 @@ const localStyles = StyleSheet.create({
     paddingVertical: 8,
     gap: 12,
     borderBottomWidth: 1,
-    borderBottomColor: burgundyTheme.colors.border,
+    borderBottomColor: theme.colors.border,
   },
 
   interactionsLeft: {
@@ -403,23 +403,23 @@ const localStyles = StyleSheet.create({
   },
   captionMeta: {
     fontSize: 12,
-    color: burgundyTheme.colors.textSubtle,
+    color: theme.colors.textSubtle,
   },
   captionTitle: {
     fontSize: 13,
     fontWeight: "600",
-    color: burgundyTheme.colors.text,
+    color: theme.colors.text,
     marginBottom: 4,
   },
   captionText: {
     fontSize: 13,
-    color: burgundyTheme.colors.text,
+    color: theme.colors.text,
     lineHeight: 18,
     marginBottom: 6,
   },
   viewMore: {
     fontSize: 13,
-    color: burgundyTheme.colors.primary,
+    color: theme.colors.primary,
     fontWeight: "600",
   },
 });

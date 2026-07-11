@@ -9,33 +9,34 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import burgundyTheme from '../../theme/burgundyTheme';
-
-const ACTIONS = [
-  {
-    id: 'favorite',
-    label: 'Add to Favorites',
-    icon: 'heart',
-    color: burgundyTheme.colors.danger,
-    description: 'Save this to your favorites',
-  },
-  {
-    id: 'dislike',
-    label: 'Not Interested',
-    icon: 'thumbs-down',
-    color: burgundyTheme.colors.textMuted,
-    description: 'See less of this type',
-  },
-  {
-    id: 'hide',
-    label: 'Hide This',
-    icon: 'eye-off',
-    color: burgundyTheme.colors.textSubtle,
-    description: "Don't show this listing again",
-  },
-];
+import { useAppMode } from '../../context/AppModeContext';
 
 export default function CardInteractionMenu({ visible, listing, onAction, onClose }) {
+  const { theme } = useAppMode();
+  const styles = getStyles(theme);
+  const ACTIONS = [
+    {
+      id: 'favorite',
+      label: 'Add to Favorites',
+      icon: 'heart',
+      color: theme.colors.danger,
+      description: 'Save this to your favorites',
+    },
+    {
+      id: 'dislike',
+      label: 'Not Interested',
+      icon: 'thumbs-down',
+      color: theme.colors.textMuted,
+      description: 'See less of this type',
+    },
+    {
+      id: 'hide',
+      label: 'Hide This',
+      icon: 'eye-off',
+      color: theme.colors.textSubtle,
+      description: "Don't show this listing again",
+    },
+  ];
   const slideAnim = useRef(new Animated.Value(300)).current;
   const backdropAnim = useRef(new Animated.Value(0)).current;
 
@@ -88,8 +89,8 @@ export default function CardInteractionMenu({ visible, listing, onAction, onClos
               <Text style={styles.listingTitle} numberOfLines={1}>
                 {listing.title}
               </Text>
-              <View style={[styles.typePill, { backgroundColor: `${burgundyTheme.colors.primary}18` }]}>
-                <Text style={[styles.typeText, { color: burgundyTheme.colors.primary }]}>
+              <View style={[styles.typePill, { backgroundColor: `${theme.colors.primary}18` }]}>
+                <Text style={[styles.typeText, { color: theme.colors.primary }]}>
                   {listing.listing_type?.toUpperCase()}
                 </Text>
               </View>
@@ -114,7 +115,7 @@ export default function CardInteractionMenu({ visible, listing, onAction, onClos
                   <Text style={styles.actionLabel}>{action.label}</Text>
                   <Text style={styles.actionDesc}>{action.description}</Text>
                 </View>
-                <Ionicons name="chevron-forward" size={16} color={burgundyTheme.colors.border} />
+                <Ionicons name="chevron-forward" size={16} color={theme.colors.border} />
               </TouchableOpacity>
             ))}
           </View>
@@ -128,7 +129,7 @@ export default function CardInteractionMenu({ visible, listing, onAction, onClos
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (theme) => StyleSheet.create({
   container: {
     flex: 1,
     justifyContent: 'flex-end',
@@ -138,7 +139,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.45)',
   },
   sheet: {
-    backgroundColor: burgundyTheme.colors.surface,
+    backgroundColor: theme.colors.surface,
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     paddingBottom: 32,
@@ -154,7 +155,7 @@ const styles = StyleSheet.create({
     width: 40,
     height: 4,
     borderRadius: 2,
-    backgroundColor: burgundyTheme.colors.border,
+    backgroundColor: theme.colors.border,
     alignSelf: 'center',
     marginBottom: 16,
   },
@@ -166,19 +167,19 @@ const styles = StyleSheet.create({
     paddingHorizontal: 4,
     marginBottom: 8,
     borderBottomWidth: 1,
-    borderBottomColor: burgundyTheme.colors.border,
+    borderBottomColor: theme.colors.border,
   },
   listingDot: {
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: burgundyTheme.colors.primary,
+    backgroundColor: theme.colors.primary,
   },
   listingTitle: {
     flex: 1,
     fontSize: 14,
     fontWeight: '600',
-    color: burgundyTheme.colors.text,
+    color: theme.colors.text,
   },
   typePill: {
     paddingHorizontal: 8,
@@ -190,12 +191,12 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   actions: {
-    backgroundColor: burgundyTheme.colors.surfaceAlt,
+    backgroundColor: theme.colors.surfaceAlt,
     borderRadius: 16,
     overflow: 'hidden',
     marginBottom: 12,
     borderWidth: 1,
-    borderColor: burgundyTheme.colors.border,
+    borderColor: theme.colors.border,
   },
   actionRow: {
     flexDirection: 'row',
@@ -203,11 +204,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 14,
     gap: 14,
-    backgroundColor: burgundyTheme.colors.surface,
+    backgroundColor: theme.colors.surface,
   },
   actionBorder: {
     borderBottomWidth: 1,
-    borderBottomColor: burgundyTheme.colors.border,
+    borderBottomColor: theme.colors.border,
   },
   actionIcon: {
     width: 40,
@@ -222,24 +223,24 @@ const styles = StyleSheet.create({
   actionLabel: {
     fontSize: 15,
     fontWeight: '600',
-    color: burgundyTheme.colors.text,
+    color: theme.colors.text,
     marginBottom: 2,
   },
   actionDesc: {
     fontSize: 12,
-    color: burgundyTheme.colors.textMuted,
+    color: theme.colors.textMuted,
   },
   cancelButton: {
-    backgroundColor: burgundyTheme.colors.surfaceAlt,
+    backgroundColor: theme.colors.surfaceAlt,
     borderRadius: 14,
     paddingVertical: 14,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: burgundyTheme.colors.border,
+    borderColor: theme.colors.border,
   },
   cancelText: {
     fontSize: 15,
     fontWeight: '600',
-    color: burgundyTheme.colors.textMuted,
+    color: theme.colors.textMuted,
   },
 });

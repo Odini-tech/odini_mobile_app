@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react';
 import { Modal, StyleSheet, Switch, Text, TextInput, TouchableOpacity, View } from 'react-native';
-import burgundyTheme from '../theme/burgundyTheme';
-
-const t = burgundyTheme.colors;
+import { useAppMode } from '../context/AppModeContext';
 
 export default function FilterPopup({ visible, onClose, onApply, initialFilters = {} }) {
+  const { theme } = useAppMode();
+  const t = theme.colors;
+  const styles = getStyles(t);
   const [type, setType] = useState(initialFilters.type || null);
   const [priceMin, setPriceMin] = useState(initialFilters.price_min || '');
   const [priceMax, setPriceMax] = useState(initialFilters.price_max || '');
@@ -98,7 +99,7 @@ export default function FilterPopup({ visible, onClose, onApply, initialFilters 
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (t) => StyleSheet.create({
   backdrop: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.45)',

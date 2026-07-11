@@ -1,9 +1,11 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Modal, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { CURRENCIES, useCurrency } from '../../context/CurrencyContext';
-import burgundyTheme from '../../theme/burgundyTheme';
+import { useAppMode } from '../../context/AppModeContext';
 
 export default function CurrencyPicker({ visible, onClose }) {
+  const { theme } = useAppMode();
+  const styles = getStyles(theme);
   const { selectedCode, setCurrency, formatPrice } = useCurrency();
 
   const handleSelect = (code) => {
@@ -21,7 +23,7 @@ export default function CurrencyPicker({ visible, onClose }) {
         <View style={styles.header}>
           <Text style={styles.title}>Currency</Text>
           <TouchableOpacity onPress={onClose} hitSlop={{ top: 10, right: 10, bottom: 10, left: 10 }}>
-            <MaterialCommunityIcons name="close" size={22} color={burgundyTheme.colors.text} />
+            <MaterialCommunityIcons name="close" size={22} color={theme.colors.text} />
           </TouchableOpacity>
         </View>
 
@@ -52,7 +54,7 @@ export default function CurrencyPicker({ visible, onClose }) {
                   <MaterialCommunityIcons
                     name="check-circle"
                     size={20}
-                    color={burgundyTheme.colors.primary}
+                    color={theme.colors.primary}
                   />
                 )}
               </TouchableOpacity>
@@ -64,13 +66,13 @@ export default function CurrencyPicker({ visible, onClose }) {
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (theme) => StyleSheet.create({
   backdrop: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.4)',
   },
   sheet: {
-    backgroundColor: burgundyTheme.colors.surface,
+    backgroundColor: theme.colors.surface,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     paddingBottom: 32,
@@ -80,7 +82,7 @@ const styles = StyleSheet.create({
     width: 36,
     height: 4,
     borderRadius: 2,
-    backgroundColor: burgundyTheme.colors.border,
+    backgroundColor: theme.colors.border,
     alignSelf: 'center',
     marginTop: 10,
     marginBottom: 4,
@@ -92,16 +94,16 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 14,
     borderBottomWidth: 1,
-    borderBottomColor: burgundyTheme.colors.border,
+    borderBottomColor: theme.colors.border,
   },
   title: {
     fontSize: 17,
     fontWeight: '700',
-    color: burgundyTheme.colors.text,
+    color: theme.colors.text,
   },
   subtitle: {
     fontSize: 12,
-    color: burgundyTheme.colors.textMuted,
+    color: theme.colors.textMuted,
     paddingHorizontal: 20,
     paddingTop: 10,
     paddingBottom: 4,
@@ -121,7 +123,7 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   rowSelected: {
-    backgroundColor: burgundyTheme.colors.primaryTint,
+    backgroundColor: theme.colors.primaryTint,
   },
   flag: {
     fontSize: 24,
@@ -132,15 +134,15 @@ const styles = StyleSheet.create({
   rowName: {
     fontSize: 15,
     fontWeight: '500',
-    color: burgundyTheme.colors.text,
+    color: theme.colors.text,
     marginBottom: 2,
   },
   rowNameSelected: {
-    color: burgundyTheme.colors.primary,
+    color: theme.colors.primary,
     fontWeight: '600',
   },
   rowMeta: {
     fontSize: 12,
-    color: burgundyTheme.colors.textMuted,
+    color: theme.colors.textMuted,
   },
 });

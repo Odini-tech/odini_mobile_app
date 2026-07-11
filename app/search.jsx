@@ -1,3 +1,4 @@
+import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import {
@@ -10,6 +11,7 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
 import { useAppData } from '../src/context/AppDataContext';
 import { useAppMode } from '../src/context/AppModeContext';
 import { useBottomNavScroll } from '../src/context/BottomNavVisibilityContext';
@@ -85,35 +87,59 @@ export default function SearchPage() {
 
 function CategoryGrid({ categories, onPress, fallbackText, theme }) {
   if (!categories.length) {
-    return <Text style={{ fontSize: 14, color: theme.colors.textMuted, paddingHorizontal: 16, marginTop: 8 }}>{fallbackText}</Text>;
+    return (
+      <Text
+        style={{
+          fontSize: 14,
+          color: theme.colors.textMuted,
+          paddingHorizontal: 16,
+          marginTop: 8,
+        }}
+      >
+        {fallbackText}
+      </Text>
+    );
   }
   return (
-    <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', paddingHorizontal: 16, marginTop: 8 }}>
-      {categories.map((category) => (
-        <CategoryTile key={category.id} category={category} theme={theme} onPress={() => onPress(category)} />
+    <View style={{ paddingHorizontal: 16, marginTop: 8 }}>
+      {categories.map((category, index) => (
+        <CategoryTile
+          key={category.id}
+          category={category}
+          theme={theme}
+          corner={index % 2 === 0 ? 'left' : 'right'}
+          onPress={() => onPress(category)}
+        />
       ))}
     </View>
   );
 }
 
-function CategoryTile({ category, onPress, theme }) {
+function CategoryTile({ category, onPress, theme, corner }) {
   const hasImage = !!category.image_url;
+  const isLeft = corner === 'left';
+  const textSideStyle = isLeft
+    ? { left: 16, alignItems: 'flex-start' }
+    : { right: 16, alignItems: 'flex-end' };
 
   const nameBlock = (
-    <>
-      {/* Simulated gradient: three overlapping layers that fade to dark at the bottom */}
-      <View style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: 70, backgroundColor: 'rgba(0,0,0,0.08)' }} />
-      <View style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: 52, backgroundColor: 'rgba(0,0,0,0.22)' }} />
-      <View style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: 38, backgroundColor: 'rgba(0,0,0,0.38)' }} />
-      <View style={{ position: 'absolute', left: 0, right: 0, bottom: 0, padding: 10 }}>
-        <Text style={{ fontSize: 15, fontWeight: '700', color: '#FFF' }}>{category.name}</Text>
-      </View>
-    </>
+    <View style={[styles.nameWrap, textSideStyle]}>
+      <Text style={styles.nameText} numberOfLines={2}>
+        {category.name}
+      </Text>
+    </View>
   );
 
   return (
     <TouchableOpacity
-      style={{ width: '98%', aspectRatio: 2.5, borderRadius: 14, marginBottom: 12, overflow: 'hidden', backgroundColor: theme.colors.surfaceAlt }}
+      style={{
+        width: '100%',
+        aspectRatio: 2.5,
+        borderRadius: 14,
+        marginBottom: 12,
+        overflow: 'hidden',
+        backgroundColor: theme.colors.surfaceAlt,
+      }}
       onPress={onPress}
       activeOpacity={0.85}
     >
@@ -123,16 +149,53 @@ function CategoryTile({ category, onPress, theme }) {
           style={{ flex: 1 }}
           imageStyle={{ borderRadius: 14 }}
         >
+          {/* Shadowy gradient overlay */}
+          <LinearGradient
+            colors={[
+              'rgba(0,0,0,0.2)',   // slight dark at top
+              'rgba(0,0,0,0)',     // transparent after 8%
+              'rgba(0,0,0,0)',     // stays transparent until ~60%
+              'rgba(0,0,0,0.7)',   // deep dark at bottom
+            ]}
+            locations={[0, 0.08, 0.6, 1]}
+            style={StyleSheet.absoluteFillObject}
+          />
           {nameBlock}
         </ImageBackground>
       ) : (
         <View style={{ flex: 1, backgroundColor: theme.colors.primaryTint }}>
+          <LinearGradient
+            colors={[
+              'rgba(0,0,0,0.2)',
+              'rgba(0,0,0,0)',
+              'rgba(0,0,0,0)',
+              'rgba(0,0,0,0.7)',
+            ]}
+            locations={[0, 0.08, 0.6, 1]}
+            style={StyleSheet.absoluteFillObject}
+          />
           {nameBlock}
         </View>
       )}
     </TouchableOpacity>
   );
 }
+
+const styles = StyleSheet.create({
+  nameWrap: {
+    position: 'absolute',
+    bottom: 12,
+    maxWidth: '62%',
+  },
+  nameText: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#FFF',
+    textShadowColor: 'rgba(0,0,0,0.3)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 3,
+  },
+});
 
 const getStyles = (theme, insets) =>
   StyleSheet.create({
@@ -163,13 +226,13 @@ const getStyles = (theme, insets) =>
     },
     searchBtn: {
       backgroundColor: theme.colors.primary,
-      paddingHorizontal: 16,
+      paddingHorizontal: 10,
       justifyContent: 'center',
-      borderRadius: 10,
+      borderRadius: 3,
       height: 44,
     },
     searchBtnText: {
-      color: theme.colors.white,
+      color: theme.colors.text,
       fontWeight: '700',
       fontSize: 15,
     },

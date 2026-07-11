@@ -16,7 +16,7 @@ export default function App() {
   const prevSessionRef = useRef<Session | null>(null);
   const hasNavigatedRef = useRef(false);
   const { isReady: appModeReady, setMode } = useAppMode();
-  const { progress, isReady: dataReady } = useAppData();
+  const { isReady: dataReady } = useAppData();
 
   useEffect(() => {
     announceRecommendationMode();
@@ -70,12 +70,12 @@ export default function App() {
   const loading = authLoading || !appModeReady || (!!session && !dataReady);
 
   if (loading) {
-    return <TabLoadingScreen progress={progress} />;
+    return <TabLoadingScreen />;
   }
 
   if (session) {
     // Already navigated via the effect above; render nothing while transition happens
-    return <TabLoadingScreen progress={100} />;
+    return <TabLoadingScreen />;
   }
 
   return <AuthScreen />;

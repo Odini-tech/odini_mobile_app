@@ -13,11 +13,12 @@ import {
 } from 'react-native';
 import { supabase } from '../../../lib/supabase';
 import bookingService from '../../../src/services/bookingService';
-import burgundyTheme, { getListingTypeColor } from '../../theme/burgundyTheme';
-
-const STAY_ACCENT = getListingTypeColor('stay');
+import { useAppMode } from '../../context/AppModeContext';
 
 export default function StayBookingModal({ listing, stayDetails, onClose, onConfirm }) {
+  const { theme } = useAppMode();
+  const STAY_ACCENT = theme.listingTypeColors.stay;
+  const styles = getStyles(theme, STAY_ACCENT);
   const { formatPrice } = useCurrency();
   const [checkInDate, setCheckInDate] = useState(new Date().toISOString().split('T')[0]);
   const [checkOutDate, setCheckOutDate] = useState(
@@ -84,7 +85,7 @@ export default function StayBookingModal({ listing, stayDetails, onClose, onConf
         <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
           <View style={styles.header}>
             <TouchableOpacity onPress={onClose}>
-              <Ionicons name="close" size={24} color={burgundyTheme.colors.text} />
+              <Ionicons name="close" size={24} color={theme.colors.text} />
             </TouchableOpacity>
             <Text style={styles.title}>Book Your Stay</Text>
             <View style={styles.headerSpacer} />
@@ -100,7 +101,7 @@ export default function StayBookingModal({ listing, stayDetails, onClose, onConf
                   value={checkInDate}
                   onChangeText={setCheckInDate}
                   placeholder="YYYY-MM-DD"
-                  placeholderTextColor={burgundyTheme.colors.textSubtle}
+                  placeholderTextColor={theme.colors.textSubtle}
                 />
               </View>
               <View style={styles.dateField}>
@@ -110,7 +111,7 @@ export default function StayBookingModal({ listing, stayDetails, onClose, onConf
                   value={checkOutDate}
                   onChangeText={setCheckOutDate}
                   placeholder="YYYY-MM-DD"
-                  placeholderTextColor={burgundyTheme.colors.textSubtle}
+                  placeholderTextColor={theme.colors.textSubtle}
                 />
               </View>
             </View>
@@ -168,7 +169,7 @@ export default function StayBookingModal({ listing, stayDetails, onClose, onConf
               onChangeText={setSpecialRequests}
               multiline
               numberOfLines={4}
-              placeholderTextColor={burgundyTheme.colors.textSubtle}
+              placeholderTextColor={theme.colors.textSubtle}
             />
           </View>
 
@@ -203,10 +204,10 @@ export default function StayBookingModal({ listing, stayDetails, onClose, onConf
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (theme, STAY_ACCENT) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: burgundyTheme.colors.background,
+    backgroundColor: theme.colors.background,
   },
   content: {
     flex: 1,
@@ -224,7 +225,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 20,
     fontWeight: '700',
-    color: burgundyTheme.colors.text,
+    color: theme.colors.text,
   },
   section: {
     marginBottom: 24,
@@ -232,7 +233,7 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 16,
     fontWeight: '700',
-    color: burgundyTheme.colors.text,
+    color: theme.colors.text,
     marginBottom: 12,
   },
   dateRow: {
@@ -244,19 +245,19 @@ const styles = StyleSheet.create({
   },
   label: {
     fontSize: 12,
-    color: burgundyTheme.colors.textSubtle,
+    color: theme.colors.textSubtle,
     marginBottom: 6,
     fontWeight: '500',
   },
   input: {
     borderWidth: 1,
-    borderColor: burgundyTheme.colors.border,
+    borderColor: theme.colors.border,
     borderRadius: 12,
     paddingHorizontal: 12,
     paddingVertical: 10,
     fontSize: 14,
-    color: burgundyTheme.colors.text,
-    backgroundColor: burgundyTheme.colors.surface,
+    color: theme.colors.text,
+    backgroundColor: theme.colors.surface,
   },
   nightsInfo: {
     fontSize: 12,
@@ -276,33 +277,33 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-around',
     borderWidth: 1,
-    borderColor: burgundyTheme.colors.border,
+    borderColor: theme.colors.border,
     borderRadius: 12,
     paddingVertical: 10,
-    backgroundColor: burgundyTheme.colors.surface,
+    backgroundColor: theme.colors.surface,
   },
   counterValue: {
     fontSize: 16,
     fontWeight: '700',
-    color: burgundyTheme.colors.text,
+    color: theme.colors.text,
   },
   textArea: {
     borderWidth: 1,
-    borderColor: burgundyTheme.colors.border,
+    borderColor: theme.colors.border,
     borderRadius: 12,
     paddingHorizontal: 12,
     paddingVertical: 10,
     fontSize: 14,
-    color: burgundyTheme.colors.text,
+    color: theme.colors.text,
     textAlignVertical: 'top',
-    backgroundColor: burgundyTheme.colors.surface,
+    backgroundColor: theme.colors.surface,
   },
   priceBreakdown: {
-    backgroundColor: burgundyTheme.colors.surfaceAlt,
+    backgroundColor: theme.colors.surfaceAlt,
     borderRadius: 16,
     padding: 12,
     borderWidth: 1,
-    borderColor: burgundyTheme.colors.border,
+    borderColor: theme.colors.border,
   },
   priceRow: {
     flexDirection: 'row',
@@ -311,16 +312,16 @@ const styles = StyleSheet.create({
   },
   priceLabel: {
     fontSize: 13,
-    color: burgundyTheme.colors.textMuted,
+    color: theme.colors.textMuted,
   },
   priceValue: {
     fontSize: 13,
     fontWeight: '600',
-    color: burgundyTheme.colors.text,
+    color: theme.colors.text,
   },
   totalRow: {
     borderTopWidth: 1,
-    borderTopColor: burgundyTheme.colors.border,
+    borderTopColor: theme.colors.border,
     paddingTop: 12,
     marginTop: 12,
     marginBottom: 0,
@@ -328,7 +329,7 @@ const styles = StyleSheet.create({
   totalLabel: {
     fontSize: 14,
     fontWeight: '700',
-    color: burgundyTheme.colors.text,
+    color: theme.colors.text,
   },
   totalValue: {
     fontSize: 18,
@@ -338,8 +339,8 @@ const styles = StyleSheet.create({
   footer: {
     padding: 16,
     borderTopWidth: 1,
-    borderTopColor: burgundyTheme.colors.border,
-    backgroundColor: burgundyTheme.colors.surface,
+    borderTopColor: theme.colors.border,
+    backgroundColor: theme.colors.surface,
   },
   button: {
     backgroundColor: STAY_ACCENT,
@@ -350,6 +351,6 @@ const styles = StyleSheet.create({
   buttonText: {
     fontSize: 16,
     fontWeight: '700',
-    color: burgundyTheme.colors.white,
+    color: theme.colors.white,
   },
 });

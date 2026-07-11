@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx eslint *)",
+      "Skill(run)",
+      "Skill(run:*)",
+      "Bash(cat /tmp/expo-web.log 2>&1 | tail -80)",
+      "Read(//tmp/**)",
+      "Bash(curl -sI http://localhost:8081)",
+      "Bash(curl -sI http://localhost:8081/search/results)",
+      "Bash(curl -s -o /tmp/index.html -w \"%{http_code}\\\\n\" http://localhost:8090/)"
+    ]
+  }
+}

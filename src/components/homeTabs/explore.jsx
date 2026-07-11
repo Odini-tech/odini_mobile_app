@@ -2,8 +2,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { FlatList, RefreshControl, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useAppData } from '../../context/AppDataContext';
+import { useAppMode } from '../../context/AppModeContext';
 import { InteractionService } from '../../services/interactionService';
-import burgundyTheme from '../../theme/burgundyTheme';
 import ExploreCard from '../ExploreCard';
 import { GridCardSkeleton } from '../shared/CardSkeleton';
 import StayDetail from '../details/StayDetail';
@@ -13,6 +13,8 @@ import OfferingDetail from '../details/OfferingDetail';
 const NUM_COLUMNS = 2;
 
 export default function Explore({ onItemClick }) {
+  const { theme } = useAppMode();
+  const styles = getStyles(theme);
   const {
     listings: contextListings,
     isReady,
@@ -130,7 +132,7 @@ export default function Explore({ onItemClick }) {
         <View style={styles.footer}>
           <Text style={styles.footerText}>All listings loaded</Text>
           <TouchableOpacity style={styles.refreshButton} onPress={refresh}>
-            <Ionicons name="refresh" size={15} color={burgundyTheme.colors.primary} />
+            <Ionicons name="refresh" size={15} color={theme.colors.primary} />
             <Text style={styles.refreshButtonText}>Refresh</Text>
           </TouchableOpacity>
         </View>
@@ -181,8 +183,8 @@ export default function Explore({ onItemClick }) {
             <RefreshControl
               refreshing={refreshing}
               onRefresh={refresh}
-              tintColor={burgundyTheme.colors.primary}
-              colors={[burgundyTheme.colors.primary]}
+              tintColor={theme.colors.primary}
+              colors={[theme.colors.primary]}
             />
           }
         />
@@ -200,10 +202,10 @@ export default function Explore({ onItemClick }) {
   );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (theme) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: burgundyTheme.colors.background,
+    backgroundColor: theme.colors.background,
   },
   gridContent: {
     paddingHorizontal: 8,
@@ -232,7 +234,7 @@ const styles = StyleSheet.create({
   },
   footerText: {
     fontSize: 13,
-    color: burgundyTheme.colors.textSubtle,
+    color: theme.colors.textSubtle,
   },
   refreshButton: {
     flexDirection: 'row',
@@ -242,11 +244,11 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: burgundyTheme.colors.primary,
+    borderColor: theme.colors.primary,
   },
   refreshButtonText: {
     fontSize: 13,
     fontWeight: '600',
-    color: burgundyTheme.colors.primary,
+    color: theme.colors.primary,
   },
 });
