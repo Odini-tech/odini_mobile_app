@@ -151,28 +151,32 @@ function CategoryTile({ category, onPress, theme, corner }) {
         >
           {/* Shadowy gradient overlay */}
           <LinearGradient
+            start={{ x: 0, y: 0 }}
+            end={{ x: 0, y: 1 }}
             colors={[
-              'rgba(0,0,0,0.2)',   // slight dark at top
-              'rgba(0,0,0,0)',     // transparent after 8%
-              'rgba(0,0,0,0)',     // stays transparent until ~60%
-              'rgba(0,0,0,0.7)',   // deep dark at bottom
+              'rgba(0,0,0,0.35)',
+              'rgba(0,0,0,0.08)',
+              'rgba(0,0,0,0)',
+              'rgba(0,0,0,0.75)',
             ]}
-            locations={[0, 0.08, 0.6, 1]}
-            style={StyleSheet.absoluteFillObject}
+            locations={[0, 0.08, 0.55, 1]}
+            style={[StyleSheet.absoluteFillObject, { borderRadius: 14 }]}
           />
           {nameBlock}
         </ImageBackground>
       ) : (
         <View style={{ flex: 1, backgroundColor: theme.colors.primaryTint }}>
           <LinearGradient
+            start={{ x: 0, y: 0 }}
+            end={{ x: 0, y: 1 }}
             colors={[
-              'rgba(0,0,0,0.2)',
-              'rgba(0,0,0,0)',
-              'rgba(0,0,0,0)',
-              'rgba(0,0,0,0.7)',
+              'rgba(0, 0, 0, 0.82)',
+              'rgba(0, 0, 0, 0.88)',
+              'rgba(0, 0, 0, 0.78)',
+              'rgba(0, 0, 0, 0.9)',
             ]}
             locations={[0, 0.08, 0.6, 1]}
-            style={StyleSheet.absoluteFillObject}
+            style={[StyleSheet.absoluteFillObject, { borderRadius: 14 }]}
           />
           {nameBlock}
         </View>
@@ -216,7 +220,7 @@ const getStyles = (theme, insets) =>
     searchInput: {
       flex: 1,
       height: 44,
-      borderRadius: 10,
+      borderRadius: 3,
       backgroundColor: theme.colors.surfaceAlt,
       paddingHorizontal: 14,
       color: theme.colors.text,

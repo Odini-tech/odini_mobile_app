@@ -253,12 +253,12 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
         collectionsResult.status === 'fulfilled'
           ? ((collectionsResult.value as any)?.data ?? [])
           : [];
-      const collections = rawCollections.map((cat: any, idx: number) => ({
-        id: idx + 1,
+      const collections = rawCollections.map((cat: any) => ({
+        id: cat.id,
         title: cat.name,
         description: cat.description || 'Curated picks for you',
         count: 12,
-        image: cat.image_url,
+        image_url: cat.image_url,
       }));
       const recListings: AppListing[] =
         recModeListings.status === 'fulfilled' ? recModeListings.value : [];

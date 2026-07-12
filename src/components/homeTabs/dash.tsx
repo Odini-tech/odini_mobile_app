@@ -1,9 +1,12 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
+import { useRouter } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Dimensions,
   Image,
+  ImageBackground,
   RefreshControl,
   ScrollView,
   StyleSheet,
@@ -14,13 +17,12 @@ import {
 
 import { supabase } from '../../../lib/supabase';
 import { useAppData } from '../../context/AppDataContext';
+import { useAppMode } from '../../context/AppModeContext';
 import { useCurrency } from '../../context/CurrencyContext';
 import { InteractionService } from '../../services/interactionService';
-import { useAppMode } from '../../context/AppModeContext';
 import EventDetail from '../details/EventDetail';
 import OfferingDetail from '../details/OfferingDetail';
 import StayDetail from '../details/StayDetail';
-import CurrencyPicker from '../settings/CurrencyPicker';
 import CardInteractionMenu from '../shared/CardInteractionMenu';
 
 const { width } = Dimensions.get('window');
@@ -48,9 +50,9 @@ interface CategoryMix {
 }
 
 export default function Dash({ onItemClick }: { onItemClick?: (listing: Listing) => void }) {
+  const router = useRouter();
   const { theme } = useAppMode();
   const styles = getStyles(theme);
-  const { formatPrice, selectedCurrency } = useCurrency();
   const {
     isReady,
     upcomingEvents: ctxEvents,
@@ -66,9 +68,11 @@ export default function Dash({ onItemClick }: { onItemClick?: (listing: Listing)
     updateFavoritedId,
   } = useAppData();
 
-  const [currencyPickerVisible, setCurrencyPickerVisible] = useState(false);
   const [collections, setCollections] = useState<any[]>([]);
   const [upcomingEvents, setUpcomingEvents] = useState<Listing[]>([]);
+  const [activeSlide, setActiveSlide] = useState(0);
+  const carouselRef = useRef<ScrollView | null>(null);
+  const { formatPrice } = useCurrency();
   const [favoritePlaces, setFavoritePlaces] = useState<Listing[]>([]);
   const [recentlyViewed, setRecentlyViewed] = useState<Listing[]>([]);
   const [madeForYou, setMadeForYou] = useState<Listing[]>([]);
@@ -128,6 +132,17 @@ export default function Dash({ onItemClick }: { onItemClick?: (listing: Listing)
     setDetailsType(null);
   };
 
+  const handleCollectionCheckout = (collection: any) => {
+    const params = collection.id
+      ? { categoryId: String(collection.id), categoryName: collection.title || collection.name }
+      : { query: collection.title || collection.name };
+    router.push({ pathname: '/search/results', params });
+  };
+
+  const handleHostPress = (hostId: string) => {
+    router.push(`/host/${hostId}`);
+  };
+
   const handleLongPress = (listing: Listing) => {
     setMenuListing(listing);
     setMenuVisible(true);
@@ -169,6 +184,16 @@ export default function Dash({ onItemClick }: { onItemClick?: (listing: Listing)
   const handleShowAll = (sectionId: string) => {
     setExpandedSection(expandedSection === sectionId ? null : sectionId);
   };
+
+  useEffect(() => {
+    if (!collections.length || !carouselRef.current) return;
+    const interval = setInterval(() => {
+      const nextIndex = (activeSlide + 1) % collections.length;
+      setActiveSlide(nextIndex);
+      carouselRef.current?.scrollTo({ x: nextIndex * width, y: 0, animated: true });
+    }, 4500);
+    return () => clearInterval(interval);
+  }, [activeSlide, collections.length]);
 
   const getDisplayItems = (items: Listing[], sectionId: string) => {
     return expandedSection === sectionId ? items : items.slice(0, 4);
@@ -231,24 +256,6 @@ export default function Dash({ onItemClick }: { onItemClick?: (listing: Listing)
           <Text style={styles.bookingRef}>{booking.booking_ref}</Text>
         </View>
       </View>
-    );
-  };
-
-  const renderCollectionCard = (collection: { id: number; title: string; description: string; count: number; image: string | null }) => {
-    const imageSource = collection.image
-      ? (typeof collection.image === 'string' ? { uri: collection.image } : collection.image)
-      : null;
-
-    return (
-      <TouchableOpacity key={collection.id} style={styles.collectionCard} activeOpacity={0.8}>
-        {imageSource && <Image source={imageSource} style={styles.collectionImage} />}
-        <View style={[styles.collectionOverlay, !imageSource && { backgroundColor: theme.colors.primary }]} />
-        <View style={styles.collectionContent}>
-          <Text style={styles.collectionTitle}>{collection.title}</Text>
-          <Text style={styles.collectionDesc}>{collection.description}</Text>
-          <Text style={styles.collectionCount}>{collection.count} places</Text>
-        </View>
-      </TouchableOpacity>
     );
   };
 
@@ -330,48 +337,61 @@ export default function Dash({ onItemClick }: { onItemClick?: (listing: Listing)
           />
         }
       >
-        {/* Hero */}
         <View style={styles.heroSection}>
-          <View style={styles.heroRow}>
-            <View style={styles.heroContent}>
-              <Text style={styles.heroSubtitle}>{greeting}</Text>
-              <Text style={styles.heroTitle}>
-                {userName.charAt(0).toUpperCase() + userName.slice(1)}
-              </Text>
-              {userId && favoritePlaces.length > 0 && (
-                <View style={styles.heroMeta}>
-                  <MaterialCommunityIcons name="heart" size={14} color={theme.colors.danger} />
-                  <Text style={styles.heroMetaText}>
-                    {favoritePlaces.length} saved place{favoritePlaces.length !== 1 ? 's' : ''}
-                  </Text>
-                </View>
-              )}
-            </View>
-            <TouchableOpacity
-              style={styles.currencyButton}
-              onPress={() => setCurrencyPickerVisible(true)}
-              activeOpacity={0.75}
-            >
-              <Text style={styles.currencyFlag}>{selectedCurrency.flag}</Text>
-              <Text style={styles.currencyCode}>{selectedCurrency.code}</Text>
-              <MaterialCommunityIcons name="chevron-down" size={14} color={theme.colors.textMuted} />
-            </TouchableOpacity>
+          <ScrollView
+            ref={carouselRef}
+            horizontal
+            pagingEnabled
+            showsHorizontalScrollIndicator={false}
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={styles.heroCarouselContainer}
+            onMomentumScrollEnd={(event) => {
+              const nextIndex = Math.round(event.nativeEvent.contentOffset.x / width);
+              setActiveSlide(nextIndex);
+            }}
+          >
+            {collections.map((collection, index) => (
+              <TouchableOpacity
+                key={collection.id ?? index}
+                style={styles.heroSlide}
+                activeOpacity={0.9}
+                onPress={() => handleCollectionCheckout(collection)}
+              >
+                <ImageBackground
+                  source={collection.image_url ? { uri: collection.image_url } : undefined}
+                  style={styles.heroImageBackground}
+                  imageStyle={styles.heroImage}
+                >
+                  <LinearGradient
+                    colors={['rgba(0,0,0,0.12)', 'rgba(0,0,0,0.28)', 'rgba(0,0,0,0.66)', theme.colors.background]}
+                    style={styles.heroGradient}
+                  />
+                  <View style={styles.heroOverlay}>
+                    <Text style={styles.heroSubtitle}>{collection.title}</Text>
+                    <Text style={styles.heroTitle} numberOfLines={2}>
+                      {collection.description}
+                    </Text>
+                    <TouchableOpacity
+                      style={styles.checkoutButton}
+                      onPress={() => handleCollectionCheckout(collection)}
+                      activeOpacity={0.85}
+                    >
+                      <Text style={styles.checkoutButtonText}>Explore</Text>
+                    </TouchableOpacity>
+                  </View>
+                </ImageBackground>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+          <View style={styles.heroDots}>
+            {collections.map((_, index) => (
+              <View
+                key={index}
+                style={[styles.heroDot, index === activeSlide && styles.heroDotActive]}
+              />
+            ))}
           </View>
         </View>
-
-        {/* Collections */}
-        {collections.length > 0 && (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Collections</Text>
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.collectionsContainer}
-            >
-              {collections.map(renderCollectionCard)}
-            </ScrollView>
-          </View>
-        )}
 
         {/* Your Favorites */}
         {favoritePlaces.length > 0 && (
@@ -534,13 +554,13 @@ export default function Dash({ onItemClick }: { onItemClick?: (listing: Listing)
       </ScrollView>
 
       {selectedListing && detailsType === 'stay' && (
-        <StayDetail listing={selectedListing} onClose={handleCloseDetails} />
+        <StayDetail listing={selectedListing} onClose={handleCloseDetails} onHostPress={handleHostPress} />
       )}
       {selectedListing && detailsType === 'event' && (
-        <EventDetail listing={selectedListing} onClose={handleCloseDetails} />
+        <EventDetail listing={selectedListing} onClose={handleCloseDetails} onHostPress={handleHostPress} />
       )}
       {selectedListing && detailsType === 'offering' && (
-        <OfferingDetail listing={selectedListing} onClose={handleCloseDetails} />
+        <OfferingDetail listing={selectedListing} onClose={handleCloseDetails} onHostPress={handleHostPress} />
       )}
 
       <CardInteractionMenu
@@ -553,10 +573,6 @@ export default function Dash({ onItemClick }: { onItemClick?: (listing: Listing)
         }}
       />
 
-      <CurrencyPicker
-        visible={currencyPickerVisible}
-        onClose={() => setCurrencyPickerVisible(false)}
-      />
     </>
   );
 }
@@ -570,10 +586,10 @@ function getGreeting() {
 
 function getDefaultCollections() {
   return [
-    { id: 1, title: 'LSK Nightlife', description: 'After-dark spots', count: 12, image: null },
-    { id: 2, title: 'Nshima Spots', description: 'Delicious discoveries', count: 18, image: null },
-    { id: 3, title: 'Weekend Escapes', description: 'Perfect getaways', count: 8, image: null },
-    { id: 4, title: 'Arts & Culture', description: 'Creative experiences', count: 15, image: null },
+    { id: 1, title: 'LSK Nightlife', description: 'After-dark spots', count: 12, image_url: null },
+    { id: 2, title: 'Nshima Spots', description: 'Delicious discoveries', count: 18, image_url: null },
+    { id: 3, title: 'Weekend Escapes', description: 'Perfect getaways', count: 8, image_url: null },
+    { id: 4, title: 'Arts & Culture', description: 'Creative experiences', count: 15, image_url: null },
   ];
 }
 
@@ -589,60 +605,80 @@ const getStyles = (theme: any) => StyleSheet.create({
     backgroundColor: theme.colors.background,
   },
   heroSection: {
-    paddingHorizontal: 16,
-    paddingTop: 20,
-    paddingBottom: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: theme.colors.border,
+    width: '100%',
+    height: 320,
   },
-  heroRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
+  heroCarouselContainer: {
+    height: '100%',
   },
-  heroContent: {
-    gap: 2,
+  heroSlide: {
+    width,
+    height: '100%',
+    justifyContent: 'flex-end',
+  },
+  heroImageBackground: {
     flex: 1,
+    justifyContent: 'flex-end',
   },
-  currencyButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: theme.colors.surfaceAlt,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-    borderRadius: 20,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    marginTop: 4,
+  heroImage: {
+    width: '100%',
+    height: '100%',
   },
-  currencyFlag: {
-    fontSize: 14,
+  heroGradient: {
+    ...StyleSheet.absoluteFill,
   },
-  currencyCode: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: theme.colors.text,
+  heroOverlay: {
+    position: 'absolute',
+    left: 24,
+    right: 24,
+    bottom: 28,
+    justifyContent: 'flex-end',
   },
   heroSubtitle: {
-    fontSize: 13,
-    color: theme.colors.textMuted,
+    fontSize: 14,
+    color: '#fff',
+    marginBottom: 8,
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
   },
   heroTitle: {
-    fontSize: 30,
+    fontSize: 28,
+    fontWeight: '800',
+    color: '#fff',
+    lineHeight: 34,
+  },
+  checkoutButton: {
+    marginTop: 18,
+    backgroundColor: theme.colors.primary,
+    paddingVertical: 14,
+    paddingHorizontal: 24,
+    borderRadius: 28,
+    alignSelf: 'flex-start',
+  },
+  checkoutButtonText: {
+    color: '#fff',
     fontWeight: '700',
-    color: theme.colors.text,
-    letterSpacing: -0.5,
+    fontSize: 14,
   },
-  heroMeta: {
+  heroDots: {
+    position: 'absolute',
+    bottom: 12,
+    left: 0,
+    right: 0,
     flexDirection: 'row',
+    justifyContent: 'center',
     alignItems: 'center',
-    gap: 4,
-    marginTop: 6,
   },
-  heroMetaText: {
-    fontSize: 12,
-    color: theme.colors.textMuted,
+  heroDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: 'rgba(255,255,255,0.45)',
+    marginHorizontal: 4,
+  },
+  heroDotActive: {
+    backgroundColor: '#fff',
   },
   section: {
     paddingVertical: 14,
@@ -669,49 +705,6 @@ const getStyles = (theme: any) => StyleSheet.create({
     color: theme.colors.primary,
     fontWeight: '600',
     marginTop: 4,
-  },
-  collectionsContainer: {
-    paddingRight: 14,
-    gap: 12,
-  },
-  collectionCard: {
-    width: 220,
-    height: 130,
-    borderRadius: 14,
-    overflow: 'hidden',
-    backgroundColor: theme.colors.surface,
-    elevation: 3,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.12,
-    shadowRadius: 4,
-  },
-  collectionImage: {
-    ...StyleSheet.absoluteFillObject,
-    width: '100%',
-    height: '100%',
-  },
-  collectionOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.42)',
-  },
-  collectionContent: {
-    flex: 1,
-    padding: 14,
-    justifyContent: 'space-between',
-  },
-  collectionTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#fff',
-  },
-  collectionDesc: {
-    fontSize: 11,
-    color: 'rgba(255,255,255,0.8)',
-  },
-  collectionCount: {
-    fontSize: 11,
-    color: '#fff',
   },
   horizontalScroll: {
     paddingRight: 14,

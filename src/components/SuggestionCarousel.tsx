@@ -5,7 +5,7 @@ import {
   ActivityIndicator,
   Dimensions,
   FlatList,
-  ImageBackground,
+  Image,
   Modal,
   StatusBar,
   StyleSheet,
@@ -14,6 +14,14 @@ import {
   View,
   ViewToken,
 } from 'react-native';
+import Animated, {
+  cancelAnimation,
+  Easing,
+  useAnimatedStyle,
+  useSharedValue,
+  withRepeat,
+  withTiming,
+} from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { supabase } from '../../lib/supabase';
 import { useCurrency } from '../context/CurrencyContext';
@@ -22,6 +30,7 @@ import OfferingDetail from './details/OfferingDetail';
 import StayDetail from './details/StayDetail';
 
 const { width: SW, height: SH } = Dimensions.get('window');
+const SQUARE_SIZE = Math.min(SW - 72, SH * 0.42);
 
 interface SuggestionListing {
   id: string;
@@ -116,6 +125,110 @@ async function loadSuggestions(
   return enriched;
 }
 
+const SuggestionCard = React.memo(function SuggestionCard({
+  item,
+  isActive,
+  topPad,
+  bottomInset,
+  formatPrice,
+  onPress,
+}: {
+  item: SuggestionListing;
+  isActive: boolean;
+  topPad: number;
+  bottomInset: number;
+  formatPrice: (n: number) => string;
+  onPress: () => void;
+}) {
+  const meta = TYPE_META[item.listing_type] ?? TYPE_META.stay;
+  const zoom = useSharedValue(1);
+
+  useEffect(() => {
+    if (isActive) {
+      zoom.value = withRepeat(
+        withTiming(1.15, { duration: 9000, easing: Easing.inOut(Easing.ease) }),
+        -1,
+        true
+      );
+    } else {
+      cancelAnimation(zoom);
+      zoom.value = withTiming(1, { duration: 250 });
+    }
+    return () => cancelAnimation(zoom);
+  }, [isActive, zoom]);
+
+  const zoomStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: zoom.value }],
+  }));
+
+  return (
+    <TouchableOpacity activeOpacity={0.97} style={styles.card} onPress={onPress}>
+      {/* Darkened, blurred backdrop — same image, full-bleed */}
+      {item.image_url ? (
+        <Image
+          source={{ uri: item.image_url }}
+          style={styles.bgFill}
+          resizeMode="cover"
+          blurRadius={28}
+        />
+      ) : (
+        <View style={[styles.bgFill, styles.noImageBg]} />
+      )}
+      <View style={styles.bgDarkOverlay} />
+
+      {/* Type badge — sits just below the top bar */}
+      <View style={[styles.typeBadge, { top: topPad, backgroundColor: meta.color }]}>
+        <Ionicons name={meta.icon as any} size={12} color="#fff" />
+        <Text style={styles.typeBadgeText}>{meta.label.toUpperCase()}</Text>
+      </View>
+
+      <View style={styles.cardContent} pointerEvents="box-none">
+        <View style={{ height: topPad + 40 }} />
+
+        {/* Sharp square, laid over the blurred backdrop — the whole container zooms */}
+        <View style={styles.squareCenterWrap}>
+          <Animated.View style={[styles.squareShadowWrap, zoomStyle]}>
+            <View style={styles.squareClip}>
+              {item.image_url ? (
+                <Image
+                  source={{ uri: item.image_url }}
+                  style={styles.squareImage}
+                  resizeMode="cover"
+                />
+              ) : (
+                <View style={[styles.squareImage, styles.noImageBg]} />
+              )}
+            </View>
+          </Animated.View>
+        </View>
+
+        {/* Bottom text content */}
+        <View style={[styles.cardBottom, { paddingBottom: bottomInset + 72 }]}>
+          <Text style={styles.cardTitle} numberOfLines={2}>{item.title}</Text>
+          {item.description ? (
+            <Text style={styles.cardDesc} numberOfLines={2}>{item.description}</Text>
+          ) : null}
+          <View style={styles.cardFooterRow}>
+            {item.price ? (
+              <Text style={styles.cardPrice}>{formatPrice(item.price)}</Text>
+            ) : (
+              <View />
+            )}
+            <TouchableOpacity
+              style={styles.detailBtn}
+              onPress={onPress}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              <Text style={styles.detailBtnText}>View Details</Text>
+              <Ionicons name="arrow-forward" size={14} color="#fff" />
+            </TouchableOpacity>
+          </View>
+        </View>
+      </View>
+    </TouchableOpacity>
+  );
+});
+
 export default function SuggestionCarousel({ visible, onClose, excludeListingId, bookedListingType }: Props) {
   const insets = useSafeAreaInsets();
   const router = useRouter();
@@ -171,58 +284,16 @@ export default function SuggestionCarousel({ visible, onClose, excludeListingId,
     }
   }, []);
 
-  const renderItem = useCallback(({ item }: { item: SuggestionListing }) => {
-    const meta = TYPE_META[item.listing_type] ?? TYPE_META.stay;
-    const topPad = insets.top + 76;
-
-    return (
-      <TouchableOpacity activeOpacity={0.97} style={styles.card} onPress={() => setSelectedListing(item)}>
-        <ImageBackground
-          source={item.image_url ? { uri: item.image_url } : undefined}
-          style={styles.imageBg}
-          resizeMode="cover"
-        >
-          {/* Fallback background when no image */}
-          {!item.image_url && <View style={styles.noImageBg} />}
-
-          {/* Top dark fade covers header area */}
-          <View style={[styles.topFade, { height: topPad + 40 }]} />
-
-          {/* Bottom dark fade for text readability */}
-          <View style={styles.bottomFade} />
-
-          {/* Type badge — sits just below the top bar */}
-          <View style={[styles.typeBadge, { top: topPad, backgroundColor: meta.color }]}>
-            <Ionicons name={meta.icon as any} size={12} color="#fff" />
-            <Text style={styles.typeBadgeText}>{meta.label.toUpperCase()}</Text>
-          </View>
-
-          {/* Bottom text content */}
-          <View style={[styles.cardBottom, { paddingBottom: insets.bottom + 72 }]}>
-            <Text style={styles.cardTitle} numberOfLines={2}>{item.title}</Text>
-            {item.description ? (
-              <Text style={styles.cardDesc} numberOfLines={2}>{item.description}</Text>
-            ) : null}
-            <View style={styles.cardFooterRow}>
-              {item.price ? (
-                <Text style={styles.cardPrice}>{formatPrice(item.price)}</Text>
-              ) : (
-                <View />
-              )}
-              <TouchableOpacity
-                style={styles.detailBtn}
-                onPress={() => setSelectedListing(item)}
-                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-              >
-                <Text style={styles.detailBtnText}>View Details</Text>
-                <Ionicons name="arrow-forward" size={14} color="#fff" />
-              </TouchableOpacity>
-            </View>
-          </View>
-        </ImageBackground>
-      </TouchableOpacity>
-    );
-  }, [insets, formatPrice]);
+  const renderItem = useCallback(({ item, index }: { item: SuggestionListing; index: number }) => (
+    <SuggestionCard
+      item={item}
+      isActive={index === currentIndex}
+      topPad={insets.top + 76}
+      bottomInset={insets.bottom}
+      formatPrice={formatPrice}
+      onPress={() => setSelectedListing(item)}
+    />
+  ), [insets, formatPrice, currentIndex]);
 
   return (
     <Modal
@@ -377,28 +448,51 @@ const styles = StyleSheet.create({
     width: SW,
     height: SH,
   },
-  imageBg: {
-    flex: 1,
-    justifyContent: 'flex-end',
-  },
   noImageBg: {
-    ...StyleSheet.absoluteFillObject,
     backgroundColor: '#1c0b13',
   },
-  topFade: {
+  bgFill: {
     position: 'absolute',
     top: 0,
     left: 0,
     right: 0,
-    backgroundColor: 'rgba(0,0,0,0.52)',
-  },
-  bottomFade: {
-    position: 'absolute',
     bottom: 0,
+  },
+  bgDarkOverlay: {
+    position: 'absolute',
+    top: 0,
     left: 0,
     right: 0,
-    height: 320,
-    backgroundColor: 'rgba(0,0,0,0.74)',
+    bottom: 0,
+    backgroundColor: 'rgba(0,0,0,0.62)',
+  },
+  cardContent: {
+    flex: 1,
+  },
+  squareCenterWrap: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 36,
+  },
+  squareShadowWrap: {
+    borderRadius: 22,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.4,
+    shadowRadius: 20,
+    elevation: 10,
+  },
+  squareClip: {
+    width: SQUARE_SIZE,
+    height: SQUARE_SIZE,
+    borderRadius: 22,
+    overflow: 'hidden',
+    backgroundColor: '#1c0b13',
+  },
+  squareImage: {
+    width: '100%',
+    height: '100%',
   },
   typeBadge: {
     position: 'absolute',

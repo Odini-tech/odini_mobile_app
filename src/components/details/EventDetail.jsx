@@ -177,8 +177,6 @@ export default function EventDetail({ listing, onClose, onHostPress }) {
               </View>
             )}
 
-            <DetailSuggestionCarousel listing={listing} />
-
             <View style={styles.bookingSection}>
               <View>
                 <Text style={styles.priceLabel}>Price per ticket</Text>
@@ -188,6 +186,8 @@ export default function EventDetail({ listing, onClose, onHostPress }) {
                 <Text style={styles.bookButtonText}>Get Tickets</Text>
               </TouchableOpacity>
             </View>
+
+            <DetailSuggestionCarousel listing={listing} />
           </View>
         </ScrollView>
 

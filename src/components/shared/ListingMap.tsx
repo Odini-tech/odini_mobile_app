@@ -1,7 +1,7 @@
-import React, { useEffect, useState } from 'react'
-import { View, Text, StyleSheet, ActivityIndicator } from 'react-native'
-import { WebView } from 'react-native-webview'
 import { getListingLocation, ListingLocation } from '@/utils/useListingLocation'
+import { useEffect, useState } from 'react'
+import { ActivityIndicator, StyleSheet, Text, View } from 'react-native'
+import { WebView } from 'react-native-webview'
 
 const MAPTILER_API_KEY = process.env.EXPO_PUBLIC_MAPTILER_API_KEY ?? ''
 
@@ -65,7 +65,7 @@ export default function ListingMap({
       if (cancelled) return
 
       if (fetchError || !data) {
-        setError(fetchError ?? 'Location unavailable')
+        setError('Map unavailable')
         setLoading(false)
         return
       }
@@ -90,7 +90,7 @@ export default function ListingMap({
   if (error || !location) {
     return (
       <View style={[styles.container, { height }]}>
-        <Text style={styles.errorText}>{error ?? 'Location unavailable'}</Text>
+        <Text style={styles.errorText}>Map unavailable</Text>
       </View>
     )
   }

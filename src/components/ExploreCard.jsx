@@ -222,7 +222,7 @@ const getStyles = (theme) => StyleSheet.create({
     bottom: 8,
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: theme.colors.border,
+    backgroundColor: '#000',
     paddingHorizontal: 8,
     paddingVertical: 6,
     borderRadius: 8,
@@ -236,7 +236,7 @@ const getStyles = (theme) => StyleSheet.create({
   priceBadgeText: {
     fontSize: 12,
     fontWeight: '700',
-    color: '#000',
+    color: '#fff',
   },
   favoriteBadge: {
     position: 'absolute',

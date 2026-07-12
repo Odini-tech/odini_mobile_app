@@ -174,8 +174,6 @@ export default function OfferingDetail({ listing, onClose, onHostPress }) {
               <Text style={styles.description}>{listing.description}</Text>
             </View>
 
-            <DetailSuggestionCarousel listing={listing} />
-
             {listing.amenities && listing.amenities.length > 0 && (
               <View style={styles.section}>
                 <Text style={styles.sectionTitle}>What&apos;s Included</Text>
@@ -199,6 +197,8 @@ export default function OfferingDetail({ listing, onClose, onHostPress }) {
                 <Text style={styles.bookButtonText}>Book Now</Text>
               </TouchableOpacity>
             </View>
+
+            <DetailSuggestionCarousel listing={listing} />
           </View>
         </ScrollView>
 

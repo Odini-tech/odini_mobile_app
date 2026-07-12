@@ -2,13 +2,13 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import {
-    Modal,
-    SafeAreaView,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  Modal,
+  SafeAreaView,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import { useAppMode } from '../../context/AppModeContext';
 import { useCurrency } from '../../context/CurrencyContext';
@@ -141,6 +141,11 @@ export default function StayDetail({ listing, onClose, onHostPress }) {
               </View>
             </View>
 
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>About this place</Text>
+              <Text style={styles.description}>{listing.description}</Text>
+            </View>
+
             {listing.amenities && listing.amenities.length > 0 && (
               <View style={styles.section}>
                 <Text style={styles.sectionTitle}>Amenities</Text>
@@ -154,13 +159,6 @@ export default function StayDetail({ listing, onClose, onHostPress }) {
               </View>
             )}
 
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>About this place</Text>
-              <Text style={styles.description}>{listing.description}</Text>
-            </View>
-
-            <DetailSuggestionCarousel listing={listing} />
-
             <View style={styles.bookingSection}>
               <View>
                 <Text style={styles.priceLabel}>Price per night</Text>
@@ -170,6 +168,8 @@ export default function StayDetail({ listing, onClose, onHostPress }) {
                 <Text style={styles.bookButtonText}>Book Now</Text>
               </TouchableOpacity>
             </View>
+
+            <DetailSuggestionCarousel listing={listing} />
           </View>
         </ScrollView>
 
