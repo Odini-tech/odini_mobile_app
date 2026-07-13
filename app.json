@@ -35,6 +35,12 @@
           "googleMapsApiKey": ""
         }
       ],
+      [
+        "expo-navigation-bar",
+        {
+          "enforceContrast": false
+        }
+      ],
       "expo-router",
       [
         "expo-splash-screen",

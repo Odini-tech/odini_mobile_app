@@ -206,7 +206,7 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
               .limit(10)
           : Promise.resolve({ data: [] }),
         fetchPopularCategories(),
-        supabase.from('categories').select('id, name, description, image_url').limit(6),
+        supabase.from('categories').select('id, name, description, image_url, collection_image_url').limit(6),
         (() => {
           const { mode } = getRecommendationModeStatus();
           if (mode === 'rec_eng' && uid) {
@@ -259,6 +259,7 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
         description: cat.description || 'Curated picks for you',
         count: 12,
         image_url: cat.image_url,
+        collection_image_url: cat.collection_image_url,
       }));
       const recListings: AppListing[] =
         recModeListings.status === 'fulfilled' ? recModeListings.value : [];

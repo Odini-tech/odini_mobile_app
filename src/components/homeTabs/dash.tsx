@@ -358,7 +358,7 @@ export default function Dash({ onItemClick }: { onItemClick?: (listing: Listing)
                 onPress={() => handleCollectionCheckout(collection)}
               >
                 <ImageBackground
-                  source={collection.image_url ? { uri: collection.image_url } : undefined}
+                  source={collection.collection_image_url ? { uri: collection.collection_image_url } : collection.image_url ? { uri: collection.image_url } : undefined}
                   style={styles.heroImageBackground}
                   imageStyle={styles.heroImage}
                 >
@@ -585,11 +585,11 @@ function getGreeting() {
 }
 
 function getDefaultCollections() {
-  return [
-    { id: 1, title: 'LSK Nightlife', description: 'After-dark spots', count: 12, image_url: null },
-    { id: 2, title: 'Nshima Spots', description: 'Delicious discoveries', count: 18, image_url: null },
-    { id: 3, title: 'Weekend Escapes', description: 'Perfect getaways', count: 8, image_url: null },
-    { id: 4, title: 'Arts & Culture', description: 'Creative experiences', count: 15, image_url: null },
+    return [
+    { id: 1, title: 'LSK Nightlife', description: 'After-dark spots', count: 12, collection_image_url: null },
+    { id: 2, title: 'Nshima Spots', description: 'Delicious discoveries', count: 18, collection_image_url: null },
+    { id: 3, title: 'Weekend Escapes', description: 'Perfect getaways', count: 8, collection_image_url: null },
+    { id: 4, title: 'Arts & Culture', description: 'Creative experiences', count: 15, collection_image_url: null },
   ];
 }
 

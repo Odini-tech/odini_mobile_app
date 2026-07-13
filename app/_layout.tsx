@@ -1,6 +1,7 @@
+import * as NavigationBar from "expo-navigation-bar";
 import { Slot, useRouter, useSegments } from "expo-router";
 import { useEffect, useRef, useState } from "react";
-import { Animated, Easing, StyleSheet, View } from "react-native";
+import { Animated, Easing, Platform, StyleSheet, View } from "react-native";
 import { supabase } from "../lib/supabase";
 import { AppModeProvider, useAppMode } from "../src/context/AppModeContext";
 import { AppDataProvider } from "../src/context/AppDataContext";
@@ -16,12 +17,17 @@ const DEFAULT_NAV_HEIGHT = 88;
 function RootLayoutContent() {
   const router = useRouter();
   const segments = useSegments();
-  const { clearMode } = useAppMode();
+  const { clearMode, colorScheme } = useAppMode();
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [navHeight, setNavHeight] = useState(DEFAULT_NAV_HEIGHT);
   const { isBottomNavVisible, resetBottomNavScroll } = useBottomNavVisibility();
   const navAnimation = useRef(new Animated.Value(1)).current;
   const currentRouteKey = segments.join("/");
+
+  useEffect(() => {
+    if (Platform.OS !== "android") return;
+    NavigationBar.setStyle(colorScheme === "dark" ? "light" : "dark");
+  }, [colorScheme]);
 
   useEffect(() => {
     let mounted = true;
