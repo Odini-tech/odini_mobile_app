@@ -1,10 +1,13 @@
 // src/services/recommendationService.ts
 //
-// Frontend gateway to the standalone recommendation engine (see
-// ../../../recommendation-engine repo README for the source of truth on
-// routes/response shapes). User identity for personalization comes from the
-// Supabase JWT attached by recommendationGateway — none of these calls take
-// a userId parameter on the wire.
+// Frontend gateway to the recommendation engine. A teammate's separate
+// recommendation-engine repo is the intended long-term source of truth for
+// feed/explore/mixes/similar; this file's rec_eng calls target whatever
+// service RECOMMENDATION_API_URL points at (currently a local rec-engine/
+// service in this repo — see rec-engine/README.md). User identity for
+// personalization comes from the Supabase JWT attached by
+// recommendationGateway — none of these calls take a userId parameter
+// on the wire (Ask Odini included).
 
 import { callRecommendationApi, recommendationApiPath, runDualMode } from './recommendationGateway';
 
@@ -27,6 +30,24 @@ export interface EngineMix {
   title: string;
   reason: string;
   items: EngineListingCard[];
+}
+
+/**
+ * Ask Odini — free-text conversational recommendation (RAG).
+ * e.g. "best budget safari near South Luangwa"
+ * Distinct from feed/explore/mixes/similar: query-driven rather than
+ * context-driven, and every item carries a plain-language "why this fits
+ * your question" explanation, which the passive-browsing endpoints don't
+ * produce.
+ */
+export interface AskListingCard extends EngineListingCard {
+  description?: string | null;
+  explanation?: string; // "why Odini picked this" — the whole point of the demo
+}
+
+interface AskResponse {
+  source: 'rag' | 'keyword_fallback';
+  items: AskListingCard[];
 }
 
 interface FeedOrExploreResponse {
@@ -140,6 +161,31 @@ export const RecommendationService = {
           const path = recommendationApiPath(`/api/listings/${encodeURIComponent(listingId)}/similar`, { limit });
           const envelope = await callRecommendationApi<SimilarResponse>(path, { method: 'GET' });
           return toRecommended(envelope.data.items || []);
+        },
+        basic: async () => [],
+      });
+    } catch {
+      return [];
+    }
+  },
+
+  /**
+   * Ask Odini — free-text conversational recommendation (RAG).
+   * No non-AI fallback that would make sense here (unlike feed/explore,
+   * there's no "basic" query-driven behavior to fall back to), so basic
+   * mode just returns empty — the UI shows an "Odini's offline" state.
+   */
+  async getAskOdini(query: string, limit = 5): Promise<AskListingCard[]> {
+    const trimmed = query.trim();
+    if (!trimmed) return [];
+    try {
+      return await runDualMode<AskListingCard[]>({
+        context: 'recommendationService.getAskOdini',
+        fallbackToBasicOnError: false,
+        recEng: async () => {
+          const path = recommendationApiPath('/api/ask', { query: trimmed, limit });
+          const envelope = await callRecommendationApi<AskResponse>(path, { method: 'GET' });
+          return envelope.data.items || [];
         },
         basic: async () => [],
       });

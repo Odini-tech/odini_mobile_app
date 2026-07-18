@@ -22,9 +22,7 @@
       "predictiveBackGestureEnabled": false,
       "package": "com.himoonga.odinimobile"
     },
-    "web": {                                                                                  
-
-      
+    "web": {
       "output": "static",
       "favicon": "./assets/images/odinicon.png"
     },
@@ -60,10 +58,6 @@
       "reactCompiler": true
     },
     "extra": {
-      "SUPABASE_URL": "https://fhxcuitakiygcgylwcld.supabase.co",
-      "SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZoeGN1aXRha2l5Z2NneWx3Y2xkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjI5NDQ3ODIsImV4cCI6MjA3ODUyMDc4Mn0.rC93IakK2VuQt9m-6lRbR3tLBwdi1L35fBdsCFbF6MQ",
-      "RECOMMENDATION_API_URL": "http://10.49.73.219:4000",
-      "RECOMMENDATION_MODE": "rec_eng",
       "router": {},
       "eas": {
         "projectId": "33a69d38-9834-49ad-baec-e0998565dafb"
