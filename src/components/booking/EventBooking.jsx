@@ -1,4 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import { useCurrency } from '../../context/CurrencyContext';
 import {
@@ -17,6 +18,7 @@ import { useAppMode } from '../../context/AppModeContext';
 
 export default function EventBookingModal({ listing, eventDetails, onClose, onConfirm }) {
   const { theme } = useAppMode();
+  const router = useRouter();
   const EVENT_ACCENT = theme.listingTypeColors.event;
   const styles = getStyles(theme, EVENT_ACCENT);
   const { formatPrice } = useCurrency();
@@ -25,6 +27,8 @@ export default function EventBookingModal({ listing, eventDetails, onClose, onCo
   const [guestName, setGuestName] = useState('');
   const [guestEmail, setGuestEmail] = useState('');
   const [processing, setProcessing] = useState(false);
+  const [submittedBooking, setSubmittedBooking] = useState(null);
+  const [remainingTickets, setRemainingTickets] = useState(null);
 
   useEffect(() => {
     (async () => {
@@ -49,11 +53,24 @@ export default function EventBookingModal({ listing, eventDetails, onClose, onCo
     })();
   }, []);
 
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const res = await bookingService.checkEventAvailability({ listingId: listing.id, quantity: 0 });
+      if (!cancelled) setRemainingTickets(Number.isFinite(res.remaining) ? res.remaining : null);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [listing.id]);
+
   const pricePerTicket = listing.price || 0;
   const tickets = parseInt(ticketCount, 10) || 1;
   const subtotal = tickets * pricePerTicket;
   const serviceFee = Math.round(subtotal * 0.1);
   const total = subtotal + serviceFee;
+  const maxTickets = remainingTickets == null ? (eventDetails.capacity || 1000) : Math.min(eventDetails.capacity || 1000, remainingTickets);
+  const soldOut = remainingTickets != null && remainingTickets <= 0;
 
   const handleConfirm = async () => {
     if (!ticketCount) {
@@ -95,11 +112,20 @@ export default function EventBookingModal({ listing, eventDetails, onClose, onCo
         return;
       }
 
-      onConfirm && onConfirm(res.data);
-      onClose && onClose();
+      setSubmittedBooking(res.data);
     } finally {
       setProcessing(false);
     }
+  };
+
+  const handleViewStatus = () => {
+    router.push('/bookings');
+    onClose && onClose();
+  };
+
+  const handleDone = () => {
+    onConfirm && onConfirm(submittedBooking);
+    onClose && onClose();
   };
 
   const formatEventTime = (timestamp) => {
@@ -112,6 +138,39 @@ export default function EventBookingModal({ listing, eventDetails, onClose, onCo
       minute: '2-digit',
     });
   };
+
+  if (submittedBooking) {
+    return (
+      <Modal visible transparent animationType="slide">
+        <SafeAreaView style={styles.container}>
+          <View style={styles.header}>
+            <TouchableOpacity onPress={onClose}>
+              <Ionicons name="chevron-back" size={24} color={theme.colors.text} />
+            </TouchableOpacity>
+            <View style={styles.headerSpacer} />
+          </View>
+          <View style={styles.successContainer}>
+            <View style={[styles.successIcon, { backgroundColor: EVENT_ACCENT + '22' }]}>
+              <Ionicons name="checkmark-circle" size={56} color={EVENT_ACCENT} />
+            </View>
+            <Text style={styles.successTitle}>Request Sent</Text>
+            <Text style={styles.successBody}>
+              Your request has been sent to the host. You&apos;ll be notified once it&apos;s approved.
+            </Text>
+            <Text style={styles.successRef}>{submittedBooking.booking_ref}</Text>
+          </View>
+          <View style={styles.footer}>
+            <TouchableOpacity style={styles.button} onPress={handleViewStatus}>
+              <Text style={styles.buttonText}>View Status</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.secondaryButton} onPress={handleDone}>
+              <Text style={styles.secondaryButtonText}>Done</Text>
+            </TouchableOpacity>
+          </View>
+        </SafeAreaView>
+      </Modal>
+    );
+  }
 
   return (
     <Modal visible transparent animationType="slide">
@@ -157,12 +216,17 @@ export default function EventBookingModal({ listing, eventDetails, onClose, onCo
               </TouchableOpacity>
               <Text style={styles.counterValue}>{ticketCount}</Text>
               <TouchableOpacity
-                onPress={() => setTicketCount((parseInt(ticketCount, 10) + 1).toString())}
-                disabled={parseInt(ticketCount, 10) >= (eventDetails.capacity || 1000)}
+                onPress={() => setTicketCount(Math.min(maxTickets, parseInt(ticketCount, 10) + 1).toString())}
+                disabled={parseInt(ticketCount, 10) >= maxTickets}
               >
                 <Ionicons name="add" size={24} color={EVENT_ACCENT} />
               </TouchableOpacity>
             </View>
+            {remainingTickets != null && (
+              <Text style={soldOut ? styles.soldOutText : styles.availabilityText}>
+                {soldOut ? 'This event is sold out' : `${remainingTickets} ticket${remainingTickets === 1 ? '' : 's'} left`}
+              </Text>
+            )}
           </View>
 
           <View style={styles.section}>
@@ -226,8 +290,14 @@ export default function EventBookingModal({ listing, eventDetails, onClose, onCo
         </ScrollView>
 
         <View style={styles.footer}>
-          <TouchableOpacity style={[styles.button, processing && styles.buttonDisabled]} onPress={handleConfirm} disabled={processing}>
-            <Text style={styles.buttonText}>{processing ? 'Booking...' : `Get Tickets — ${formatPrice(total)}`}</Text>
+          <TouchableOpacity
+            style={[styles.button, (processing || soldOut) && styles.buttonDisabled]}
+            onPress={handleConfirm}
+            disabled={processing || soldOut}
+          >
+            <Text style={styles.buttonText}>
+              {soldOut ? 'Sold Out' : processing ? 'Sending Request...' : `Request Tickets — ${formatPrice(total)}`}
+            </Text>
           </TouchableOpacity>
         </View>
       </SafeAreaView>
@@ -418,5 +488,59 @@ const getStyles = (theme, EVENT_ACCENT) => StyleSheet.create({
     fontSize: 16,
     fontWeight: '700',
     color: theme.colors.white,
+  },
+  secondaryButton: {
+    marginTop: 10,
+    padding: 14,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  secondaryButtonText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: theme.colors.textMuted,
+  },
+  availabilityText: {
+    fontSize: 12,
+    color: theme.colors.textMuted,
+    marginTop: 8,
+  },
+  soldOutText: {
+    fontSize: 12,
+    color: theme.colors.error || '#EF4444',
+    marginTop: 8,
+    fontWeight: '600',
+  },
+  successContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 32,
+  },
+  successIcon: {
+    width: 96,
+    height: 96,
+    borderRadius: 48,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 20,
+  },
+  successTitle: {
+    fontSize: 22,
+    fontWeight: '800',
+    color: theme.colors.text,
+    marginBottom: 10,
+  },
+  successBody: {
+    fontSize: 14,
+    color: theme.colors.textMuted,
+    textAlign: 'center',
+    lineHeight: 20,
+    marginBottom: 16,
+  },
+  successRef: {
+    fontSize: 12,
+    color: theme.colors.textSubtle,
+    fontWeight: '600',
   },
 });

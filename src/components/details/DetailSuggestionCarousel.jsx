@@ -20,7 +20,7 @@ function getTypeMeta(type, theme) {
   const typeMeta = {
     stay: { icon: 'home', color: theme.listingTypeColors.stay, label: 'Stay' },
     event: { icon: 'calendar', color: theme.listingTypeColors.event, label: 'Event' },
-    offering: { icon: 'briefcase', color: theme.listingTypeColors.offering, label: 'Service' },
+    offering: { icon: 'compass', color: theme.listingTypeColors.offering, label: 'Activity' },
   };
   return typeMeta[type] || typeMeta.stay;
 }
@@ -28,13 +28,13 @@ function getTypeMeta(type, theme) {
 function getSectionTitle(type) {
   if (type === 'stay') return 'Similar stays';
   if (type === 'event') return 'Similar events';
-  return 'Similar services';
+  return 'Similar activities';
 }
 
 function getSectionSubtitle(type) {
   if (type === 'stay') return 'More stays with the same vibe';
   if (type === 'event') return 'More events you may enjoy';
-  return 'More services to explore';
+  return 'More activities to explore';
 }
 
 export default function DetailSuggestionCarousel({ listing }) {

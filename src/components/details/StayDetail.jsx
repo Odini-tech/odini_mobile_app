@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import { useAppMode } from '../../context/AppModeContext';
 import { useCurrency } from '../../context/CurrencyContext';
+import { oneOf } from '../../utils/relations';
 import StayBookingModal from '../booking/StayBooking';
 import ImageCarousel from '../shared/ImageCarousel';
 import ListingMap from '../shared/ListingMap';
@@ -27,7 +28,7 @@ export default function StayDetail({ listing, onClose, onHostPress }) {
   const STAY_ACCENT = theme.listingTypeColors.stay;
   const styles = getStyles(theme, STAY_ACCENT);
 
-  const stayDetails = listing.stays?.[0] || {};
+  const stayDetails = oneOf(listing.stays);
   const hostId = listing.host_id || listing.profiles?.id;
   const hostName = [listing.profiles?.firstname, listing.profiles?.lastname].filter(Boolean).join(' ').trim()
     || listing.profiles?.username

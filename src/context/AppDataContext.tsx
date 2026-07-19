@@ -199,7 +199,7 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
           ? supabase
               .from('bookings')
               .select(
-                'id, booking_ref, listing_type, status, check_in, event_slot, reservation_time, created_at, listings(id, title, listing_type, image_url)'
+                'id, booking_ref, listing_type, status, check_in, event_slot, reservation_time, created_at, listings!listing_id(id, title, listing_type, image_url)'
               )
               .eq('user_id', uid)
               .order('created_at', { ascending: false })

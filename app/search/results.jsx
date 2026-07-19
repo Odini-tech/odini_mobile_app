@@ -122,7 +122,7 @@ export default function SearchResultsPage() {
       <View style={styles.topSearch}>
         <TextInput
           style={styles.searchInput}
-          placeholder="Search stays, events, offerings..."
+          placeholder="Search stays, events, activities..."
           value={queryInput}
           onChangeText={setQueryInput}
           returnKeyType="search"

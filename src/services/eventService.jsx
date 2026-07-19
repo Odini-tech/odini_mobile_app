@@ -313,7 +313,7 @@ export async function getUserTripEvents(userId = null) {
       basic: async () => {
         const { data, error } = await supabase
           .from('bookings')
-          .select('listing:listings(id, host_id, listing_type, title, description, is_active, price, created_at, events!inner(event_time, event_type, capacity, available_slots, location, end_time))')
+          .select('listing:listings!listing_id(id, host_id, listing_type, title, description, is_active, price, created_at, events!inner(event_time, event_type, capacity, available_slots, location, end_time))')
           .eq('user_id', uid)
           .eq('listing_type', 'event')
           .in('status', ['pending', 'confirmed', 'completed']);

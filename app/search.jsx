@@ -48,7 +48,7 @@ export default function SearchPage() {
       <View style={styles.topSearch}>
         <TextInput
           style={styles.searchInput}
-          placeholder="Search stays, events, offerings..."
+          placeholder="Search stays, events, activities..."
           placeholderTextColor={theme.colors.textSubtle}
           value={query}
           onChangeText={setQuery}

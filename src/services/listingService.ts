@@ -451,7 +451,7 @@ export const listingService = {
           check_in,
           check_out,
           status,
-          listing:listings(${listingSelect})
+          listing:listings!listing_id(${listingSelect})
         `)
         .eq('user_id', userId)
         .order('created_at', { ascending: false });

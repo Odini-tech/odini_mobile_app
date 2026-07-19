@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import { useAppMode } from '../../context/AppModeContext';
 import { useCurrency } from '../../context/CurrencyContext';
+import { oneOf } from '../../utils/relations';
 import OfferingBookingModal from '../booking/OfferingBooking';
 import ImageCarousel from '../shared/ImageCarousel';
 import ListingMap from '../shared/ListingMap';
@@ -27,7 +28,7 @@ export default function OfferingDetail({ listing, onClose, onHostPress }) {
   const OFFERING_ACCENT = theme.listingTypeColors.offering;
   const styles = getStyles(theme, OFFERING_ACCENT);
 
-  const offeringDetails = listing.offering?.[0] || {};
+  const offeringDetails = oneOf(listing.offering);
   const hostId = listing.host_id || listing.profiles?.id;
   const hostName = [listing.profiles?.firstname, listing.profiles?.lastname].filter(Boolean).join(' ').trim()
     || listing.profiles?.username
@@ -59,7 +60,7 @@ export default function OfferingDetail({ listing, onClose, onHostPress }) {
           <TouchableOpacity onPress={onClose}>
             <Ionicons name="chevron-back" size={28} color={theme.colors.text} />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Service Details</Text>
+          <Text style={styles.headerTitle}>Activity Details</Text>
           <View style={styles.headerSpacer} />
         </View>
 
@@ -70,7 +71,7 @@ export default function OfferingDetail({ listing, onClose, onHostPress }) {
             imageStyle={styles.image}
             placeholder={
               <View style={[styles.image, styles.imagePlaceholder]}>
-                <Ionicons name="briefcase" size={60} color={OFFERING_ACCENT} />
+                <Ionicons name="compass" size={60} color={OFFERING_ACCENT} />
               </View>
             }
           />
@@ -80,9 +81,9 @@ export default function OfferingDetail({ listing, onClose, onHostPress }) {
 
             <View style={styles.badgeRow}>
               <View style={styles.serviceBadge}>
-                <Ionicons name="briefcase" size={14} color={theme.colors.white} />
+                <Ionicons name="compass" size={14} color={theme.colors.white} />
                 <Text style={styles.badgeText}>
-                  {offeringDetails.service_type?.toUpperCase() || 'SERVICE'}
+                  {offeringDetails.service_type?.toUpperCase() || 'ACTIVITY'}
                 </Text>
               </View>
             </View>
@@ -135,12 +136,12 @@ export default function OfferingDetail({ listing, onClose, onHostPress }) {
             </View>
 
             <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Service Information</Text>
+              <Text style={styles.sectionTitle}>Activity Information</Text>
               <View style={styles.detailsGrid}>
                 <View style={styles.detailCard}>
-                  <Ionicons name="briefcase" size={24} color={OFFERING_ACCENT} />
-                  <Text style={styles.detailLabel}>Service Type</Text>
-                  <Text style={styles.detailValue}>{offeringDetails.service_type || 'Service'}</Text>
+                  <Ionicons name="compass" size={24} color={OFFERING_ACCENT} />
+                  <Text style={styles.detailLabel}>Activity Type</Text>
+                  <Text style={styles.detailValue}>{offeringDetails.service_type || 'Activity'}</Text>
                 </View>
                 <View style={styles.detailCard}>
                   <Ionicons name="pricetag" size={24} color={OFFERING_ACCENT} />
@@ -170,7 +171,7 @@ export default function OfferingDetail({ listing, onClose, onHostPress }) {
             )}
 
             <View style={styles.section}>
-              <Text style={styles.sectionTitle}>About this service</Text>
+              <Text style={styles.sectionTitle}>About this activity</Text>
               <Text style={styles.description}>{listing.description}</Text>
             </View>
 

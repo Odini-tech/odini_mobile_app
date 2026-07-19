@@ -63,7 +63,7 @@ interface Props {
 const TYPE_META = {
   stay:     { icon: 'home',      color: '#7C3048', label: 'Stay' },
   event:    { icon: 'calendar',  color: '#3B82F6', label: 'Event' },
-  offering: { icon: 'briefcase', color: '#8B5CF6', label: 'Service' },
+  offering: { icon: 'compass', color: '#8B5CF6', label: 'Activity' },
 } as const;
 
 function shuffleArray<T>(arr: T[]): T[] {
@@ -317,7 +317,7 @@ export default function SuggestionCarousel({ visible, onClose, excludeListingId,
           <View style={styles.titleWrap}>
             <Text style={styles.headerTitle}>You might also like</Text>
             <Text style={styles.headerSub}>
-              {bookedListingType === 'stay' ? 'Events & services near you' : 'More you might enjoy'}
+              {bookedListingType === 'stay' ? 'Events & activities near you' : 'More you might enjoy'}
             </Text>
           </View>
           {listings.length > 0 && !loading && (

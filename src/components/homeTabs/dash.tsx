@@ -232,7 +232,7 @@ export default function Dash({ onItemClick }: { onItemClick?: (listing: Listing)
                 (listing?.listing_type || booking.listing_type) === 'event'
                   ? 'calendar'
                   : (listing?.listing_type || booking.listing_type) === 'offering'
-                  ? 'briefcase'
+                  ? 'compass'
                   : 'home'
               }
               size={24}
@@ -286,14 +286,14 @@ export default function Dash({ onItemClick }: { onItemClick?: (listing: Listing)
           ) : (
             <View style={[imageStyle, styles.cardImagePlaceholder]}>
               <MaterialCommunityIcons
-                name={listing.listing_type === 'event' ? 'calendar' : listing.listing_type === 'offering' ? 'briefcase' : 'home'}
+                name={listing.listing_type === 'event' ? 'calendar' : listing.listing_type === 'offering' ? 'compass' : 'home'}
                 size={size === 'small' ? 24 : 32}
                 color={accent}
               />
             </View>
           )}
           <View style={[styles.typePill, { backgroundColor: accent }]}>
-            <Text style={styles.typePillText}>{listing.listing_type.toUpperCase()}</Text>
+            <Text style={styles.typePillText}>{listing.listing_type === 'offering' ? 'ACTIVITY' : listing.listing_type.toUpperCase()}</Text>
           </View>
           {listing.is_favorited && (
             <View style={styles.heartBadge}>
@@ -539,6 +539,9 @@ export default function Dash({ onItemClick }: { onItemClick?: (listing: Listing)
                 <Text style={styles.sectionTitle}>Your Trips</Text>
                 <Text style={styles.sectionSubtitle}>Recent bookings</Text>
               </View>
+              <TouchableOpacity onPress={() => router.push('/bookings' as any)}>
+                <Text style={styles.showAllText}>View Status</Text>
+              </TouchableOpacity>
             </View>
             <ScrollView
               horizontal

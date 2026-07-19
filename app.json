@@ -9,7 +9,11 @@
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "odini",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -22,9 +26,7 @@
       "predictiveBackGestureEnabled": false,
       "package": "com.himoonga.odinimobile"
     },
-    "web": {                                                                                  
-
-      
+    "web": {
       "output": "static",
       "favicon": "./assets/images/odinicon.png"
     },
@@ -53,7 +55,8 @@
             "backgroundColor": "#000000"
           }
         }
-      ]
+      ],
+      "@react-native-community/datetimepicker"
     ],
     "experiments": {
       "typedRoutes": true,
@@ -67,6 +70,9 @@
       "router": {},
       "eas": {
         "projectId": "33a69d38-9834-49ad-baec-e0998565dafb"
+      },
+      "expo-navigation-bar": {
+        "enforceContrast": false
       }
     }
   }

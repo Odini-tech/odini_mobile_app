@@ -165,7 +165,7 @@ function getTypeIcon(listingType, theme) {
   const icons = {
     stay: { name: 'home', color: theme.listingTypeColors.stay },
     event: { name: 'calendar', color: theme.listingTypeColors.event },
-    offering: { name: 'briefcase', color: theme.listingTypeColors.offering },
+    offering: { name: 'compass', color: theme.listingTypeColors.offering },
   };
   return icons[listingType] || icons.stay;
 }

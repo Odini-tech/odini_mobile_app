@@ -9,6 +9,9 @@ import { callRecommendationApi, runDualMode } from './recommendationGateway';
 const BOOKINGS_TABLE = 'bookings';
 const VALID_LISTING_TYPES = ['stay', 'event', 'offering'];
 const VALID_STATUSES = ['pending', 'confirmed', 'completed', 'cancelled_by_user', 'cancelled_by_host', 'rejected'];
+// Pending bookings already hold a claim on the slot until a host rejects/cancels them,
+// so they must count toward capacity — otherwise two users could both get approved for the same room/ticket.
+const ACTIVE_STATUSES = ['pending', 'confirmed'];
 
 const generateBookingRef = () => `BK-${Date.now()}-${Math.random().toString(36).slice(2, 8).toUpperCase()}`;
 
@@ -85,6 +88,109 @@ const validatePayload = ({ listingType, payload }) => {
   return null;
 };
 
+const sumField = (rows, field) => (rows || []).reduce((total, row) => total + (Number(row[field]) || 0), 0);
+
+export async function checkStayAvailability({ listingId, checkIn, checkOut, guests, rooms }) {
+  const { data: stay, error: stayErr } = await supabase
+    .from('stays')
+    .select('max_guests, available_rooms')
+    .eq('listing_id', listingId)
+    .maybeSingle();
+  if (stayErr) return { ok: false, remaining: 0, error: { message: 'Unable to check room availability' } };
+
+  const requestedGuests = Number(guests) || 1;
+  const requestedRooms = Number(rooms) || 1;
+
+  // max_guests is a per-room occupancy cap, so the effective cap for a multi-room
+  // request scales with how many rooms are being requested (e.g. 2/room x 10 rooms = 20).
+  const guestCap = stay?.max_guests ? stay.max_guests * Math.max(1, requestedRooms) : null;
+  if (guestCap && requestedGuests > guestCap) {
+    return { ok: false, remaining: guestCap, error: { message: `This stay allows a maximum of ${stay.max_guests} guests per room (${guestCap} for ${requestedRooms} room${requestedRooms === 1 ? '' : 's'})` } };
+  }
+  if (stay?.available_rooms == null) return { ok: true, remaining: Infinity, error: null };
+
+  const { data: overlapping, error: bookingsErr } = await supabase
+    .from(BOOKINGS_TABLE)
+    .select('quantity')
+    .eq('listing_id', listingId)
+    .eq('listing_type', 'stay')
+    .in('status', ACTIVE_STATUSES)
+    .lt('check_in', checkOut)
+    .gt('check_out', checkIn);
+  if (bookingsErr) return { ok: false, remaining: 0, error: { message: 'Unable to check room availability' } };
+
+  const roomsTaken = sumField(overlapping, 'quantity');
+  const remaining = stay.available_rooms - roomsTaken;
+  if (requestedRooms > remaining) {
+    return { ok: false, remaining: Math.max(0, remaining), error: { message: remaining > 0 ? `Only ${remaining} room${remaining === 1 ? '' : 's'} left for these dates` : 'No rooms left for these dates' } };
+  }
+  return { ok: true, remaining, error: null };
+}
+
+export async function checkEventAvailability({ listingId, quantity }) {
+  const { data: event, error: eventErr } = await supabase
+    .from('events')
+    .select('capacity, available_slots')
+    .eq('listing_id', listingId)
+    .maybeSingle();
+  if (eventErr) return { ok: false, remaining: 0, error: { message: 'Unable to check ticket availability' } };
+
+  const capacity = event?.available_slots ?? event?.capacity;
+  if (capacity == null) return { ok: true, remaining: Infinity, error: null };
+
+  const { data: active, error: bookingsErr } = await supabase
+    .from(BOOKINGS_TABLE)
+    .select('quantity')
+    .eq('listing_id', listingId)
+    .eq('listing_type', 'event')
+    .in('status', ACTIVE_STATUSES);
+  if (bookingsErr) return { ok: false, remaining: 0, error: { message: 'Unable to check ticket availability' } };
+
+  const ticketsTaken = sumField(active, 'quantity');
+  const remaining = capacity - ticketsTaken;
+  const requestedQuantity = Number(quantity) || 1;
+  if (requestedQuantity > remaining) {
+    return { ok: false, remaining: Math.max(0, remaining), error: { message: remaining > 0 ? `Only ${remaining} ticket${remaining === 1 ? '' : 's'} left` : 'This event is sold out' } };
+  }
+  return { ok: true, remaining, error: null };
+}
+
+export async function checkOfferingAvailability({ listingId, quantity, reservationTime }) {
+  const { data: offering, error: offeringErr } = await supabase
+    .from('offering')
+    .select('max_bookings')
+    .eq('listing_id', listingId)
+    .maybeSingle();
+  if (offeringErr) return { ok: false, remaining: 0, error: { message: 'Unable to check availability' } };
+  if (offering?.max_bookings == null) return { ok: true, remaining: Infinity, error: null };
+  if (!reservationTime) return { ok: true, remaining: offering.max_bookings, error: null };
+
+  const { data: active, error: bookingsErr } = await supabase
+    .from(BOOKINGS_TABLE)
+    .select('quantity')
+    .eq('listing_id', listingId)
+    .eq('listing_type', 'offering')
+    .eq('reservation_time', new Date(reservationTime).toISOString())
+    .in('status', ACTIVE_STATUSES);
+  if (bookingsErr) return { ok: false, remaining: 0, error: { message: 'Unable to check availability' } };
+
+  const slotsTaken = sumField(active, 'quantity');
+  const remaining = offering.max_bookings - slotsTaken;
+  const requestedQuantity = Number(quantity) || 1;
+  if (requestedQuantity > remaining) {
+    return { ok: false, remaining: Math.max(0, remaining), error: { message: remaining > 0 ? `Only ${remaining} slot${remaining === 1 ? '' : 's'} left at this time` : 'This time slot is fully booked' } };
+  }
+  return { ok: true, remaining, error: null };
+}
+
+export async function checkAvailability({ listingType, listingId, ...params }) {
+  const normalizedType = normalizeListingType(listingType);
+  if (normalizedType === 'stay') return checkStayAvailability({ listingId, ...params });
+  if (normalizedType === 'event') return checkEventAvailability({ listingId, ...params });
+  if (normalizedType === 'offering') return checkOfferingAvailability({ listingId, ...params });
+  return { ok: true, remaining: Infinity, error: null };
+}
+
 export async function createBooking({ userId, hostId, listingId, listingType, priceAtBooking, totalPrice, payload = {} }) {
   let normalizedType = normalizeListingType(listingType);
   if (!normalizedType || !VALID_LISTING_TYPES.includes(normalizedType) || !hostId) {
@@ -117,6 +223,18 @@ export async function createBooking({ userId, hostId, listingId, listingType, pr
 
   const validationError = validatePayload({ listingType: normalizedType, payload: mergedPayload });
   if (validationError) return { data: null, error: { message: validationError } };
+
+  const availability = await checkAvailability({
+    listingType: normalizedType,
+    listingId,
+    checkIn: mergedPayload.check_in,
+    checkOut: mergedPayload.check_out,
+    guests: mergedPayload.guests,
+    rooms: mergedPayload.quantity,
+    quantity: mergedPayload.quantity,
+    reservationTime: mergedPayload.reservation_time,
+  });
+  if (!availability.ok) return { data: null, error: availability.error || { message: 'Not enough availability for this request' } };
 
   const row = pickDefined({
     booking_ref: mergedPayload.booking_ref || generateBookingRef(),
@@ -196,6 +314,18 @@ export async function listBookingsByUser(userId, { limit = 50, offset = 0 } = {}
   return { data, error };
 }
 
+export async function listBookingsByUserWithListing(userId, { limit = 100 } = {}) {
+  const { data, error } = await supabase
+    .from(BOOKINGS_TABLE)
+    .select(
+      'id, booking_ref, listing_type, status, guests, quantity, check_in, check_out, event_slot, reservation_time, total_price, price_at_booking, created_at, cancelled_by, cancellation_note, listings!listing_id(id, title, listing_type, image_url, price)'
+    )
+    .eq('user_id', userId)
+    .order('created_at', { ascending: false })
+    .limit(limit);
+  return { data, error };
+}
+
 export async function updateBookingStatus(bookingId, status, options = {}) {
   if (!VALID_STATUSES.includes(status)) {
     return { data: null, error: { message: 'Invalid status' } };
@@ -232,6 +362,11 @@ export default {
   createBooking,
   getBookingById,
   listBookingsByUser,
+  listBookingsByUserWithListing,
+  checkAvailability,
+  checkStayAvailability,
+  checkEventAvailability,
+  checkOfferingAvailability,
   updateBookingStatus,
   cancelBooking,
   confirmBooking,

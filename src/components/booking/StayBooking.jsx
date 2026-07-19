@@ -1,5 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
-import React, { useState } from 'react';
+import DateTimePicker from '@react-native-community/datetimepicker';
+import { useRouter } from 'expo-router';
+import React, { useEffect, useState } from 'react';
 import { useCurrency } from '../../context/CurrencyContext';
 import {
   Modal,
@@ -15,18 +17,63 @@ import { supabase } from '../../../lib/supabase';
 import bookingService from '../../../src/services/bookingService';
 import { useAppMode } from '../../context/AppModeContext';
 
+const toDateOnlyString = (date) => date.toISOString().split('T')[0];
+
+const addDays = (dateStr, days) => {
+  const d = new Date(dateStr);
+  d.setDate(d.getDate() + days);
+  return toDateOnlyString(d);
+};
+
 export default function StayBookingModal({ listing, stayDetails, onClose, onConfirm }) {
   const { theme } = useAppMode();
+  const router = useRouter();
   const STAY_ACCENT = theme.listingTypeColors.stay;
   const styles = getStyles(theme, STAY_ACCENT);
   const { formatPrice } = useCurrency();
-  const [checkInDate, setCheckInDate] = useState(new Date().toISOString().split('T')[0]);
-  const [checkOutDate, setCheckOutDate] = useState(
-    new Date(Date.now() + 86400000).toISOString().split('T')[0]
-  );
+  const [checkInDate, setCheckInDate] = useState(() => toDateOnlyString(new Date()));
+  const [checkOutDate, setCheckOutDate] = useState(() => addDays(toDateOnlyString(new Date()), 1));
+  const [showCheckInPicker, setShowCheckInPicker] = useState(false);
+  const [showCheckOutPicker, setShowCheckOutPicker] = useState(false);
   const [guestCount, setGuestCount] = useState('1');
   const [rooms, setRooms] = useState('1');
   const [specialRequests, setSpecialRequests] = useState('');
+  const [processing, setProcessing] = useState(false);
+  const [submittedBooking, setSubmittedBooking] = useState(null);
+  const [remainingRooms, setRemainingRooms] = useState(null);
+
+  const today = toDateOnlyString(new Date());
+
+  const handleCheckInChange = (event, selectedDate) => {
+    setShowCheckInPicker(false);
+    if (event.type === 'dismissed' || !selectedDate) return;
+    const iso = toDateOnlyString(selectedDate);
+    setCheckInDate(iso);
+    if (checkOutDate <= iso) setCheckOutDate(addDays(iso, 1));
+  };
+
+  const handleCheckOutChange = (event, selectedDate) => {
+    setShowCheckOutPicker(false);
+    if (event.type === 'dismissed' || !selectedDate) return;
+    setCheckOutDate(toDateOnlyString(selectedDate));
+  };
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const res = await bookingService.checkStayAvailability({
+        listingId: listing.id,
+        checkIn: checkInDate,
+        checkOut: checkOutDate,
+        guests: 1,
+        rooms: 0,
+      });
+      if (!cancelled) setRemainingRooms(Number.isFinite(res.remaining) ? res.remaining : null);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [listing.id, checkInDate, checkOutDate]);
 
   const calculateNights = () => {
     const checkIn = new Date(checkInDate);
@@ -39,24 +86,31 @@ export default function StayBookingModal({ listing, stayDetails, onClose, onConf
   const subtotal = nights * pricePerNight;
   const serviceFee = Math.round(subtotal * 0.1);
   const total = subtotal + serviceFee;
+  const maxRooms = remainingRooms == null ? (stayDetails.available_rooms || 10) : Math.min(stayDetails.available_rooms || 10, remainingRooms);
+  const soldOut = remainingRooms != null && remainingRooms <= 0;
+  // max_guests is a per-room cap, so the effective ceiling scales with how many rooms are selected.
+  const maxGuests = (stayDetails.max_guests || 10) * Math.max(1, parseInt(rooms, 10) || 1);
+  const clampedGuestCount = Math.min(parseInt(guestCount, 10) || 1, maxGuests);
 
   const handleConfirm = () => {
     if (!checkInDate || !checkOutDate || !guestCount) {
       alert('Please fill in all required fields');
       return;
     }
+    setProcessing(true);
     (async () => {
       const { data: userData, error: userErr } = await supabase.auth.getUser();
       const userId = userData?.user?.id || null;
       if (userErr || !userId) {
         alert('You must be signed in to book.');
+        setProcessing(false);
         return;
       }
 
       const payload = {
         check_in: checkInDate,
         check_out: checkOutDate,
-        guests: parseInt(guestCount, 10) || 1,
+        guests: clampedGuestCount,
         quantity: parseInt(rooms, 10) || 1,
         reservation_time: new Date().toISOString(),
       };
@@ -71,13 +125,57 @@ export default function StayBookingModal({ listing, stayDetails, onClose, onConf
 
       if (res.error) {
         alert(res.error.message || 'Failed to create booking');
+        setProcessing(false);
         return;
       }
 
-      onConfirm && onConfirm(res.data);
-      onClose && onClose();
+      setProcessing(false);
+      setSubmittedBooking(res.data);
     })();
   };
+
+  const handleViewStatus = () => {
+    router.push('/bookings');
+    onClose && onClose();
+  };
+
+  const handleDone = () => {
+    onConfirm && onConfirm(submittedBooking);
+    onClose && onClose();
+  };
+
+  if (submittedBooking) {
+    return (
+      <Modal visible transparent animationType="slide">
+        <SafeAreaView style={styles.container}>
+          <View style={styles.header}>
+            <TouchableOpacity onPress={onClose}>
+              <Ionicons name="chevron-back" size={24} color={theme.colors.text} />
+            </TouchableOpacity>
+            <View style={styles.headerSpacer} />
+          </View>
+          <View style={styles.successContainer}>
+            <View style={[styles.successIcon, { backgroundColor: STAY_ACCENT + '22' }]}>
+              <Ionicons name="checkmark-circle" size={56} color={STAY_ACCENT} />
+            </View>
+            <Text style={styles.successTitle}>Request Sent</Text>
+            <Text style={styles.successBody}>
+              Your request has been sent to the host. You&apos;ll be notified once it&apos;s approved.
+            </Text>
+            <Text style={styles.successRef}>{submittedBooking.booking_ref}</Text>
+          </View>
+          <View style={styles.footer}>
+            <TouchableOpacity style={styles.button} onPress={handleViewStatus}>
+              <Text style={styles.buttonText}>View Status</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.secondaryButton} onPress={handleDone}>
+              <Text style={styles.secondaryButtonText}>Done</Text>
+            </TouchableOpacity>
+          </View>
+        </SafeAreaView>
+      </Modal>
+    );
+  }
 
   return (
     <Modal visible transparent animationType="slide">
@@ -96,26 +194,34 @@ export default function StayBookingModal({ listing, stayDetails, onClose, onConf
             <View style={styles.dateRow}>
               <View style={styles.dateField}>
                 <Text style={styles.label}>Check-in</Text>
-                <TextInput
-                  style={styles.input}
-                  value={checkInDate}
-                  onChangeText={setCheckInDate}
-                  placeholder="YYYY-MM-DD"
-                  placeholderTextColor={theme.colors.textSubtle}
-                />
+                <TouchableOpacity style={styles.input} onPress={() => setShowCheckInPicker(true)}>
+                  <Text style={{ color: theme.colors.text }}>{checkInDate}</Text>
+                </TouchableOpacity>
               </View>
               <View style={styles.dateField}>
                 <Text style={styles.label}>Check-out</Text>
-                <TextInput
-                  style={styles.input}
-                  value={checkOutDate}
-                  onChangeText={setCheckOutDate}
-                  placeholder="YYYY-MM-DD"
-                  placeholderTextColor={theme.colors.textSubtle}
-                />
+                <TouchableOpacity style={styles.input} onPress={() => setShowCheckOutPicker(true)}>
+                  <Text style={{ color: theme.colors.text }}>{checkOutDate}</Text>
+                </TouchableOpacity>
               </View>
             </View>
             <Text style={styles.nightsInfo}>{nights} night{nights !== 1 ? 's' : ''}</Text>
+            {showCheckInPicker && (
+              <DateTimePicker
+                value={new Date(checkInDate)}
+                mode="date"
+                minimumDate={new Date(today)}
+                onChange={handleCheckInChange}
+              />
+            )}
+            {showCheckOutPicker && (
+              <DateTimePicker
+                value={new Date(checkOutDate)}
+                mode="date"
+                minimumDate={new Date(addDays(checkInDate, 1))}
+                onChange={handleCheckOutChange}
+              />
+            )}
           </View>
 
           <View style={styles.section}>
@@ -125,16 +231,14 @@ export default function StayBookingModal({ listing, stayDetails, onClose, onConf
                 <Text style={styles.label}>Guests</Text>
                 <View style={styles.counter}>
                   <TouchableOpacity
-                    onPress={() =>
-                      setGuestCount(Math.max(1, parseInt(guestCount, 10) - 1).toString())
-                    }
+                    onPress={() => setGuestCount(Math.max(1, clampedGuestCount - 1).toString())}
                   >
                     <Ionicons name="remove" size={20} color={STAY_ACCENT} />
                   </TouchableOpacity>
-                  <Text style={styles.counterValue}>{guestCount}</Text>
+                  <Text style={styles.counterValue}>{clampedGuestCount}</Text>
                   <TouchableOpacity
-                    onPress={() => setGuestCount((parseInt(guestCount, 10) + 1).toString())}
-                    disabled={parseInt(guestCount, 10) >= (stayDetails.max_guests || 10)}
+                    onPress={() => setGuestCount(Math.min(maxGuests, clampedGuestCount + 1).toString())}
+                    disabled={clampedGuestCount >= maxGuests}
                   >
                     <Ionicons name="add" size={20} color={STAY_ACCENT} />
                   </TouchableOpacity>
@@ -150,14 +254,22 @@ export default function StayBookingModal({ listing, stayDetails, onClose, onConf
                   </TouchableOpacity>
                   <Text style={styles.counterValue}>{rooms}</Text>
                   <TouchableOpacity
-                    onPress={() => setRooms((parseInt(rooms, 10) + 1).toString())}
-                    disabled={parseInt(rooms, 10) >= (stayDetails.available_rooms || 10)}
+                    onPress={() => setRooms(Math.min(maxRooms, parseInt(rooms, 10) + 1).toString())}
+                    disabled={parseInt(rooms, 10) >= maxRooms}
                   >
                     <Ionicons name="add" size={20} color={STAY_ACCENT} />
                   </TouchableOpacity>
                 </View>
               </View>
             </View>
+            {remainingRooms != null && (
+              <Text style={soldOut ? styles.soldOutText : styles.availabilityText}>
+                {soldOut ? 'No rooms left for these dates' : `${remainingRooms} room${remainingRooms === 1 ? '' : 's'} left for these dates`}
+              </Text>
+            )}
+            <Text style={styles.availabilityText}>
+              Up to {maxGuests} guest{maxGuests === 1 ? '' : 's'} across {rooms} room{parseInt(rooms, 10) === 1 ? '' : 's'}
+            </Text>
           </View>
 
           <View style={styles.section}>
@@ -195,8 +307,14 @@ export default function StayBookingModal({ listing, stayDetails, onClose, onConf
         </ScrollView>
 
         <View style={styles.footer}>
-          <TouchableOpacity style={styles.button} onPress={handleConfirm}>
-            <Text style={styles.buttonText}>Book Now — {formatPrice(total)}</Text>
+          <TouchableOpacity
+            style={[styles.button, (processing || soldOut) && styles.buttonDisabled]}
+            onPress={handleConfirm}
+            disabled={processing || soldOut}
+          >
+            <Text style={styles.buttonText}>
+              {soldOut ? 'No Rooms Available' : processing ? 'Sending Request...' : `Request to Book — ${formatPrice(total)}`}
+            </Text>
           </TouchableOpacity>
         </View>
       </SafeAreaView>
@@ -352,5 +470,62 @@ const getStyles = (theme, STAY_ACCENT) => StyleSheet.create({
     fontSize: 16,
     fontWeight: '700',
     color: theme.colors.white,
+  },
+  buttonDisabled: {
+    opacity: 0.6,
+  },
+  secondaryButton: {
+    marginTop: 10,
+    padding: 14,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  secondaryButtonText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: theme.colors.textMuted,
+  },
+  availabilityText: {
+    fontSize: 12,
+    color: theme.colors.textMuted,
+    marginTop: 8,
+  },
+  soldOutText: {
+    fontSize: 12,
+    color: theme.colors.error || '#EF4444',
+    marginTop: 8,
+    fontWeight: '600',
+  },
+  successContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 32,
+  },
+  successIcon: {
+    width: 96,
+    height: 96,
+    borderRadius: 48,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 20,
+  },
+  successTitle: {
+    fontSize: 22,
+    fontWeight: '800',
+    color: theme.colors.text,
+    marginBottom: 10,
+  },
+  successBody: {
+    fontSize: 14,
+    color: theme.colors.textMuted,
+    textAlign: 'center',
+    lineHeight: 20,
+    marginBottom: 16,
+  },
+  successRef: {
+    fontSize: 12,
+    color: theme.colors.textSubtle,
+    fontWeight: '600',
   },
 });

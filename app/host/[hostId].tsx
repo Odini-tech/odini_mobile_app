@@ -179,9 +179,9 @@ export default function HostDashboardScreen() {
           </CarouselSection>
         )}
 
-        {/* Services */}
+        {/* Activities */}
         {activeServices.length > 0 && (
-          <CarouselSection title="Services" subtitle="Active offering listings" styles={styles}>
+          <CarouselSection title="Activities" subtitle="Active activity listings" styles={styles}>
             {activeServices.map((l) => (
               <ListingCard key={l.id} listing={l} formatPrice={formatPrice} onPress={handleCardPress} theme={theme} styles={styles} />
             ))}
@@ -263,7 +263,7 @@ function ListingCard({
     listing.listing_type === 'event'
       ? 'calendar'
       : listing.listing_type === 'offering'
-      ? 'briefcase'
+      ? 'compass'
       : 'home';
 
   return (

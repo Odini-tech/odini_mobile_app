@@ -303,7 +303,7 @@ export function ForYouPage({ onEventClick }) {
       <View style={styles.container}>
         <View style={styles.centerBox}>
           <Text style={styles.emptyTitle}>No listings yet</Text>
-          <Text style={styles.emptyText}>Check back soon for new stays, events, and offerings</Text>
+          <Text style={styles.emptyText}>Check back soon for new stays, events, and activities</Text>
         </View>
       </View>
     );

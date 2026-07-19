@@ -42,7 +42,7 @@ export default function FilterPopup({ visible, onClose, onApply, initialFilters 
                 onPress={() => setType(type === opt ? null : opt)}
               >
                 <Text style={[styles.typeText, type === opt && styles.typeTextActive]}>
-                  {opt.charAt(0).toUpperCase() + opt.slice(1)}
+                  {opt === 'offering' ? 'Activity' : opt.charAt(0).toUpperCase() + opt.slice(1)}
                 </Text>
               </TouchableOpacity>
             ))}

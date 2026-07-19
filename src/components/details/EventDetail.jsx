@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import { useAppMode } from '../../context/AppModeContext';
 import { useCurrency } from '../../context/CurrencyContext';
+import { oneOf } from '../../utils/relations';
 import EventBookingModal from '../booking/EventBooking';
 import ImageCarousel from '../shared/ImageCarousel';
 import ListingMap from '../shared/ListingMap';
@@ -27,7 +28,7 @@ export default function EventDetail({ listing, onClose, onHostPress }) {
   const EVENT_ACCENT = theme.listingTypeColors.event;
   const styles = getStyles(theme, EVENT_ACCENT);
 
-  const eventDetails = listing.events?.[0] || {};
+  const eventDetails = oneOf(listing.events);
   const hostId = listing.host_id || listing.profiles?.id;
   const hostName = [listing.profiles?.firstname, listing.profiles?.lastname].filter(Boolean).join(' ').trim()
     || listing.profiles?.username

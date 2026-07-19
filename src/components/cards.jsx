@@ -2,9 +2,11 @@ import { Ionicons } from "@expo/vector-icons";
 import React, { useEffect, useRef, useState } from "react";
 import { ActivityIndicator, Animated, Image, Share, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { supabase } from "../../lib/supabase";
-import { useCurrency } from "../context/CurrencyContext";
-import { InteractionService } from "../services/interactionService";
 import { useAppMode } from "../context/AppModeContext";
+import { useCurrency } from "../context/CurrencyContext";
+import bookingService from "../services/bookingService";
+import { InteractionService } from "../services/interactionService";
+import { oneOf } from "../utils/relations";
 import EventBookingModal from "./booking/EventBooking";
 import OfferingBookingModal from "./booking/OfferingBooking";
 import StayBookingModal from "./booking/StayBooking";
@@ -18,7 +20,7 @@ const ListingCard = React.memo(function ListingCard({ item, onPress, onFavoriteP
   const listingTypeIcons = {
     stay: { name: "home", color: theme.listingTypeColors.stay },
     event: { name: "calendar", color: theme.listingTypeColors.event },
-    offering: { name: "briefcase", color: theme.listingTypeColors.offering },
+    offering: { name: "compass", color: theme.listingTypeColors.offering },
   };
   const styles = externalStyles || getStyles(theme);
   const { formatPrice } = useCurrency();
@@ -28,12 +30,24 @@ const ListingCard = React.memo(function ListingCard({ item, onPress, onFavoriteP
   const [showBooking, setShowBooking] = useState(false);
   const [menuVisible, setMenuVisible] = useState(false);
   const [isFavorited, setIsFavorited] = useState(propIsFavorited ?? item.is_favorited ?? false);
+  const [remainingTickets, setRemainingTickets] = useState(null);
   const scaleAnim = useRef(new Animated.Value(1)).current;
   const hasPropRef = useRef(propIsFavorited !== undefined);
 
   useEffect(() => {
     if (!hasPropRef.current) checkIfFavorited();
   }, [item.id]);
+
+  useEffect(() => {
+    if (item.listing_type !== 'event') return;
+    const capacity = oneOf(item.events).capacity;
+    if (!capacity) return;
+    let cancelled = false;
+    bookingService.checkEventAvailability({ listingId: item.id, quantity: 0 }).then((res) => {
+      if (!cancelled && Number.isFinite(res.remaining)) setRemainingTickets(res.remaining);
+    });
+    return () => { cancelled = true; };
+  }, [item.id, item.listing_type, item.events]);
 
   const checkIfFavorited = async () => {
     try {
@@ -133,8 +147,8 @@ const ListingCard = React.memo(function ListingCard({ item, onPress, onFavoriteP
         >
           <View style={styles.postHeader}>
             <View style={styles.userInfo}>
-              <View style={[styles.avatar, { backgroundColor: typeIcon.color }]}>
-                <Ionicons name={typeIcon.name} size={20} color={theme.colors.white} />
+              <View style={styles.avatar}>
+                <Ionicons name= "person" size={20} color={theme.colors.white} />
               </View>
               <View style={styles.userDetails}>
                 <Text style={styles.username} numberOfLines={1}>{item.title}</Text>
@@ -157,7 +171,7 @@ const ListingCard = React.memo(function ListingCard({ item, onPress, onFavoriteP
               <Image source={{ uri: item.image_url }} style={styles.image} />
             ) : (
               <View style={styles.imagePlaceholder}>
-                <Ionicons name={typeIcon.name} size={60} color={typeIcon.color} />
+                <Ionicons name={typeIcon.name} size={60} color={theme.colors.textSubtle} />
               </View>
             )}
           </TouchableOpacity>
@@ -216,22 +230,22 @@ const ListingCard = React.memo(function ListingCard({ item, onPress, onFavoriteP
               style={[styles.interactionButton, styles.bookButton]}
               onPress={handleBooking}
             >
-              <Ionicons name="calendar" size={15} color={theme.colors.white} />
+              <Ionicons name="calendar" size={18} color={theme.colors.text} />
             </TouchableOpacity>
           </View>
 
           <View style={styles.caption}>
             <View style={styles.captionHeader}>
-              <Text style={[styles.captionBadge, { backgroundColor: `${typeIcon.color}20`, borderColor: typeIcon.color }]}>
-                <Text style={{ color: typeIcon.color }}>{item.listing_type.toUpperCase()}</Text>
+              <Text style={styles.captionBadge}>
+                <Text style={{ color: typeIcon.color }}>{getBadgeLabel(item)}</Text>
               </Text>
-              <Text style={styles.captionMeta}>by {hostName}</Text>
+              <Text style={styles.captionMeta}>@ {hostName}</Text>
             </View>
 
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-              <Text style={styles.captionTitle}>{getListingMetaText(item)}</Text>
+              <Text style={styles.captionTitle}>{getListingMetaText(item, remainingTickets)}</Text>
               {item.price ? (
-                <Text style={[styles.captionTitle, { color: typeIcon.color, fontWeight: '700' }]}>
+                <Text style={[styles.captionTitle, { color: theme.colors.text, fontWeight: '700' }]}>
                   {formatPrice(item.price)}
                 </Text>
               ) : null}
@@ -243,7 +257,7 @@ const ListingCard = React.memo(function ListingCard({ item, onPress, onFavoriteP
               </Text>
             )}
             <TouchableOpacity onPress={handleDetails}>
-              <Text style={styles.viewMore}>View Details</Text>
+              <Text style={styles.viewMore}>Check out...</Text>
             </TouchableOpacity>
           </View>
         </TouchableOpacity>
@@ -251,13 +265,13 @@ const ListingCard = React.memo(function ListingCard({ item, onPress, onFavoriteP
 
       {renderDetailModal()}
       {showBooking && item?.listing_type === 'event' && (
-        <EventBookingModal listing={item} eventDetails={item.events?.[0] || {}} onClose={handleCloseBooking} onConfirm={() => setShowBooking(false)} />
+        <EventBookingModal listing={item} eventDetails={oneOf(item.events)} onClose={handleCloseBooking} onConfirm={() => setShowBooking(false)} />
       )}
       {showBooking && item?.listing_type === 'offering' && (
-        <OfferingBookingModal listing={item} offeringDetails={item.offering?.[0] || {}} onClose={handleCloseBooking} onConfirm={() => setShowBooking(false)} />
+        <OfferingBookingModal listing={item} offeringDetails={oneOf(item.offering)} onClose={handleCloseBooking} onConfirm={() => setShowBooking(false)} />
       )}
       {showBooking && item?.listing_type === 'stay' && (
-        <StayBookingModal listing={item} stayDetails={item.stays?.[0] || {}} onClose={handleCloseBooking} onConfirm={() => setShowBooking(false)} />
+        <StayBookingModal listing={item} stayDetails={oneOf(item.stays)} onClose={handleCloseBooking} onConfirm={() => setShowBooking(false)} />
       )}
 
       <CardInteractionMenu
@@ -272,21 +286,53 @@ const ListingCard = React.memo(function ListingCard({ item, onPress, onFavoriteP
 
 export default ListingCard;
 
-function getListingMetaText(item) {
+function getBadgeLabel(item) {
   switch (item.listing_type) {
-    case "stay": {
-      const rooms = item.stays?.[0]?.available_rooms || 0;
-      const guests = item.stays?.[0]?.max_guests || 0;
-      return `${rooms} room${rooms !== 1 ? "s" : ""} - ${guests} guest${guests !== 1 ? "s" : ""}`;
-    }
     case "event": {
-      const capacity = item.events?.[0]?.capacity || 0;
-      const eventType = item.events?.[0]?.event_type || "Event";
-      return `${eventType} - ${capacity} capacity`;
+      const eventType = oneOf(item.events).event_type;
+      return (eventType || "Event").toString().toUpperCase();
     }
     case "offering": {
-      const serviceType = item.offering?.[0]?.service_type || "Service";
-      return `${serviceType}`;
+      const serviceType = oneOf(item.offering).service_type;
+      return (serviceType || "Activity").toString().replace(/_/g, " ").toUpperCase();
+    }
+    default:
+      return item.listing_type.toUpperCase();
+  }
+}
+
+function formatEventDate(timestamp) {
+  if (!timestamp) return "Date TBD";
+  return new Date(timestamp).toLocaleDateString("en-US", { month: "short", day: "numeric" });
+}
+
+// Hosts enter opening_hours as free text, sometimes with several comma-separated
+// day groups (e.g. "Mon - Fri: 8am - 10pm, Sat: 10am - 2pm"). Dumping the whole
+// string on the compact card row reads as clutter, so only show the first group.
+function formatSchedule(hoursString) {
+  if (!hoursString) return null;
+  return hoursString.split(",")[0]?.trim() || null;
+}
+
+function getListingMetaText(item, remainingTickets) {
+  switch (item.listing_type) {
+    case "stay": {
+      const stay = oneOf(item.stays);
+      const rooms = stay.available_rooms ?? 0;
+      const guests = stay.max_guests ?? 0;
+      return `${rooms} room${rooms !== 1 ? "s" : ""} available`;
+    }
+    case "event": {
+      const event = oneOf(item.events);
+      const dateStr = formatEventDate(event.event_time);
+      if (event.capacity && remainingTickets != null) {
+        return `${dateStr} - ${remainingTickets} ticket${remainingTickets === 1 ? "" : "s"} left`;
+      }
+      return dateStr;
+    }
+    case "offering": {
+      const offering = oneOf(item.offering);
+      return formatSchedule(`${offering.opening_hours}:00 to ${offering.closing_hours}:00`) || "Schedule varies";
     }
     default:
       return "Listing";
@@ -323,6 +369,7 @@ const getStyles = (theme) => StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
+    backgroundColor: "#2929295a",
     justifyContent: "center",
     alignItems: "center",
   },
@@ -378,9 +425,9 @@ const getStyles = (theme) => StyleSheet.create({
     marginLeft: -8,
   },
   bookButton: {
-    backgroundColor: "#000",
+    backgroundColor: "#47464607",
     borderRadius: 999,
-    padding: 10,
+    padding: 3,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -400,6 +447,8 @@ const getStyles = (theme) => StyleSheet.create({
     paddingVertical: 3,
     borderRadius: 4,
     borderWidth: 1,
+    borderColor: theme.colors.border,
+    backgroundColor: theme.colors.surfaceAlt,
   },
   captionMeta: {
     fontSize: 12,
@@ -412,14 +461,15 @@ const getStyles = (theme) => StyleSheet.create({
     marginBottom: 4,
   },
   captionText: {
+    fontWeight: "400",
     fontSize: 13,
     color: theme.colors.text,
     lineHeight: 18,
     marginBottom: 6,
   },
   viewMore: {
-    fontSize: 13,
-    color: theme.colors.primary,
-    fontWeight: "600",
+    fontSize: 14,
+    color: theme.colors.text,
+    fontWeight: "900",
   },
 });

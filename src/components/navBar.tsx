@@ -139,7 +139,7 @@ export default function NavBar({ showSearch = true, onSearchPress, searchPlaceho
 								<Ionicons name="search" size={20} color={burgundyTheme.colors.primary} />
 								<TextInput
 									style={styles.textInput}
-									placeholder="Search listings, events, offerings..."
+									placeholder="Search listings, events, activities..."
 									value={searchQuery}
 									onChangeText={handleSearchInput}
 									placeholderTextColor={burgundyTheme.colors.textSubtle}
@@ -186,7 +186,7 @@ export default function NavBar({ showSearch = true, onSearchPress, searchPlaceho
 														? 'home'
 														: listing.listing_type === 'event'
 															? 'calendar'
-															: 'briefcase'
+															: 'compass'
 												}
 												size={16}
 												color={getListingTypeColor(listing.listing_type)}
@@ -197,7 +197,9 @@ export default function NavBar({ showSearch = true, onSearchPress, searchPlaceho
 												{listing.title}
 											</Text>
 											<Text style={styles.suggestionType}>
-												{listing.listing_type.charAt(0).toUpperCase() + listing.listing_type.slice(1)}
+												{listing.listing_type === 'offering'
+														? 'Activity'
+														: listing.listing_type.charAt(0).toUpperCase() + listing.listing_type.slice(1)}
 											</Text>
 										</View>
 										<Text style={styles.suggestionPrice}>${listing.price}</Text>

@@ -91,7 +91,7 @@ export default function CardInteractionMenu({ visible, listing, onAction, onClos
               </Text>
               <View style={[styles.typePill, { backgroundColor: `${theme.colors.primary}18` }]}>
                 <Text style={[styles.typeText, { color: theme.colors.primary }]}>
-                  {listing.listing_type?.toUpperCase()}
+                  {listing.listing_type === 'offering' ? 'ACTIVITY' : listing.listing_type?.toUpperCase()}
                 </Text>
               </View>
             </View>

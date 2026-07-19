@@ -1,4 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
+import DateTimePicker from '@react-native-community/datetimepicker';
+import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import { useCurrency } from '../../context/CurrencyContext';
 import {
@@ -15,19 +17,63 @@ import { supabase } from '../../../lib/supabase';
 import bookingService from '../../../src/services/bookingService';
 import { useAppMode } from '../../context/AppModeContext';
 
+const toDateOnlyString = (date) => date.toISOString().split('T')[0];
+const pad2 = (n) => n.toString().padStart(2, '0');
+const toTimeString = (date) => `${pad2(date.getHours())}:${pad2(date.getMinutes())}`;
+
 export default function OfferingBookingModal({ listing, offeringDetails, onClose, onConfirm }) {
   const { theme } = useAppMode();
+  const router = useRouter();
   const OFFERING_ACCENT = theme.listingTypeColors.offering;
   const styles = getStyles(theme, OFFERING_ACCENT);
   const { formatPrice } = useCurrency();
-  const [serviceDate, setServiceDate] = useState(new Date().toISOString().split('T')[0]);
-  const [serviceTime, setServiceTime] = useState('10:00');
+  const [serviceDate, setServiceDate] = useState(() => toDateOnlyString(new Date()));
+  const [serviceTimeObj, setServiceTimeObj] = useState(() => {
+    const d = new Date();
+    d.setMinutes(d.getMinutes() + 30, 0, 0);
+    return d;
+  });
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [showTimePicker, setShowTimePicker] = useState(false);
   const [quantity, setQuantity] = useState('1');
   const [specialRequests, setSpecialRequests] = useState('');
   const [guestName, setGuestName] = useState('');
   const [guestEmail, setGuestEmail] = useState('');
   const [guestPhone, setGuestPhone] = useState('');
   const [processing, setProcessing] = useState(false);
+  const [submittedBooking, setSubmittedBooking] = useState(null);
+  const [remainingSlots, setRemainingSlots] = useState(null);
+
+  const serviceTime = toTimeString(serviceTimeObj);
+  const today = toDateOnlyString(new Date());
+  const isToday = serviceDate === today;
+
+  const handleDateChange = (event, selectedDate) => {
+    setShowDatePicker(false);
+    if (event.type === 'dismissed' || !selectedDate) return;
+    const iso = toDateOnlyString(selectedDate);
+    setServiceDate(iso);
+    // If moving to today and the current time selection has already passed, push it forward.
+    const now = new Date();
+    if (iso === toDateOnlyString(now) && serviceTimeObj <= now) {
+      const bumped = new Date(now);
+      bumped.setMinutes(bumped.getMinutes() + 30, 0, 0);
+      setServiceTimeObj(bumped);
+    }
+  };
+
+  const handleTimeChange = (event, selectedTime) => {
+    setShowTimePicker(false);
+    if (event.type === 'dismissed' || !selectedTime) return;
+    if (isToday && selectedTime <= new Date()) {
+      // Can't pick a time that's already passed today — silently clamp to the earliest valid time.
+      const bumped = new Date();
+      bumped.setMinutes(bumped.getMinutes() + 30, 0, 0);
+      setServiceTimeObj(bumped);
+      return;
+    }
+    setServiceTimeObj(selectedTime);
+  };
 
   useEffect(() => {
     (async () => {
@@ -53,7 +99,25 @@ export default function OfferingBookingModal({ listing, offeringDetails, onClose
     })();
   }, []);
 
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      if (!serviceDate || !serviceTime) return;
+      const res = await bookingService.checkOfferingAvailability({
+        listingId: listing.id,
+        quantity: 0,
+        reservationTime: `${serviceDate}T${serviceTime}:00.000Z`,
+      });
+      if (!cancelled) setRemainingSlots(Number.isFinite(res.remaining) ? res.remaining : null);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [listing.id, serviceDate, serviceTime]);
+
   const estimatedPrice = listing.price || 0;
+  const maxQuantity = remainingSlots == null ? 99 : Math.max(0, remainingSlots);
+  const soldOut = remainingSlots != null && remainingSlots <= 0;
 
   const handleConfirm = async () => {
     if (!serviceDate || !serviceTime) {
@@ -65,7 +129,7 @@ export default function OfferingBookingModal({ listing, offeringDetails, onClose
       const { data: userData, error: userErr } = await supabase.auth.getUser();
       const userId = userData?.user?.id || null;
       if (userErr || !userId) {
-        alert('You must be signed in to request this service.');
+        alert('You must be signed in to request this activity.');
         return;
       }
 
@@ -93,11 +157,20 @@ export default function OfferingBookingModal({ listing, offeringDetails, onClose
         return;
       }
 
-      onConfirm && onConfirm(res.data);
-      onClose && onClose();
+      setSubmittedBooking(res.data);
     } finally {
       setProcessing(false);
     }
+  };
+
+  const handleViewStatus = () => {
+    router.push('/bookings');
+    onClose && onClose();
+  };
+
+  const handleDone = () => {
+    onConfirm && onConfirm(submittedBooking);
+    onClose && onClose();
   };
 
   const formatDate = (dateString) =>
@@ -107,6 +180,39 @@ export default function OfferingBookingModal({ listing, offeringDetails, onClose
       day: 'numeric',
     });
 
+  if (submittedBooking) {
+    return (
+      <Modal visible transparent animationType="slide">
+        <SafeAreaView style={styles.container}>
+          <View style={styles.header}>
+            <TouchableOpacity onPress={onClose}>
+              <Ionicons name="chevron-back" size={24} color={theme.colors.text} />
+            </TouchableOpacity>
+            <View style={styles.headerSpacer} />
+          </View>
+          <View style={styles.successContainer}>
+            <View style={[styles.successIcon, { backgroundColor: OFFERING_ACCENT + '22' }]}>
+              <Ionicons name="checkmark-circle" size={56} color={OFFERING_ACCENT} />
+            </View>
+            <Text style={styles.successTitle}>Request Sent</Text>
+            <Text style={styles.successBody}>
+              Your request has been sent to the provider. You&apos;ll be notified once it&apos;s approved.
+            </Text>
+            <Text style={styles.successRef}>{submittedBooking.booking_ref}</Text>
+          </View>
+          <View style={styles.footer}>
+            <TouchableOpacity style={styles.button} onPress={handleViewStatus}>
+              <Text style={styles.buttonText}>View Status</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.secondaryButton} onPress={handleDone}>
+              <Text style={styles.secondaryButtonText}>Done</Text>
+            </TouchableOpacity>
+          </View>
+        </SafeAreaView>
+      </Modal>
+    );
+  }
+
   return (
     <Modal visible transparent animationType="slide">
       <SafeAreaView style={styles.container}>
@@ -115,15 +221,15 @@ export default function OfferingBookingModal({ listing, offeringDetails, onClose
             <TouchableOpacity onPress={onClose}>
               <Ionicons name="close" size={24} color={theme.colors.text} />
             </TouchableOpacity>
-            <Text style={styles.title}>Book Service</Text>
+            <Text style={styles.title}>Book Activity</Text>
             <View style={styles.headerSpacer} />
           </View>
 
           <View style={styles.serviceCard}>
             <View style={styles.serviceBadge}>
-              <Ionicons name="briefcase" size={14} color={theme.colors.white} />
+              <Ionicons name="compass" size={14} color={theme.colors.white} />
               <Text style={styles.badgeText}>
-                {offeringDetails.service_type?.toUpperCase() || 'SERVICE'}
+                {offeringDetails.service_type?.toUpperCase() || 'ACTIVITY'}
               </Text>
             </View>
             <Text style={styles.serviceTitle}>{listing.title}</Text>
@@ -134,40 +240,48 @@ export default function OfferingBookingModal({ listing, offeringDetails, onClose
               <Ionicons name="person-circle" size={36} color={OFFERING_ACCENT} />
               <View style={styles.providerCopy}>
                 <Text style={styles.providerName}>
-                  {listing.profiles?.firstname || 'Service Provider'}
+                  {listing.profiles?.firstname || 'Activity Host'}
                 </Text>
-                <Text style={styles.providerRole}>Professional Service Provider</Text>
+                <Text style={styles.providerRole}>Professional Activity Host</Text>
               </View>
             </View>
           </View>
 
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Schedule Service</Text>
+            <Text style={styles.sectionTitle}>Schedule Activity</Text>
             <View style={styles.dateTimeRow}>
               <View style={styles.dateField}>
                 <Text style={styles.label}>Date</Text>
-                <TextInput
-                  style={styles.input}
-                  value={serviceDate}
-                  onChangeText={setServiceDate}
-                  placeholder="YYYY-MM-DD"
-                  placeholderTextColor={theme.colors.textSubtle}
-                />
+                <TouchableOpacity style={styles.input} onPress={() => setShowDatePicker(true)}>
+                  <Text style={{ color: theme.colors.text }}>{serviceDate}</Text>
+                </TouchableOpacity>
               </View>
               <View style={styles.timeField}>
                 <Text style={styles.label}>Time</Text>
-                <TextInput
-                  style={styles.input}
-                  value={serviceTime}
-                  onChangeText={setServiceTime}
-                  placeholder="HH:MM"
-                  placeholderTextColor={theme.colors.textSubtle}
-                />
+                <TouchableOpacity style={styles.input} onPress={() => setShowTimePicker(true)}>
+                  <Text style={{ color: theme.colors.text }}>{serviceTime}</Text>
+                </TouchableOpacity>
               </View>
             </View>
             <Text style={styles.dateInfo}>
               {formatDate(serviceDate)} at {serviceTime}
             </Text>
+            {showDatePicker && (
+              <DateTimePicker
+                value={new Date(serviceDate)}
+                mode="date"
+                minimumDate={new Date(today)}
+                onChange={handleDateChange}
+              />
+            )}
+            {showTimePicker && (
+              <DateTimePicker
+                value={serviceTimeObj}
+                mode="time"
+                minimumDate={isToday ? new Date() : undefined}
+                onChange={handleTimeChange}
+              />
+            )}
           </View>
 
           <View style={styles.section}>
@@ -179,10 +293,18 @@ export default function OfferingBookingModal({ listing, offeringDetails, onClose
                 <Ionicons name="remove" size={24} color={OFFERING_ACCENT} />
               </TouchableOpacity>
               <Text style={styles.counterValue}>{quantity}</Text>
-              <TouchableOpacity onPress={() => setQuantity((parseInt(quantity, 10) + 1).toString())}>
+              <TouchableOpacity
+                onPress={() => setQuantity(Math.min(maxQuantity, parseInt(quantity, 10) + 1).toString())}
+                disabled={parseInt(quantity, 10) >= maxQuantity}
+              >
                 <Ionicons name="add" size={24} color={OFFERING_ACCENT} />
               </TouchableOpacity>
             </View>
+            {remainingSlots != null && (
+              <Text style={soldOut ? styles.soldOutText : styles.availabilityText}>
+                {soldOut ? 'This time slot is fully booked' : `${remainingSlots} slot${remainingSlots === 1 ? '' : 's'} left at this time`}
+              </Text>
+            )}
           </View>
 
           <View style={styles.section}>
@@ -234,22 +356,28 @@ export default function OfferingBookingModal({ listing, offeringDetails, onClose
                 <Text style={styles.priceValue}>{estimatedPrice ? formatPrice(estimatedPrice) : 'TBD'}</Text>
               </View>
               <Text style={styles.priceNote}>
-                Final price will be confirmed by the service provider
+                Final price will be confirmed by the activity host
               </Text>
             </View>
           </View>
 
           <View style={styles.termsContainer}>
             <Text style={styles.termsText}>
-              By requesting this service, you agree to the service provider&apos;s terms and
+              By requesting this activity, you agree to the activity host&apos;s terms and
               conditions.
             </Text>
           </View>
         </ScrollView>
 
         <View style={styles.footer}>
-          <TouchableOpacity style={[styles.button, processing && styles.buttonDisabled]} onPress={handleConfirm} disabled={processing}>
-            <Text style={styles.buttonText}>{processing ? 'Submitting...' : 'Request Service'}</Text>
+          <TouchableOpacity
+            style={[styles.button, (processing || soldOut) && styles.buttonDisabled]}
+            onPress={handleConfirm}
+            disabled={processing || soldOut}
+          >
+            <Text style={styles.buttonText}>
+              {soldOut ? 'Fully Booked' : processing ? 'Submitting...' : 'Request Activity'}
+            </Text>
           </TouchableOpacity>
         </View>
       </SafeAreaView>
@@ -466,5 +594,59 @@ const getStyles = (theme, OFFERING_ACCENT) => StyleSheet.create({
     fontSize: 16,
     fontWeight: '700',
     color: theme.colors.white,
+  },
+  secondaryButton: {
+    marginTop: 10,
+    padding: 14,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  secondaryButtonText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: theme.colors.textMuted,
+  },
+  availabilityText: {
+    fontSize: 12,
+    color: theme.colors.textMuted,
+    marginTop: 8,
+  },
+  soldOutText: {
+    fontSize: 12,
+    color: theme.colors.error || '#EF4444',
+    marginTop: 8,
+    fontWeight: '600',
+  },
+  successContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 32,
+  },
+  successIcon: {
+    width: 96,
+    height: 96,
+    borderRadius: 48,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 20,
+  },
+  successTitle: {
+    fontSize: 22,
+    fontWeight: '800',
+    color: theme.colors.text,
+    marginBottom: 10,
+  },
+  successBody: {
+    fontSize: 14,
+    color: theme.colors.textMuted,
+    textAlign: 'center',
+    lineHeight: 20,
+    marginBottom: 16,
+  },
+  successRef: {
+    fontSize: 12,
+    color: theme.colors.textSubtle,
+    fontWeight: '600',
   },
 });
