@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { FlatList, RefreshControl, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { RefreshControl, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useAppData } from '../../context/AppDataContext';
 import { useAppMode } from '../../context/AppModeContext';
 import { InteractionService } from '../../services/interactionService';
@@ -11,6 +11,39 @@ import EventDetail from '../details/EventDetail';
 import OfferingDetail from '../details/OfferingDetail';
 
 const NUM_COLUMNS = 2;
+const LOAD_MORE_THRESHOLD = 500;
+const MIN_ASPECT_RATIO = 0.62;
+const MAX_ASPECT_RATIO = 1.4;
+const SKELETON_RATIOS = [1.3, 0.8, 0.7, 1.1, 1.35, 0.9];
+
+// Deterministic pseudo-random aspect ratio per listing so heights vary
+// (pinterest-style) but stay stable across re-renders for the same item.
+function getAspectRatio(id) {
+  const str = String(id);
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    hash = (hash * 31 + str.charCodeAt(i)) | 0;
+  }
+  const normalized = (Math.abs(hash) % 1000) / 1000;
+  return MIN_ASPECT_RATIO + normalized * (MAX_ASPECT_RATIO - MIN_ASPECT_RATIO);
+}
+
+// Greedily distributes listings across columns, always appending to the
+// column with the smallest estimated running height, so columns stay
+// visually balanced like a Pinterest/masonry grid.
+function distributeIntoColumns(listings, numColumns) {
+  const columns = Array.from({ length: numColumns }, () => []);
+  const heights = Array(numColumns).fill(0);
+  listings.forEach((item) => {
+    let shortest = 0;
+    for (let i = 1; i < numColumns; i++) {
+      if (heights[i] < heights[shortest]) shortest = i;
+    }
+    columns[shortest].push(item);
+    heights[shortest] += getAspectRatio(item.id) * 100 + 70;
+  });
+  return columns;
+}
 
 export default function Explore({ onItemClick }) {
   const { theme } = useAppMode();
@@ -107,23 +140,40 @@ export default function Explore({ onItemClick }) {
     }
   }, [refreshing, isReady, contextListings, contextHasMore]);
 
-  const renderItem = useCallback(({ item }) => (
-    <View style={styles.gridItem}>
-      <ExploreCard
-        item={item}
-        onPress={() => handleCardPress(item)}
-        isFavorited={favoritedIds.has(item.id)}
-        onInteractionAction={handleInteractionAction}
-      />
-    </View>
+  const handleScroll = useCallback((event) => {
+    const { contentOffset, contentSize, layoutMeasurement } = event.nativeEvent;
+    const distanceFromBottom = contentSize.height - (contentOffset.y + layoutMeasurement.height);
+    if (distanceFromBottom < LOAD_MORE_THRESHOLD) {
+      loadMore();
+    }
+  }, [loadMore]);
+
+  const columns = useMemo(
+    () => distributeIntoColumns(listings, NUM_COLUMNS),
+    [listings]
+  );
+
+  const renderCard = useCallback((item) => (
+    <ExploreCard
+      key={item.id}
+      item={item}
+      aspectRatio={getAspectRatio(item.id)}
+      onPress={() => handleCardPress(item)}
+      isFavorited={favoritedIds.has(item.id)}
+      onInteractionAction={handleInteractionAction}
+    />
   ), [favoritedIds, handleCardPress, handleInteractionAction]);
 
   const renderFooter = () => {
     if (loadingMore) {
       return (
-        <View style={styles.skeletonRow}>
-          <View style={styles.gridItem}><GridCardSkeleton /></View>
-          <View style={styles.gridItem}><GridCardSkeleton /></View>
+        <View style={styles.masonryRow}>
+          <View style={styles.column}>
+            <GridCardSkeleton aspectRatio={1.2} />
+          </View>
+          <View style={styles.column}>
+            <GridCardSkeleton aspectRatio={0.85} />
+          </View>
         </View>
       );
     }
@@ -144,17 +194,17 @@ export default function Explore({ onItemClick }) {
   if (!isReady || listings.length === 0) {
     return (
       <View style={styles.container}>
-        <View style={styles.skeletonRow}>
-          <View style={styles.gridItem}><GridCardSkeleton /></View>
-          <View style={styles.gridItem}><GridCardSkeleton /></View>
-        </View>
-        <View style={styles.skeletonRow}>
-          <View style={styles.gridItem}><GridCardSkeleton /></View>
-          <View style={styles.gridItem}><GridCardSkeleton /></View>
-        </View>
-        <View style={styles.skeletonRow}>
-          <View style={styles.gridItem}><GridCardSkeleton /></View>
-          <View style={styles.gridItem}><GridCardSkeleton /></View>
+        <View style={styles.masonryRow}>
+          <View style={styles.column}>
+            {SKELETON_RATIOS.filter((_, i) => i % 2 === 0).map((ratio, i) => (
+              <GridCardSkeleton key={`l-${i}`} aspectRatio={ratio} />
+            ))}
+          </View>
+          <View style={styles.column}>
+            {SKELETON_RATIOS.filter((_, i) => i % 2 === 1).map((ratio, i) => (
+              <GridCardSkeleton key={`r-${i}`} aspectRatio={ratio} />
+            ))}
+          </View>
         </View>
       </View>
     );
@@ -163,22 +213,11 @@ export default function Explore({ onItemClick }) {
   return (
     <>
       <View style={styles.container}>
-        <FlatList
-          data={listings}
-          keyExtractor={(item) => String(item?.id)}
-          renderItem={renderItem}
-          numColumns={NUM_COLUMNS}
-          columnWrapperStyle={styles.row}
-          ListFooterComponent={renderFooter}
-          onEndReached={loadMore}
-          onEndReachedThreshold={0.3}
-          showsVerticalScrollIndicator={false}
+        <ScrollView
           contentContainerStyle={styles.gridContent}
-          extraData={favoritedIds}
-          removeClippedSubviews
-          maxToRenderPerBatch={6}
-          windowSize={7}
-          initialNumToRender={12}
+          showsVerticalScrollIndicator={false}
+          onScroll={handleScroll}
+          scrollEventThrottle={16}
           refreshControl={
             <RefreshControl
               refreshing={refreshing}
@@ -187,7 +226,16 @@ export default function Explore({ onItemClick }) {
               colors={[theme.colors.primary]}
             />
           }
-        />
+        >
+          <View style={styles.masonryRow}>
+            {columns.map((column, columnIndex) => (
+              <View key={columnIndex} style={styles.column}>
+                {column.map(renderCard)}
+              </View>
+            ))}
+          </View>
+          {renderFooter()}
+        </ScrollView>
       </View>
       {selectedListing && detailsType === 'stay' && (
         <StayDetail listing={selectedListing} onClose={handleCloseDetails} />
@@ -212,20 +260,12 @@ const getStyles = (theme) => StyleSheet.create({
     paddingTop: 8,
     paddingBottom: 80,
   },
-  row: {
-    justifyContent: 'space-between',
-    marginBottom: 10,
-  },
-  gridItem: {
-    flex: 1,
-    marginHorizontal: 4,
-  },
-  skeletonRow: {
+  masonryRow: {
     flexDirection: 'row',
-    paddingHorizontal: 12,
-    gap: 10,
-    marginBottom: 10,
-    marginTop: 8,
+    gap: 8,
+  },
+  column: {
+    flex: 1,
   },
   footer: {
     paddingVertical: 24,

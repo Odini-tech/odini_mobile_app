@@ -7,7 +7,7 @@ import { useCurrency } from '../context/CurrencyContext';
 import { InteractionService } from '../services/interactionService';
 import CardInteractionMenu from './shared/CardInteractionMenu';
 
-const ExploreCard = React.memo(function ExploreCard({ item, onPress, onInteractionAction, isFavorited: propIsFavorited }) {
+const ExploreCard = React.memo(function ExploreCard({ item, onPress, onInteractionAction, isFavorited: propIsFavorited, aspectRatio = 0.75 }) {
   const { theme } = useAppMode();
   const styles = getStyles(theme);
   const { formatPrice } = useCurrency();
@@ -93,7 +93,7 @@ const ExploreCard = React.memo(function ExploreCard({ item, onPress, onInteracti
           delayLongPress={350}
           activeOpacity={0.85}
         >
-          <View style={styles.imageContainer}>
+          <View style={[styles.imageContainer, { aspectRatio }]}>
             {imageUrl ? (
               <Image source={{ uri: imageUrl }} style={styles.image} />
             ) : (

@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   Animated,
   Dimensions,
@@ -31,7 +31,7 @@ const Home = () => {
   const [pendingAction, setPendingAction] = useState(null);
   const [recMode, setRecMode] = useState(() => getRecommendationModeStatus().mode);
   const pagerRef = useRef(null);
-  const indicatorAnim = useRef(new Animated.Value(width / 3)).current;
+  const indicatorAnim = useRef(new Animated.Value(width / 3 + width / 12)).current;
   const labelsAnim = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
@@ -63,7 +63,7 @@ const Home = () => {
     setActiveTab(index);
     pagerRef.current?.setPage(index);
     Animated.spring(indicatorAnim, {
-      toValue: (width / 3) * index,
+      toValue: (width / 3) * index + width / 12,
       useNativeDriver: true,
       tension: 50,
       friction: 7,
@@ -87,7 +87,7 @@ const Home = () => {
     const index = e.nativeEvent.position;
     setActiveTab(index);
     Animated.spring(indicatorAnim, {
-      toValue: (width / 3) * index,
+      toValue: (width / 3) * index + width / 12,
       useNativeDriver: true,
       tension: 50,
       friction: 7,
@@ -177,11 +177,15 @@ const getStyles = (theme, insets) =>
     tabsRow: {
       flexDirection: 'row',
       height: '100%',
+      paddingHorizontal: 6,
+      alignItems: 'center',
+      justifyContent: 'space-evenly',
     },
     tabButton: {
-      width: width / 3,
+      flex: 1,
       alignItems: 'center',
       justifyContent: 'center',
+      paddingVertical: 4,
     },
     tabLabel: {
       color: theme.colors.textMuted,
@@ -189,8 +193,8 @@ const getStyles = (theme, insets) =>
       fontWeight: '600',
     },
     activeTabLabel: {
-      color: theme.colors.primary,
-      fontWeight: 'bold',
+      color: '#FFFFFF',
+      fontWeight: '800',
     },
     recDotWrapper: {
       position: 'absolute',
@@ -216,7 +220,7 @@ const getStyles = (theme, insets) =>
       position: 'absolute',
       left: 0,
       top: 0,
-      width: width / 3,
+      width: width / 6,
       height: 3,
       backgroundColor: theme.colors.primary,
       borderRadius: 999,

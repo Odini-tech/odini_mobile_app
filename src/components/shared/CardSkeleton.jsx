@@ -50,13 +50,13 @@ export function FeedCardSkeleton() {
 }
 
 /** Smaller skeleton for the explore grid card */
-export function GridCardSkeleton() {
+export function GridCardSkeleton({ aspectRatio = 1.2 }) {
   const { theme } = useAppMode();
   const styles = getStyles(theme);
   const opacity = useShimmer();
   return (
     <Animated.View style={[styles.gridCard, { opacity }]}>
-      <View style={styles.gridImage} />
+      <View style={[styles.gridImage, { aspectRatio }]} />
       <View style={styles.gridCaption}>
         <View style={[styles.line, { width: '75%', marginBottom: 6 }]} />
         <View style={[styles.line, { width: '45%', height: 10 }]} />

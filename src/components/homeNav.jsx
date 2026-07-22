@@ -1,4 +1,3 @@
-import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import burgundyTheme from '../theme/burgundyTheme';
 
@@ -42,7 +41,7 @@ const styles = StyleSheet.create({
     backgroundColor: burgundyTheme.colors.primaryTint,
   },
   label: {
-    fontSize: 14,
+    fontSize: 1,
     fontWeight: '600',
     color: burgundyTheme.colors.textMuted,
   },
