@@ -8,6 +8,7 @@ export default function BottomNav({
   onHomePress = () => {},
   onChatPress = () => {},
   onSearchPress = () => {},
+  onNotificationsPress = () => {},
   onProfilePress = () => {},
 }) {
   const segments = useSegments();
@@ -21,10 +22,11 @@ export default function BottomNav({
   };
 
   const NAV_ITEMS = [
-    { name: 'home',    icon: 'home-outline',       label: 'Home',     onPress: onHomePress },
-    { name: 'chat',    icon: 'chatbubble-outline',  label: 'Advisory', onPress: onChatPress },
-    { name: 'search',  icon: 'search-outline',      label: 'Search',   onPress: onSearchPress },
-    { name: 'profile', icon: 'person-outline',      label: 'Profile',  onPress: onProfilePress },
+    { name: 'home',          icon: 'home-outline',          label: 'Home',     onPress: onHomePress },
+    { name: 'chat',          icon: 'chatbubble-outline',    label: 'Advisory', onPress: onChatPress },
+    { name: 'search',        icon: 'search-outline',        label: 'Search',   onPress: onSearchPress },
+    { name: 'notifications', icon: 'notifications-outline', label: 'Alerts',   onPress: onNotificationsPress },
+    { name: 'profile',       icon: 'person-outline',        label: 'Profile',  onPress: onProfilePress },
   ];
 
   return (
@@ -42,7 +44,7 @@ export default function BottomNav({
             <Ionicons
               name={icon}
               size={24}
-              color={active ? theme.colors.primary : theme.colors.textMuted}
+              color={active ? theme.colors.text : theme.colors.textMuted}
             />
             <Text style={[styles.label, active && styles.labelActive]}>{label}</Text>
           </Pressable>
@@ -73,7 +75,7 @@ const getStyles = (theme, insets) =>
       paddingVertical: 6,
     },
     buttonActive: {
-      backgroundColor: theme.colors.primaryTint,
+      backgroundColor: theme.colors.surfaceAlt,
     },
     label: {
       fontSize: 11,
@@ -81,7 +83,7 @@ const getStyles = (theme, insets) =>
       marginTop: 4,
     },
     labelActive: {
-      color: theme.colors.primary,
+      color: theme.colors.text,
       fontWeight: '700',
     },
   });

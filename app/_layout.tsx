@@ -65,6 +65,10 @@ function RootLayoutContent() {
     router.push("/chat" as any);
   };
 
+  const handleNotifications = () => {
+    router.push("/notifications" as any);
+  };
+
   const handleSignOut = async () => {
     try {
       await clearMode();
@@ -124,6 +128,7 @@ function RootLayoutContent() {
               onHomePress={handleHome}
               onChatPress={handleChat}
               onSearchPress={handleSearch}
+              onNotificationsPress={handleNotifications}
               onProfilePress={handleProfile}
             />
           </Animated.View>

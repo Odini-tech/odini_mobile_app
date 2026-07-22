@@ -20,6 +20,7 @@ import { useAppData } from '../../context/AppDataContext';
 import { useAppMode } from '../../context/AppModeContext';
 import { useCurrency } from '../../context/CurrencyContext';
 import { InteractionService } from '../../services/interactionService';
+import { formatEventDateSmart } from '../../utils/dateFormat';
 import EventDetail from '../details/EventDetail';
 import OfferingDetail from '../details/OfferingDetail';
 import StayDetail from '../details/StayDetail';
@@ -210,14 +211,17 @@ export default function Dash({ onItemClick }: { onItemClick?: (listing: Listing)
       rejected: '#EF4444',
     };
     const statusColor = statusColors[booking.status] || '#6B7280';
+    const listingType = listing?.listing_type || booking.listing_type;
     const dateStr = booking.check_in || booking.event_slot || booking.reservation_time || booking.created_at;
     const displayDate = dateStr
-      ? new Date(dateStr).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })
+      ? listingType === 'event'
+        ? formatEventDateSmart(dateStr)
+        : new Date(dateStr).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })
       : null;
     const typeColor =
-      (listing?.listing_type || booking.listing_type) === 'event'
+      listingType === 'event'
         ? '#A63456'
-        : (listing?.listing_type || booking.listing_type) === 'offering'
+        : listingType === 'offering'
         ? '#8B4B61'
         : '#7A1E3A';
 
@@ -306,9 +310,7 @@ export default function Dash({ onItemClick }: { onItemClick?: (listing: Listing)
           {locationText ? (
             <Text style={styles.cardLocation} numberOfLines={1}>{locationText}</Text>
           ) : null}
-          {listing.price ? (
-            <Text style={[styles.cardPrice, { color: accent }]}>{formatPrice(listing.price)}</Text>
-          ) : null}
+          <Text style={[styles.cardPrice, { color: theme.colors.text }]}>{formatPrice(listing.price)}</Text>
         </View>
       </TouchableOpacity>
     );
@@ -317,7 +319,7 @@ export default function Dash({ onItemClick }: { onItemClick?: (listing: Listing)
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={theme.colors.primary} />
+        <ActivityIndicator size="large" color={theme.colors.textMuted} />
       </View>
     );
   }
@@ -333,7 +335,7 @@ export default function Dash({ onItemClick }: { onItemClick?: (listing: Listing)
           <RefreshControl
             refreshing={refreshing}
             onRefresh={handleRefresh}
-            tintColor={theme.colors.primary}
+            tintColor={theme.colors.textMuted}
           />
         }
       >
@@ -402,7 +404,7 @@ export default function Dash({ onItemClick }: { onItemClick?: (listing: Listing)
                 <Text style={styles.sectionSubtitle}>Places you&apos;ve saved</Text>
               </View>
               {favoritePlaces.length > 4 && (
-                <TouchableOpacity onPress={() => handleShowAll('favorites')}>
+                <TouchableOpacity style={styles.showAllBtn} onPress={() => handleShowAll('favorites')}>
                   <Text style={styles.showAllText}>
                     {expandedSection === 'favorites' ? 'Show less' : 'See all'}
                   </Text>
@@ -429,7 +431,7 @@ export default function Dash({ onItemClick }: { onItemClick?: (listing: Listing)
             <View style={styles.sectionHeader}>
               <Text style={styles.sectionTitle}>Recently Viewed</Text>
               {recentlyViewed.length > 4 && (
-                <TouchableOpacity onPress={() => handleShowAll('recent')}>
+                <TouchableOpacity style={styles.showAllBtn} onPress={() => handleShowAll('recent')}>
                   <Text style={styles.showAllText}>
                     {expandedSection === 'recent' ? 'Show less' : 'Show all'}
                   </Text>
@@ -455,7 +457,7 @@ export default function Dash({ onItemClick }: { onItemClick?: (listing: Listing)
                 <Text style={styles.sectionSubtitle}>Events near you</Text>
               </View>
               {upcomingEvents.length > 4 && (
-                <TouchableOpacity onPress={() => handleShowAll('events')}>
+                <TouchableOpacity style={styles.showAllBtn} onPress={() => handleShowAll('events')}>
                   <Text style={styles.showAllText}>
                     {expandedSection === 'events' ? 'Show less' : 'View all'}
                   </Text>
@@ -483,7 +485,7 @@ export default function Dash({ onItemClick }: { onItemClick?: (listing: Listing)
                 </Text>
               </View>
               {madeForYou.length > 4 && (
-                <TouchableOpacity onPress={() => handleShowAll('foryou')}>
+                <TouchableOpacity style={styles.showAllBtn} onPress={() => handleShowAll('foryou')}>
                   <Text style={styles.showAllText}>
                     {expandedSection === 'foryou' ? 'Show less' : 'See more'}
                   </Text>
@@ -511,7 +513,7 @@ export default function Dash({ onItemClick }: { onItemClick?: (listing: Listing)
                   <Text style={styles.sectionSubtitle}>{mix.reason}</Text>
                 </View>
                 {mix.items.length > 4 && (
-                  <TouchableOpacity onPress={() => handleShowAll(sectionId)}>
+                  <TouchableOpacity style={styles.showAllBtn} onPress={() => handleShowAll(sectionId)}>
                     <Text style={styles.showAllText}>
                       {expandedSection === sectionId ? 'Show less' : 'See all'}
                     </Text>
@@ -539,7 +541,7 @@ export default function Dash({ onItemClick }: { onItemClick?: (listing: Listing)
                 <Text style={styles.sectionTitle}>Your Trips</Text>
                 <Text style={styles.sectionSubtitle}>Recent bookings</Text>
               </View>
-              <TouchableOpacity onPress={() => router.push('/bookings' as any)}>
+              <TouchableOpacity style={styles.showAllBtn} onPress={() => router.push('/bookings' as any)}>
                 <Text style={styles.showAllText}>View Status</Text>
               </TouchableOpacity>
             </View>
@@ -653,14 +655,14 @@ const getStyles = (theme: any) => StyleSheet.create({
   },
   checkoutButton: {
     marginTop: 18,
-    backgroundColor: theme.colors.primary,
+    backgroundColor: theme.colors.buttonBg,
     paddingVertical: 14,
     paddingHorizontal: 24,
     borderRadius: 28,
     alignSelf: 'flex-start',
   },
   checkoutButtonText: {
-    color: '#fff',
+    color: theme.colors.buttonText,
     fontWeight: '700',
     fontSize: 14,
   },
@@ -703,11 +705,17 @@ const getStyles = (theme: any) => StyleSheet.create({
     fontSize: 12,
     color: theme.colors.textMuted,
   },
+  showAllBtn: {
+    backgroundColor: theme.colors.buttonBg,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 14,
+    marginTop: 4,
+  },
   showAllText: {
     fontSize: 13,
-    color: theme.colors.primary,
+    color: theme.colors.buttonText,
     fontWeight: '600',
-    marginTop: 4,
   },
   horizontalScroll: {
     paddingRight: 14,

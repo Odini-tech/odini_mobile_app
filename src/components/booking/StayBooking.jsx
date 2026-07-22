@@ -41,8 +41,23 @@ export default function StayBookingModal({ listing, stayDetails, onClose, onConf
   const [processing, setProcessing] = useState(false);
   const [submittedBooking, setSubmittedBooking] = useState(null);
   const [remainingRooms, setRemainingRooms] = useState(null);
+  const [hasBookedBefore, setHasBookedBefore] = useState(false);
 
   const today = toDateOnlyString(new Date());
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const { data: authData } = await supabase.auth.getUser();
+      const userId = authData?.user?.id;
+      if (!userId) return;
+      const booked = await bookingService.hasUserBookedListing(userId, listing.id);
+      if (!cancelled) setHasBookedBefore(booked);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [listing.id]);
 
   const handleCheckInChange = (event, selectedDate) => {
     setShowCheckInPicker(false);
@@ -155,8 +170,8 @@ export default function StayBookingModal({ listing, stayDetails, onClose, onConf
             <View style={styles.headerSpacer} />
           </View>
           <View style={styles.successContainer}>
-            <View style={[styles.successIcon, { backgroundColor: STAY_ACCENT + '22' }]}>
-              <Ionicons name="checkmark-circle" size={56} color={STAY_ACCENT} />
+            <View style={[styles.successIcon, { backgroundColor: theme.colors.success + '22' }]}>
+              <Ionicons name="checkmark-circle" size={56} color={theme.colors.success} />
             </View>
             <Text style={styles.successTitle}>Request Sent</Text>
             <Text style={styles.successBody}>
@@ -233,14 +248,14 @@ export default function StayBookingModal({ listing, stayDetails, onClose, onConf
                   <TouchableOpacity
                     onPress={() => setGuestCount(Math.max(1, clampedGuestCount - 1).toString())}
                   >
-                    <Ionicons name="remove" size={20} color={STAY_ACCENT} />
+                    <Ionicons name="remove" size={20} color={theme.colors.text} />
                   </TouchableOpacity>
                   <Text style={styles.counterValue}>{clampedGuestCount}</Text>
                   <TouchableOpacity
                     onPress={() => setGuestCount(Math.min(maxGuests, clampedGuestCount + 1).toString())}
                     disabled={clampedGuestCount >= maxGuests}
                   >
-                    <Ionicons name="add" size={20} color={STAY_ACCENT} />
+                    <Ionicons name="add" size={20} color={theme.colors.text} />
                   </TouchableOpacity>
                 </View>
               </View>
@@ -250,14 +265,14 @@ export default function StayBookingModal({ listing, stayDetails, onClose, onConf
                   <TouchableOpacity
                     onPress={() => setRooms(Math.max(1, parseInt(rooms, 10) - 1).toString())}
                   >
-                    <Ionicons name="remove" size={20} color={STAY_ACCENT} />
+                    <Ionicons name="remove" size={20} color={theme.colors.text} />
                   </TouchableOpacity>
                   <Text style={styles.counterValue}>{rooms}</Text>
                   <TouchableOpacity
                     onPress={() => setRooms(Math.min(maxRooms, parseInt(rooms, 10) + 1).toString())}
                     disabled={parseInt(rooms, 10) >= maxRooms}
                   >
-                    <Ionicons name="add" size={20} color={STAY_ACCENT} />
+                    <Ionicons name="add" size={20} color={theme.colors.text} />
                   </TouchableOpacity>
                 </View>
               </View>
@@ -313,7 +328,11 @@ export default function StayBookingModal({ listing, stayDetails, onClose, onConf
             disabled={processing || soldOut}
           >
             <Text style={styles.buttonText}>
-              {soldOut ? 'No Rooms Available' : processing ? 'Sending Request...' : `Request to Book — ${formatPrice(total)}`}
+              {soldOut
+                ? 'No Rooms Available'
+                : processing
+                ? 'Sending Request...'
+                : `${hasBookedBefore ? 'Book Again' : 'Request to Book'} — ${formatPrice(total)}`}
             </Text>
           </TouchableOpacity>
         </View>
@@ -379,7 +398,7 @@ const getStyles = (theme, STAY_ACCENT) => StyleSheet.create({
   },
   nightsInfo: {
     fontSize: 12,
-    color: STAY_ACCENT,
+    color: theme.colors.textMuted,
     marginTop: 8,
     fontWeight: '600',
   },
@@ -452,7 +471,7 @@ const getStyles = (theme, STAY_ACCENT) => StyleSheet.create({
   totalValue: {
     fontSize: 18,
     fontWeight: '700',
-    color: STAY_ACCENT,
+    color: theme.colors.text,
   },
   footer: {
     padding: 16,
@@ -461,7 +480,7 @@ const getStyles = (theme, STAY_ACCENT) => StyleSheet.create({
     backgroundColor: theme.colors.surface,
   },
   button: {
-    backgroundColor: STAY_ACCENT,
+    backgroundColor: theme.colors.buttonBg,
     padding: 16,
     borderRadius: 12,
     alignItems: 'center',
@@ -469,7 +488,7 @@ const getStyles = (theme, STAY_ACCENT) => StyleSheet.create({
   buttonText: {
     fontSize: 16,
     fontWeight: '700',
-    color: theme.colors.white,
+    color: theme.colors.buttonText,
   },
   buttonDisabled: {
     opacity: 0.6,

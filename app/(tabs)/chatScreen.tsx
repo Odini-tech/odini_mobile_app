@@ -7,11 +7,11 @@ export default function ChatScreen() {
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
       <View style={[styles.banner, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
-        <View style={[styles.iconWrap, { backgroundColor: theme.colors.primaryTint }]}>
-          <Ionicons name="sparkles-outline" size={36} color={theme.colors.primary} />
+        <View style={[styles.iconWrap, { backgroundColor: theme.colors.surfaceAlt }]}>
+          <Ionicons name="sparkles-outline" size={36} color={theme.colors.textMuted} />
         </View>
         <Text style={[styles.title, { color: theme.colors.text }]}>Advisory</Text>
-        <Text style={[styles.subtitle, { color: theme.colors.primary }]}>Feature coming soon</Text>
+        <Text style={[styles.subtitle, { color: theme.colors.textMuted }]}>Feature coming soon</Text>
         <Text style={[styles.body, { color: theme.colors.textMuted }]}>
           Your personal travel advisor is on its way. Get tailored recommendations, trip planning help, and local insights — all in one place.
         </Text>

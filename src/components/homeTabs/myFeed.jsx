@@ -262,7 +262,7 @@ export function ForYouPage({ onEventClick }) {
         <View style={styles.footer}>
           <Text style={styles.footerText}>You're all caught up</Text>
           <TouchableOpacity style={styles.refreshButton} onPress={refresh}>
-            <Ionicons name="refresh" size={15} color={theme.colors.primary} />
+            <Ionicons name="refresh" size={15} color={theme.colors.buttonText} />
             <Text style={styles.refreshButtonText}>Refresh</Text>
           </TouchableOpacity>
         </View>
@@ -330,8 +330,8 @@ export function ForYouPage({ onEventClick }) {
             <RefreshControl
               refreshing={refreshing}
               onRefresh={refresh}
-              tintColor={theme.colors.primary}
-              colors={[theme.colors.primary]}
+              tintColor={theme.colors.textMuted}
+              colors={[theme.colors.textMuted]}
             />
           }
           {...bottomNavScroll}
@@ -377,13 +377,12 @@ const getStyles = (theme) => StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 20,
-    borderWidth: 1,
-    borderColor: theme.colors.primary,
+    backgroundColor: theme.colors.buttonBg,
   },
   refreshButtonText: {
     fontSize: 13,
     fontWeight: '600',
-    color: theme.colors.primary,
+    color: theme.colors.buttonText,
   },
   loadingMoreRow: {
     paddingVertical: 20,
@@ -406,13 +405,13 @@ const getStyles = (theme) => StyleSheet.create({
     marginBottom: 24,
   },
   retryButton: {
-    backgroundColor: theme.colors.primary,
+    backgroundColor: theme.colors.buttonBg,
     paddingHorizontal: 24,
     paddingVertical: 12,
     borderRadius: 8,
   },
   retryText: {
-    color: '#fff',
+    color: theme.colors.buttonText,
     fontWeight: '600',
     fontSize: 14,
   },

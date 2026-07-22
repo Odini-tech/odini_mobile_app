@@ -6,6 +6,7 @@ import { useAppMode } from "../context/AppModeContext";
 import { useCurrency } from "../context/CurrencyContext";
 import bookingService from "../services/bookingService";
 import { InteractionService } from "../services/interactionService";
+import { formatEventDateSmart } from "../utils/dateFormat";
 import { oneOf } from "../utils/relations";
 import EventBookingModal from "./booking/EventBooking";
 import OfferingBookingModal from "./booking/OfferingBooking";
@@ -244,11 +245,9 @@ const ListingCard = React.memo(function ListingCard({ item, onPress, onFavoriteP
 
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
               <Text style={styles.captionTitle}>{getListingMetaText(item, remainingTickets)}</Text>
-              {item.price ? (
-                <Text style={[styles.captionTitle, { color: theme.colors.text, fontWeight: '700' }]}>
-                  {formatPrice(item.price)}
-                </Text>
-              ) : null}
+              <Text style={[styles.captionTitle, { color: theme.colors.text, fontWeight: '700' }]}>
+                {formatPrice(item.price)}
+              </Text>
             </View>
 
             {item.description && (
@@ -301,11 +300,6 @@ function getBadgeLabel(item) {
   }
 }
 
-function formatEventDate(timestamp) {
-  if (!timestamp) return "Date TBD";
-  return new Date(timestamp).toLocaleDateString("en-US", { month: "short", day: "numeric" });
-}
-
 // Hosts enter opening_hours as free text, sometimes with several comma-separated
 // day groups (e.g. "Mon - Fri: 8am - 10pm, Sat: 10am - 2pm"). Dumping the whole
 // string on the compact card row reads as clutter, so only show the first group.
@@ -324,7 +318,7 @@ function getListingMetaText(item, remainingTickets) {
     }
     case "event": {
       const event = oneOf(item.events);
-      const dateStr = formatEventDate(event.event_time);
+      const dateStr = formatEventDateSmart(event.event_time);
       if (event.capacity && remainingTickets != null) {
         return `${dateStr} - ${remainingTickets} ticket${remainingTickets === 1 ? "" : "s"} left`;
       }

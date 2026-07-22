@@ -88,7 +88,7 @@ export default function DetailSuggestionCarousel({ listing }) {
             <Image source={{ uri: item.image_url }} style={styles.cardImage} />
           ) : (
             <View style={[styles.cardImage, styles.cardImagePlaceholder]}>
-              <Ionicons name={typeMeta.icon} size={32} color={typeMeta.color} />
+              <Ionicons name={typeMeta.icon} size={32} color={theme.colors.textSubtle} />
             </View>
           )}
           <View style={[styles.typePill, { backgroundColor: typeMeta.color }]}> 
@@ -101,9 +101,7 @@ export default function DetailSuggestionCarousel({ listing }) {
           {location ? (
             <Text style={styles.cardLocation} numberOfLines={1}>{location}</Text>
           ) : null}
-          {item.price != null ? (
-            <Text style={[styles.cardPrice, { color: typeMeta.color }]}> {formatPrice(item.price)}</Text>
-          ) : null}
+          <Text style={[styles.cardPrice, { color: theme.colors.text }]}> {formatPrice(item.price)}</Text>
         </View>
       </TouchableOpacity>
     );
@@ -122,7 +120,7 @@ export default function DetailSuggestionCarousel({ listing }) {
 
       {loading ? (
         <View style={styles.loadingRow}>
-          <ActivityIndicator size="small" color={theme.colors.primary} />
+          <ActivityIndicator size="small" color={theme.colors.textMuted} />
           <Text style={styles.loadingText}>Loading suggestions…</Text>
         </View>
       ) : (
@@ -240,7 +238,7 @@ const getStyles = (theme) => StyleSheet.create({
   sectionTypeLabel: {
     fontSize: 12,
     fontWeight: '700',
-    color: theme.colors.primary,
+    color: theme.colors.textMuted,
     textTransform: 'uppercase',
   },
   scrollRow: {

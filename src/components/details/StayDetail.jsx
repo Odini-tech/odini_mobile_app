@@ -13,6 +13,7 @@ import {
 import { useAppMode } from '../../context/AppModeContext';
 import { useCurrency } from '../../context/CurrencyContext';
 import { oneOf } from '../../utils/relations';
+import { resolveAmenityIcon } from '../../utils/reactIconsMap';
 import StayBookingModal from '../booking/StayBooking';
 import ImageCarousel from '../shared/ImageCarousel';
 import ListingMap from '../shared/ListingMap';
@@ -66,7 +67,7 @@ export default function StayDetail({ listing, onClose, onHostPress }) {
             imageStyle={styles.image}
             placeholder={
               <View style={[styles.image, styles.imagePlaceholder]}>
-                <Ionicons name="home" size={60} color={STAY_ACCENT} />
+                <Ionicons name="home" size={60} color={theme.colors.textSubtle} />
               </View>
             }
           />
@@ -97,17 +98,17 @@ export default function StayDetail({ listing, onClose, onHostPress }) {
                     <Text style={styles.hostRole}>Verified Host</Text>
                   </View>
                 </View>
-                <Ionicons name="chevron-forward" size={20} color={STAY_ACCENT} />
+                <Ionicons name="chevron-forward" size={20} color={theme.colors.textMuted} />
               </TouchableOpacity>
               <TouchableOpacity style={styles.contactButton}>
-                <Ionicons name="chatbubble-outline" size={20} color={STAY_ACCENT} />
+                <Ionicons name="chatbubble-outline" size={20} color={theme.colors.buttonText} />
               </TouchableOpacity>
             </View>
 
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Location</Text>
               <View style={styles.locationRow}>
-                <Ionicons name="location" size={16} color={theme.colors.primary} />
+                <Ionicons name="location" size={16} color={theme.colors.textMuted} />
                 <Text style={styles.locationText}>
                   {listing.address_city}, {listing.address_country}
                 </Text>
@@ -125,17 +126,17 @@ export default function StayDetail({ listing, onClose, onHostPress }) {
               <Text style={styles.sectionTitle}>Accommodation Details</Text>
               <View style={styles.detailsGrid}>
                 <View style={styles.detailCard}>
-                  <Ionicons name="door-open" size={24} color={STAY_ACCENT} />
+                  <Ionicons name="door-open" size={24} color={theme.colors.textMuted} />
                   <Text style={styles.detailValue}>{stayDetails.available_rooms || 0}</Text>
                   <Text style={styles.detailLabel}>Rooms</Text>
                 </View>
                 <View style={styles.detailCard}>
-                  <Ionicons name="people" size={24} color={STAY_ACCENT} />
+                  <Ionicons name="people" size={24} color={theme.colors.textMuted} />
                   <Text style={styles.detailValue}>{stayDetails.max_guests || 0}</Text>
                   <Text style={styles.detailLabel}>Guests</Text>
                 </View>
                 <View style={styles.detailCard}>
-                  <Ionicons name="moon" size={24} color={STAY_ACCENT} />
+                  <Ionicons name="moon" size={24} color={theme.colors.textMuted} />
                   <Text style={styles.detailValue}>{stayDetails.durations_nights || 0}</Text>
                   <Text style={styles.detailLabel}>Nights Min</Text>
                 </View>
@@ -151,11 +152,17 @@ export default function StayDetail({ listing, onClose, onHostPress }) {
               <View style={styles.section}>
                 <Text style={styles.sectionTitle}>Amenities</Text>
                 <View style={styles.amenitiesGrid}>
-                  {listing.amenities.map((amenity, idx) => (
-                    <View key={idx} style={styles.amenityTag}>
-                      <Text style={styles.amenityText}>{amenity}</Text>
-                    </View>
-                  ))}
+                  {listing.amenities.map((amenity) => {
+                    const { Component: AmenityIcon, name: amenityIconName } = resolveAmenityIcon(amenity.icon_name);
+                    return (
+                      <View key={amenity.id} style={styles.amenityItem}>
+                        <View style={styles.amenityIconWrap}>
+                          <AmenityIcon name={amenityIconName} size={22} color={theme.colors.text} />
+                        </View>
+                        <Text style={styles.amenityName} numberOfLines={2}>{amenity.name}</Text>
+                      </View>
+                    );
+                  })}
                 </View>
               </View>
             )}
@@ -295,14 +302,14 @@ const getStyles = (theme, STAY_ACCENT) => StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: STAY_ACCENT,
+    backgroundColor: theme.colors.textMuted,
     justifyContent: 'center',
     alignItems: 'center',
   },
   hostName: {
     fontSize: 14,
     fontWeight: '700',
-    color: STAY_ACCENT,
+    color: theme.colors.text,
   },
   hostRole: {
     fontSize: 12,
@@ -315,7 +322,7 @@ const getStyles = (theme, STAY_ACCENT) => StyleSheet.create({
     borderRadius: 22,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: theme.colors.surfaceAlt,
+    backgroundColor: theme.colors.buttonBg,
   },
   section: {
     marginBottom: 24,
@@ -373,20 +380,26 @@ const getStyles = (theme, STAY_ACCENT) => StyleSheet.create({
   amenitiesGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 8,
   },
-  amenityTag: {
+  amenityItem: {
+    width: '20%',
+    alignItems: 'center',
+    paddingVertical: 10,
+    paddingHorizontal: 4,
+    gap: 6,
+  },
+  amenityIconWrap: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     backgroundColor: theme.colors.surfaceAlt,
-    borderRadius: 20,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  amenityText: {
-    fontSize: 12,
+  amenityName: {
+    fontSize: 11,
     color: theme.colors.textMuted,
-    fontWeight: '500',
+    textAlign: 'center',
   },
   description: {
     fontSize: 14,
@@ -414,7 +427,7 @@ const getStyles = (theme, STAY_ACCENT) => StyleSheet.create({
     color: theme.colors.text,
   },
   bookButton: {
-    backgroundColor: STAY_ACCENT,
+    backgroundColor: theme.colors.buttonBg,
     paddingHorizontal: 32,
     paddingVertical: 14,
     borderRadius: 12,
@@ -422,6 +435,6 @@ const getStyles = (theme, STAY_ACCENT) => StyleSheet.create({
   bookButtonText: {
     fontSize: 16,
     fontWeight: '700',
-    color: theme.colors.white,
+    color: theme.colors.buttonText,
   },
 });

@@ -98,14 +98,14 @@ const ExploreCard = React.memo(function ExploreCard({ item, onPress, onInteracti
               <Image source={{ uri: imageUrl }} style={styles.image} />
             ) : (
               <View style={[styles.image, styles.imagePlaceholder]}>
-                <Ionicons name={typeIcon.name} size={40} color={typeIcon.color} />
+                <Ionicons name={typeIcon.name} size={40} color= "#4d4c4c48" />
               </View>
             )}
 
             {/* price + type badge placed as overlay at bottom-left of the image */}
             <View style={styles.priceBadge}>
               <Ionicons name={typeIcon.name} size={12} color={typeIcon.color} />
-              <Text style={styles.priceBadgeText}>{item.price ? formatPrice(item.price) : '—'}</Text>
+              <Text style={styles.priceBadgeText}>{formatPrice(item.price)}</Text>
             </View>
 
             {isFavorited && (
@@ -236,7 +236,10 @@ const getStyles = (theme) => StyleSheet.create({
   priceBadgeText: {
     fontSize: 12,
     fontWeight: '700',
-    color: '#fff',
+    color: theme.colors.textMuted,
+    backgroundColor: theme.colors.surface,
+  },
+  typeBadgeIcon: {
   },
   favoriteBadge: {
     position: 'absolute',

@@ -15,6 +15,7 @@ import { supabase } from '../../lib/supabase';
 import { useAppMode } from '../../src/context/AppModeContext';
 import { useCurrency } from '../../src/context/CurrencyContext';
 import bookingService from '../../src/services/bookingService';
+import { formatEventDateSmart } from '../../src/utils/dateFormat';
 
 const STATUS_GROUPS = [
   { key: 'pending', title: 'Awaiting Approval', statuses: ['pending'] },
@@ -103,7 +104,9 @@ export default function BookingsScreen() {
     const listing = booking.listings;
     const listingType = listing?.listing_type || booking.listing_type;
     const statusColor = STATUS_COLORS[booking.status] || '#6B7280';
-    const dateStr = formatDate(getBookingDate(booking));
+    const dateStr = listingType === 'event'
+      ? formatEventDateSmart(getBookingDate(booking))
+      : formatDate(getBookingDate(booking));
     const amount = booking.total_price ?? booking.price_at_booking;
     const qty = booking.quantity || booking.guests;
 
@@ -149,7 +152,7 @@ export default function BookingsScreen() {
   if (loading) {
     return (
       <View style={styles.centered}>
-        <ActivityIndicator size="large" color={theme.colors.primary} />
+        <ActivityIndicator size="large" color={theme.colors.textMuted} />
       </View>
     );
   }
@@ -172,7 +175,7 @@ export default function BookingsScreen() {
       <ScrollView
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={theme.colors.primary} />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={theme.colors.textMuted} />}
       >
         {error ? (
           <Text style={styles.errorText}>{error}</Text>

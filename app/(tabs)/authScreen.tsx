@@ -156,7 +156,7 @@ export default function AuthScreen() {
             <Ionicons
               name="globe-outline"
               size={60}
-              color={theme.colors.primary}
+              color={theme.colors.text}
               style={styles.logo}
             />
           </View>
@@ -252,7 +252,7 @@ export default function AuthScreen() {
             disabled={loading}
           >
             {loading ? (
-              <ActivityIndicator color={theme.colors.white} />
+              <ActivityIndicator color={theme.colors.buttonText} />
             ) : (
               <Text style={styles.authButtonText}>{isSignUp ? 'Sign Up' : 'Sign In'}</Text>
             )}
@@ -336,9 +336,9 @@ const getStyles = (theme: ReturnType<typeof useAppMode>['theme']) =>
       borderRadius: 56,
       alignItems: 'center',
       justifyContent: 'center',
-      backgroundColor: theme.colors.primaryTint,
+      backgroundColor: theme.colors.surfaceAlt,
       borderWidth: 1,
-      borderColor: theme.colors.primaryTintStrong,
+      borderColor: theme.colors.border,
       marginBottom: 20,
       alignSelf: 'center',
     },
@@ -405,13 +405,13 @@ const getStyles = (theme: ReturnType<typeof useAppMode>['theme']) =>
       marginLeft: 4,
     },
     authButton: {
-      backgroundColor: theme.colors.primary,
+      backgroundColor: theme.colors.buttonBg,
       borderRadius: 12,
       height: 56,
       justifyContent: 'center',
       alignItems: 'center',
       marginTop: 8,
-      shadowColor: theme.colors.primary,
+      shadowColor: '#000000',
       shadowOffset: { width: 0, height: 4 },
       shadowOpacity: 0.2,
       shadowRadius: 8,
@@ -421,7 +421,7 @@ const getStyles = (theme: ReturnType<typeof useAppMode>['theme']) =>
       opacity: 0.7,
     },
     authButtonText: {
-      color: theme.colors.white,
+      color: theme.colors.buttonText,
       fontSize: 16,
       fontWeight: '600',
     },
@@ -441,11 +441,16 @@ const getStyles = (theme: ReturnType<typeof useAppMode>['theme']) =>
       fontSize: 14,
     },
     toggleButton: {
-      paddingVertical: 16,
+      paddingVertical: 10,
+      paddingHorizontal: 16,
+      borderRadius: 20,
+      backgroundColor: theme.colors.buttonBg,
+      alignSelf: 'center',
+      marginTop: 6,
     },
     toggleButtonText: {
-      color: theme.colors.primary,
-      fontSize: 16,
+      color: theme.colors.buttonText,
+      fontSize: 15,
       fontWeight: '600',
       textAlign: 'center',
     },
@@ -457,7 +462,8 @@ const getStyles = (theme: ReturnType<typeof useAppMode>['theme']) =>
       lineHeight: 18,
     },
     termsLink: {
-      color: theme.colors.primary,
+      color: theme.colors.textMuted,
       fontWeight: '600',
+      textDecorationLine: 'underline',
     },
   });

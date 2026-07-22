@@ -222,7 +222,7 @@ const getStyles = (theme, insets) =>
       top: 0,
       width: width / 6,
       height: 3,
-      backgroundColor: theme.colors.primary,
+      backgroundColor: theme.colors.text,
       borderRadius: 999,
     },
     pagerView: {

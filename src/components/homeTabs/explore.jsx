@@ -182,7 +182,7 @@ export default function Explore({ onItemClick }) {
         <View style={styles.footer}>
           <Text style={styles.footerText}>All listings loaded</Text>
           <TouchableOpacity style={styles.refreshButton} onPress={refresh}>
-            <Ionicons name="refresh" size={15} color={theme.colors.primary} />
+            <Ionicons name="refresh" size={15} color={theme.colors.buttonText} />
             <Text style={styles.refreshButtonText}>Refresh</Text>
           </TouchableOpacity>
         </View>
@@ -222,8 +222,8 @@ export default function Explore({ onItemClick }) {
             <RefreshControl
               refreshing={refreshing}
               onRefresh={refresh}
-              tintColor={theme.colors.primary}
-              colors={[theme.colors.primary]}
+              tintColor={theme.colors.textMuted}
+              colors={[theme.colors.textMuted]}
             />
           }
         >
@@ -283,12 +283,11 @@ const getStyles = (theme) => StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 20,
-    borderWidth: 1,
-    borderColor: theme.colors.primary,
+    backgroundColor: theme.colors.buttonBg,
   },
   refreshButtonText: {
     fontSize: 13,
     fontWeight: '600',
-    color: theme.colors.primary,
+    color: theme.colors.buttonText,
   },
 });

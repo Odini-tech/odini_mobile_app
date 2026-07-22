@@ -43,6 +43,7 @@ export default function OfferingBookingModal({ listing, offeringDetails, onClose
   const [processing, setProcessing] = useState(false);
   const [submittedBooking, setSubmittedBooking] = useState(null);
   const [remainingSlots, setRemainingSlots] = useState(null);
+  const [hasBookedBefore, setHasBookedBefore] = useState(false);
 
   const serviceTime = toTimeString(serviceTimeObj);
   const today = toDateOnlyString(new Date());
@@ -84,6 +85,8 @@ export default function OfferingBookingModal({ listing, offeringDetails, onClose
 
         if (authData.user.email) setGuestEmail(authData.user.email);
 
+        bookingService.hasUserBookedListing(userId, listing.id).then(setHasBookedBefore);
+
         const { data: profile } = await supabase
           .from('profiles')
           .select('firstname, lastname, phone_number')
@@ -97,7 +100,7 @@ export default function OfferingBookingModal({ listing, offeringDetails, onClose
         }
       } catch (_) {}
     })();
-  }, []);
+  }, [listing.id]);
 
   useEffect(() => {
     let cancelled = false;
@@ -191,8 +194,8 @@ export default function OfferingBookingModal({ listing, offeringDetails, onClose
             <View style={styles.headerSpacer} />
           </View>
           <View style={styles.successContainer}>
-            <View style={[styles.successIcon, { backgroundColor: OFFERING_ACCENT + '22' }]}>
-              <Ionicons name="checkmark-circle" size={56} color={OFFERING_ACCENT} />
+            <View style={[styles.successIcon, { backgroundColor: theme.colors.success + '22' }]}>
+              <Ionicons name="checkmark-circle" size={56} color={theme.colors.success} />
             </View>
             <Text style={styles.successTitle}>Request Sent</Text>
             <Text style={styles.successBody}>
@@ -237,7 +240,7 @@ export default function OfferingBookingModal({ listing, offeringDetails, onClose
               {listing.description}
             </Text>
             <View style={styles.serviceProvider}>
-              <Ionicons name="person-circle" size={36} color={OFFERING_ACCENT} />
+              <Ionicons name="person-circle" size={36} color={theme.colors.textMuted} />
               <View style={styles.providerCopy}>
                 <Text style={styles.providerName}>
                   {listing.profiles?.firstname || 'Activity Host'}
@@ -290,14 +293,14 @@ export default function OfferingBookingModal({ listing, offeringDetails, onClose
               <TouchableOpacity
                 onPress={() => setQuantity(Math.max(1, parseInt(quantity, 10) - 1).toString())}
               >
-                <Ionicons name="remove" size={24} color={OFFERING_ACCENT} />
+                <Ionicons name="remove" size={24} color={theme.colors.text} />
               </TouchableOpacity>
               <Text style={styles.counterValue}>{quantity}</Text>
               <TouchableOpacity
                 onPress={() => setQuantity(Math.min(maxQuantity, parseInt(quantity, 10) + 1).toString())}
                 disabled={parseInt(quantity, 10) >= maxQuantity}
               >
-                <Ionicons name="add" size={24} color={OFFERING_ACCENT} />
+                <Ionicons name="add" size={24} color={theme.colors.text} />
               </TouchableOpacity>
             </View>
             {remainingSlots != null && (
@@ -353,7 +356,7 @@ export default function OfferingBookingModal({ listing, offeringDetails, onClose
             <View style={styles.priceBreakdown}>
               <View style={styles.priceRow}>
                 <Text style={styles.priceLabel}>Estimated Total</Text>
-                <Text style={styles.priceValue}>{estimatedPrice ? formatPrice(estimatedPrice) : 'TBD'}</Text>
+                <Text style={styles.priceValue}>{formatPrice(estimatedPrice)}</Text>
               </View>
               <Text style={styles.priceNote}>
                 Final price will be confirmed by the activity host
@@ -376,7 +379,13 @@ export default function OfferingBookingModal({ listing, offeringDetails, onClose
             disabled={processing || soldOut}
           >
             <Text style={styles.buttonText}>
-              {soldOut ? 'Fully Booked' : processing ? 'Submitting...' : 'Request Activity'}
+              {soldOut
+                ? 'Fully Booked'
+                : processing
+                ? 'Submitting...'
+                : hasBookedBefore
+                ? 'Book Again'
+                : 'Request Activity'}
             </Text>
           </TouchableOpacity>
         </View>
@@ -508,7 +517,7 @@ const getStyles = (theme, OFFERING_ACCENT) => StyleSheet.create({
   },
   dateInfo: {
     fontSize: 12,
-    color: OFFERING_ACCENT,
+    color: theme.colors.textMuted,
     marginTop: 8,
     fontWeight: '600',
   },
@@ -582,7 +591,7 @@ const getStyles = (theme, OFFERING_ACCENT) => StyleSheet.create({
     backgroundColor: theme.colors.surface,
   },
   button: {
-    backgroundColor: OFFERING_ACCENT,
+    backgroundColor: theme.colors.buttonBg,
     padding: 16,
     borderRadius: 12,
     alignItems: 'center',
@@ -593,7 +602,7 @@ const getStyles = (theme, OFFERING_ACCENT) => StyleSheet.create({
   buttonText: {
     fontSize: 16,
     fontWeight: '700',
-    color: theme.colors.white,
+    color: theme.colors.buttonText,
   },
   secondaryButton: {
     marginTop: 10,

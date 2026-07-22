@@ -7,7 +7,9 @@ import {
   getUserRecentlyViewedListings,
   getListings,
   enrichRecommendationListings,
+  fetchImagesForListings,
 } from '../../services/listings.service';
+import { ensureDailyListingMatchNotifications } from '../services/notificationService';
 import { RecommendationService } from '../services/recommendationService';
 import { getRecommendationModeStatus } from '../services/recommendationGateway';
 
@@ -149,6 +151,9 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
       const shuffledIds: string[] =
         idsResult.status === 'fulfilled' ? idsResult.value : [];
 
+      // Fire-and-forget: seeds today's 2 random listing-match notifications if not already done.
+      if (uid) ensureDailyListingMatchNotifications(uid).catch(() => undefined);
+
       // ── Phase 2: first 12 listings + user profile (parallel) ──
       const firstIds = shuffledIds.slice(0, INITIAL_COUNT);
       const [firstListings, profileResult] = await Promise.allSettled([
@@ -199,7 +204,7 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
           ? supabase
               .from('bookings')
               .select(
-                'id, booking_ref, listing_type, status, check_in, event_slot, reservation_time, created_at, listings!listing_id(id, title, listing_type, image_url)'
+                'id, booking_ref, listing_type, status, check_in, event_slot, reservation_time, created_at, listings!listing_id(id, title, listing_type)'
               )
               .eq('user_id', uid)
               .order('created_at', { ascending: false })
@@ -243,10 +248,18 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
         favResult.status === 'fulfilled' ? (favResult.value as AppListing[]) : [];
       const recentlyViewed: AppListing[] =
         recentResult.status === 'fulfilled' ? (recentResult.value as AppListing[]) : [];
-      const pastBookings: any[] =
+      const rawPastBookings: any[] =
         bookingsResult.status === 'fulfilled'
           ? ((bookingsResult.value as any)?.data ?? [])
           : [];
+      // listings has no image_url column — images live in stay_images/event_images/offering_images
+      const bookingImageMap = await fetchImagesForListings(
+        rawPastBookings.map((b) => b.listings).filter(Boolean)
+      );
+      const pastBookings: any[] = rawPastBookings.map((b) => ({
+        ...b,
+        listings: b.listings ? { ...b.listings, image_url: bookingImageMap.get(b.listings.id) || null } : null,
+      }));
       const popularCategories: SearchCategory[] =
         popCatResult.status === 'fulfilled' ? popCatResult.value : [];
       const rawCollections =

@@ -207,27 +207,26 @@ const getStyles = (theme) => StyleSheet.create({
     borderColor: theme.colors.border,
   },
   searchBtn: {
-    backgroundColor: theme.colors.primary,
+    backgroundColor: theme.colors.buttonBg,
     paddingHorizontal: 16,
     justifyContent: 'center',
     borderRadius: 12,
     height: 44,
   },
   searchBtnText: {
-    color: theme.colors.white,
+    color: theme.colors.buttonText,
     fontWeight: '700',
   },
   filterBtn: {
-    backgroundColor: theme.colors.primaryTint,
-    borderColor: theme.colors.primary,
-    borderWidth: 1,
+    backgroundColor: theme.colors.buttonBg,
+    borderWidth: 0,
     paddingHorizontal: 12,
     justifyContent: 'center',
     borderRadius: 12,
     height: 44,
   },
   filterBtnText: {
-    color: theme.colors.primary,
+    color: theme.colors.buttonText,
     fontWeight: '700',
   },
   headerRow: {

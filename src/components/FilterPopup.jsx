@@ -73,7 +73,7 @@ export default function FilterPopup({ visible, onClose, onApply, initialFilters 
             <Switch
               value={onlyActive}
               onValueChange={setOnlyActive}
-              trackColor={{ false: t.border, true: t.primarySoft }}
+              trackColor={{ false: t.border, true: t.textMuted }}
               thumbColor={t.white}
             />
           </View>
@@ -149,8 +149,8 @@ const getStyles = (t) => StyleSheet.create({
     borderColor: t.border,
   },
   typeBtnActive: {
-    backgroundColor: t.primaryTint,
-    borderColor: t.primary,
+    backgroundColor: t.surfaceStrong,
+    borderColor: t.text,
   },
   typeText: {
     color: t.textMuted,
@@ -158,7 +158,7 @@ const getStyles = (t) => StyleSheet.create({
     fontSize: 14,
   },
   typeTextActive: {
-    color: t.primary,
+    color: t.text,
     fontWeight: '700',
   },
   input: {
@@ -186,13 +186,13 @@ const getStyles = (t) => StyleSheet.create({
     fontSize: 15,
   },
   applyBtn: {
-    backgroundColor: t.primary,
+    backgroundColor: t.buttonBg,
     paddingHorizontal: 20,
     paddingVertical: 12,
     borderRadius: 10,
   },
   applyText: {
-    color: t.white,
+    color: t.buttonText,
     fontWeight: '700',
     fontSize: 15,
   },
@@ -202,7 +202,7 @@ const getStyles = (t) => StyleSheet.create({
     padding: 6,
   },
   closeText: {
-    color: t.primary,
+    color: t.textMuted,
     fontSize: 15,
     fontWeight: '500',
   },

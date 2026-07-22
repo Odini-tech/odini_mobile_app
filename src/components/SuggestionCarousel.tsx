@@ -209,11 +209,7 @@ const SuggestionCard = React.memo(function SuggestionCard({
             <Text style={styles.cardDesc} numberOfLines={2}>{item.description}</Text>
           ) : null}
           <View style={styles.cardFooterRow}>
-            {item.price ? (
-              <Text style={styles.cardPrice}>{formatPrice(item.price)}</Text>
-            ) : (
-              <View />
-            )}
+            <Text style={styles.cardPrice}>{formatPrice(item.price)}</Text>
             <TouchableOpacity
               style={styles.detailBtn}
               onPress={onPress}

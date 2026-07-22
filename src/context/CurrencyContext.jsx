@@ -99,7 +99,8 @@ export function CurrencyProvider({ children }) {
    * Returns a formatted string like "ZK 150", "$5.47", "£4.32"
    */
   const formatPrice = useCallback((zmwAmount) => {
-    if (zmwAmount == null || isNaN(Number(zmwAmount))) return '—';
+    if (zmwAmount == null || isNaN(Number(zmwAmount))) return 'Free';
+    if (Number(zmwAmount) === 0) return 'Free';
     const currency = CURRENCIES.find((c) => c.code === selectedCode) ?? CURRENCIES[0];
     if (selectedCode === DB_CURRENCY) {
       return `${currency.symbol} ${Number(zmwAmount).toLocaleString('en-US', { maximumFractionDigits: 0 })}`;

@@ -15,6 +15,7 @@ import {
 import { supabase } from '../../../lib/supabase';
 import bookingService from '../../../src/services/bookingService';
 import { useAppMode } from '../../context/AppModeContext';
+import { formatEventTimeSmart } from '../../utils/dateFormat';
 
 export default function EventBookingModal({ listing, eventDetails, onClose, onConfirm }) {
   const { theme } = useAppMode();
@@ -29,6 +30,7 @@ export default function EventBookingModal({ listing, eventDetails, onClose, onCo
   const [processing, setProcessing] = useState(false);
   const [submittedBooking, setSubmittedBooking] = useState(null);
   const [remainingTickets, setRemainingTickets] = useState(null);
+  const [hasBookedBefore, setHasBookedBefore] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -38,6 +40,8 @@ export default function EventBookingModal({ listing, eventDetails, onClose, onCo
         if (!userId) return;
 
         if (authData.user.email) setGuestEmail(authData.user.email);
+
+        bookingService.hasUserBookedListing(userId, listing.id).then(setHasBookedBefore);
 
         const { data: profile } = await supabase
           .from('profiles')
@@ -51,7 +55,7 @@ export default function EventBookingModal({ listing, eventDetails, onClose, onCo
         }
       } catch (_) {}
     })();
-  }, []);
+  }, [listing.id]);
 
   useEffect(() => {
     let cancelled = false;
@@ -128,17 +132,6 @@ export default function EventBookingModal({ listing, eventDetails, onClose, onCo
     onClose && onClose();
   };
 
-  const formatEventTime = (timestamp) => {
-    if (!timestamp) return 'TBD';
-    return new Date(timestamp).toLocaleDateString('en-US', {
-      weekday: 'long',
-      month: 'long',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-  };
-
   if (submittedBooking) {
     return (
       <Modal visible transparent animationType="slide">
@@ -150,8 +143,8 @@ export default function EventBookingModal({ listing, eventDetails, onClose, onCo
             <View style={styles.headerSpacer} />
           </View>
           <View style={styles.successContainer}>
-            <View style={[styles.successIcon, { backgroundColor: EVENT_ACCENT + '22' }]}>
-              <Ionicons name="checkmark-circle" size={56} color={EVENT_ACCENT} />
+            <View style={[styles.successIcon, { backgroundColor: theme.colors.success + '22' }]}>
+              <Ionicons name="checkmark-circle" size={56} color={theme.colors.success} />
             </View>
             <Text style={styles.successTitle}>Request Sent</Text>
             <Text style={styles.successBody}>
@@ -194,11 +187,11 @@ export default function EventBookingModal({ listing, eventDetails, onClose, onCo
             <Text style={styles.eventTitle}>{listing.title}</Text>
             <View style={styles.eventInfo}>
               <View style={styles.eventInfoRow}>
-                <Ionicons name="time" size={16} color={EVENT_ACCENT} />
-                <Text style={styles.eventInfoText}>{formatEventTime(eventDetails.event_time)}</Text>
+                <Ionicons name="time" size={16} color={theme.colors.textMuted} />
+                <Text style={styles.eventInfoText}>{formatEventTimeSmart(eventDetails.event_time)}</Text>
               </View>
               <View style={styles.eventInfoRow}>
-                <Ionicons name="people" size={16} color={EVENT_ACCENT} />
+                <Ionicons name="people" size={16} color={theme.colors.textMuted} />
                 <Text style={styles.eventInfoText}>
                   Capacity: {eventDetails.capacity || 'Unlimited'}
                 </Text>
@@ -212,14 +205,14 @@ export default function EventBookingModal({ listing, eventDetails, onClose, onCo
               <TouchableOpacity
                 onPress={() => setTicketCount(Math.max(1, parseInt(ticketCount, 10) - 1).toString())}
               >
-                <Ionicons name="remove" size={24} color={EVENT_ACCENT} />
+                <Ionicons name="remove" size={24} color={theme.colors.text} />
               </TouchableOpacity>
               <Text style={styles.counterValue}>{ticketCount}</Text>
               <TouchableOpacity
                 onPress={() => setTicketCount(Math.min(maxTickets, parseInt(ticketCount, 10) + 1).toString())}
                 disabled={parseInt(ticketCount, 10) >= maxTickets}
               >
-                <Ionicons name="add" size={24} color={EVENT_ACCENT} />
+                <Ionicons name="add" size={24} color={theme.colors.text} />
               </TouchableOpacity>
             </View>
             {remainingTickets != null && (
@@ -296,7 +289,11 @@ export default function EventBookingModal({ listing, eventDetails, onClose, onCo
             disabled={processing || soldOut}
           >
             <Text style={styles.buttonText}>
-              {soldOut ? 'Sold Out' : processing ? 'Sending Request...' : `Request Tickets — ${formatPrice(total)}`}
+              {soldOut
+                ? 'Sold Out'
+                : processing
+                ? 'Sending Request...'
+                : `${hasBookedBefore ? 'Get Another Ticket' : 'Request Tickets'} — ${formatPrice(total)}`}
             </Text>
           </TouchableOpacity>
         </View>
@@ -458,7 +455,7 @@ const getStyles = (theme, EVENT_ACCENT) => StyleSheet.create({
   totalValue: {
     fontSize: 18,
     fontWeight: '700',
-    color: EVENT_ACCENT,
+    color: theme.colors.text,
   },
   termsContainer: {
     paddingVertical: 12,
@@ -476,7 +473,7 @@ const getStyles = (theme, EVENT_ACCENT) => StyleSheet.create({
     backgroundColor: theme.colors.surface,
   },
   button: {
-    backgroundColor: EVENT_ACCENT,
+    backgroundColor: theme.colors.buttonBg,
     padding: 16,
     borderRadius: 12,
     alignItems: 'center',
@@ -487,7 +484,7 @@ const getStyles = (theme, EVENT_ACCENT) => StyleSheet.create({
   buttonText: {
     fontSize: 16,
     fontWeight: '700',
-    color: theme.colors.white,
+    color: theme.colors.buttonText,
   },
   secondaryButton: {
     marginTop: 10,

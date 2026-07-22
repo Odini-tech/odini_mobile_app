@@ -229,14 +229,14 @@ const getStyles = (theme, insets) =>
       fontSize: 15,
     },
     searchBtn: {
-      backgroundColor: theme.colors.primary,
+      backgroundColor: theme.colors.buttonBg,
       paddingHorizontal: 10,
       justifyContent: 'center',
       borderRadius: 3,
       height: 44,
     },
     searchBtnText: {
-      color: theme.colors.text,
+      color: theme.colors.buttonText,
       fontWeight: '700',
       fontSize: 15,
     },

@@ -173,7 +173,7 @@ const getStyles = (theme) => StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: theme.colors.primary,
+    backgroundColor: theme.colors.textMuted,
   },
   listingTitle: {
     flex: 1,

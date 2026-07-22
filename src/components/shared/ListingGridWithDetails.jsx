@@ -50,7 +50,7 @@ export default function ListingGridWithDetails({
   if (loading) {
     body = (
       <View style={styles.centerContainer}>
-        <ActivityIndicator size="large" color={theme.colors.primary} />
+        <ActivityIndicator size="large" color={theme.colors.textMuted} />
       </View>
     );
   } else if (error) {

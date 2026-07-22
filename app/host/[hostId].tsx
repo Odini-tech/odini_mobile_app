@@ -90,7 +90,7 @@ export default function HostDashboardScreen() {
   if (loading) {
     return (
       <View style={styles.centered}>
-        <ActivityIndicator size="large" color={theme.colors.primary} />
+        <ActivityIndicator size="large" color={theme.colors.textMuted} />
       </View>
     );
   }
@@ -128,7 +128,7 @@ export default function HostDashboardScreen() {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={handleRefresh}
-            tintColor={theme.colors.primary}
+            tintColor={theme.colors.textMuted}
           />
         }
       >
@@ -294,9 +294,7 @@ function ListingCard({
         {listing.location_label && listing.location_label !== 'Location pending' ? (
           <Text style={styles.cardLocation} numberOfLines={1}>{listing.location_label}</Text>
         ) : null}
-        {listing.price ? (
-          <Text style={[styles.cardPrice, { color: accent }]}>{formatPrice(listing.price)}</Text>
-        ) : null}
+        <Text style={[styles.cardPrice, { color: theme.colors.text }]}>{formatPrice(listing.price)}</Text>
       </View>
     </TouchableOpacity>
   );
@@ -380,13 +378,13 @@ const getStyles = (theme: ReturnType<typeof getThemeForMode>) => StyleSheet.crea
   },
   errorButton: {
     marginTop: 8,
-    backgroundColor: theme.colors.primary,
+    backgroundColor: theme.colors.buttonBg,
     paddingHorizontal: 20,
     paddingVertical: 12,
     borderRadius: 12,
   },
   errorButtonText: {
-    color: '#fff',
+    color: theme.colors.buttonText,
     fontWeight: '700',
   },
 

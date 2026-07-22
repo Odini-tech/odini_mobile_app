@@ -26,6 +26,10 @@ export const lightTheme = {
     overlay: 'rgba(0, 0, 0, 0.50)',
     danger: '#DC2626',
     success: '#16A34A',
+    // Buttons invert against the mode's base color (dark button on light mode)
+    // so the burgundy label needs a brighter shade to read against a dark fill.
+    buttonBg: '#111827',
+    buttonText: '#C27090',
   },
   listingTypeColors: {
     stay: '#7A1E3A',
@@ -55,6 +59,10 @@ export const darkTheme = {
     overlay: 'rgba(0, 0, 0, 0.75)',
     danger: '#EF4444',
     success: '#22C55E',
+    // Buttons invert against the mode's base color (light button on dark mode)
+    // so the burgundy label needs a deeper shade to read against a light fill.
+    buttonBg: '#F5F5F5',
+    buttonText: '#571126',
   },
   listingTypeColors: {
     stay: '#A44E69',

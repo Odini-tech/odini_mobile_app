@@ -12,6 +12,8 @@ import {
 } from 'react-native';
 import { useAppMode } from '../../context/AppModeContext';
 import { useCurrency } from '../../context/CurrencyContext';
+import { formatEventTimeSmart } from '../../utils/dateFormat';
+import { resolveAmenityIcon } from '../../utils/reactIconsMap';
 import { oneOf } from '../../utils/relations';
 import EventBookingModal from '../booking/EventBooking';
 import ImageCarousel from '../shared/ImageCarousel';
@@ -33,17 +35,6 @@ export default function EventDetail({ listing, onClose, onHostPress }) {
   const hostName = [listing.profiles?.firstname, listing.profiles?.lastname].filter(Boolean).join(' ').trim()
     || listing.profiles?.username
     || 'Host';
-
-  const formatEventTime = (timestamp) => {
-    if (!timestamp) return 'TBD';
-    return new Date(timestamp).toLocaleDateString('en-US', {
-      weekday: 'short',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-  };
 
   const handleHostPress = () => {
     if (!hostId) return;
@@ -77,7 +68,7 @@ export default function EventDetail({ listing, onClose, onHostPress }) {
             imageStyle={styles.image}
             placeholder={
               <View style={[styles.image, styles.imagePlaceholder]}>
-                <Ionicons name="calendar" size={60} color={EVENT_ACCENT} />
+                <Ionicons name="calendar" size={60} color={theme.colors.textSubtle} />
               </View>
             }
           />
@@ -118,17 +109,17 @@ export default function EventDetail({ listing, onClose, onHostPress }) {
                     <Text style={styles.hostRole}>Event Organizer</Text>
                   </View>
                 </View>
-                <Ionicons name="chevron-forward" size={20} color={EVENT_ACCENT} />
+                <Ionicons name="chevron-forward" size={20} color={theme.colors.textMuted} />
               </TouchableOpacity>
               <TouchableOpacity style={styles.contactButton}>
-                <Ionicons name="chatbubble-outline" size={20} color={EVENT_ACCENT} />
+                <Ionicons name="chatbubble-outline" size={20} color={theme.colors.buttonText} />
               </TouchableOpacity>
             </View>
 
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Location</Text>
               <View style={styles.locationRow}>
-                <Ionicons name="location" size={16} color={theme.colors.primary} />
+                <Ionicons name="location" size={16} color={theme.colors.textMuted} />
                 <Text style={styles.locationText}>
                   {listing.address_city}, {listing.address_country}
                 </Text>
@@ -145,14 +136,14 @@ export default function EventDetail({ listing, onClose, onHostPress }) {
               <Text style={styles.sectionTitle}>Event Information</Text>
               <View style={styles.detailsGrid}>
                 <View style={styles.detailCard}>
-                  <Ionicons name="time" size={24} color={EVENT_ACCENT} />
+                  <Ionicons name="time" size={24} color={theme.colors.textMuted} />
                   <Text style={styles.detailLabel}>Date & Time</Text>
                   <Text style={styles.detailValue} numberOfLines={2}>
-                    {formatEventTime(eventDetails.event_time)}
+                    {formatEventTimeSmart(eventDetails.event_time)}
                   </Text>
                 </View>
                 <View style={styles.detailCard}>
-                  <Ionicons name="people" size={24} color={EVENT_ACCENT} />
+                  <Ionicons name="people" size={24} color={theme.colors.textMuted} />
                   <Text style={styles.detailLabel}>Capacity</Text>
                   <Text style={styles.detailValue}>{eventDetails.capacity || 0}</Text>
                 </View>
@@ -168,12 +159,17 @@ export default function EventDetail({ listing, onClose, onHostPress }) {
               <View style={styles.section}>
                 <Text style={styles.sectionTitle}>What&apos;s Included</Text>
                 <View style={styles.amenitiesGrid}>
-                  {listing.amenities.map((amenity, idx) => (
-                    <View key={idx} style={styles.amenityTag}>
-                      <Ionicons name="checkmark-circle" size={12} color={EVENT_ACCENT} />
-                      <Text style={styles.amenityText}>{amenity}</Text>
-                    </View>
-                  ))}
+                  {listing.amenities.map((amenity) => {
+                    const { Component: AmenityIcon, name: amenityIconName } = resolveAmenityIcon(amenity.icon_name);
+                    return (
+                      <View key={amenity.id} style={styles.amenityItem}>
+                        <View style={styles.amenityIconWrap}>
+                          <AmenityIcon name={amenityIconName} size={22} color={theme.colors.text} />
+                        </View>
+                        <Text style={styles.amenityName} numberOfLines={2}>{amenity.name}</Text>
+                      </View>
+                    );
+                  })}
                 </View>
               </View>
             )}
@@ -331,14 +327,14 @@ const getStyles = (theme, EVENT_ACCENT) => StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: EVENT_ACCENT,
+    backgroundColor: theme.colors.textMuted,
     justifyContent: 'center',
     alignItems: 'center',
   },
   hostName: {
     fontSize: 14,
     fontWeight: '700',
-    color: EVENT_ACCENT,
+    color: theme.colors.text,
   },
   hostRole: {
     fontSize: 12,
@@ -351,7 +347,7 @@ const getStyles = (theme, EVENT_ACCENT) => StyleSheet.create({
     borderRadius: 22,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: theme.colors.surfaceAlt,
+    backgroundColor: theme.colors.buttonBg,
   },
   section: {
     marginBottom: 24,
@@ -404,23 +400,28 @@ const getStyles = (theme, EVENT_ACCENT) => StyleSheet.create({
     color: theme.colors.textSubtle,
   },
   amenitiesGrid: {
-    gap: 8,
-  },
-  amenityTag: {
     flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    backgroundColor: theme.colors.surfaceAlt,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
+    flexWrap: 'wrap',
   },
-  amenityText: {
-    fontSize: 13,
+  amenityItem: {
+    width: '20%',
+    alignItems: 'center',
+    paddingVertical: 10,
+    paddingHorizontal: 4,
+    gap: 6,
+  },
+  amenityIconWrap: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: theme.colors.surfaceAlt,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  amenityName: {
+    fontSize: 11,
     color: theme.colors.textMuted,
-    fontWeight: '500',
+    textAlign: 'center',
   },
   description: {
     fontSize: 14,
@@ -448,7 +449,7 @@ const getStyles = (theme, EVENT_ACCENT) => StyleSheet.create({
     color: theme.colors.text,
   },
   bookButton: {
-    backgroundColor: EVENT_ACCENT,
+    backgroundColor: theme.colors.buttonBg,
     paddingHorizontal: 32,
     paddingVertical: 14,
     borderRadius: 12,
@@ -456,6 +457,6 @@ const getStyles = (theme, EVENT_ACCENT) => StyleSheet.create({
   bookButtonText: {
     fontSize: 16,
     fontWeight: '700',
-    color: theme.colors.white,
+    color: theme.colors.buttonText,
   },
 });

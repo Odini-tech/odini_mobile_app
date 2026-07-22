@@ -1,4 +1,5 @@
 import { supabase } from '../../lib/supabase';
+import { fetchImagesForListings } from '../../services/listings.service';
 import { callRecommendationApi, runDualMode } from './recommendationGateway';
 
 /**
@@ -304,6 +305,22 @@ export async function getBookingById(bookingId) {
   return { data, error };
 }
 
+/**
+ * Whether this user has any prior (non-cancelled/rejected) booking for this listing —
+ * used to swap "Book" copy for "Book Again" once they've requested it before.
+ */
+export async function hasUserBookedListing(userId, listingId) {
+  if (!userId || !listingId) return false;
+  const { count, error } = await supabase
+    .from(BOOKINGS_TABLE)
+    .select('id', { count: 'exact', head: true })
+    .eq('user_id', userId)
+    .eq('listing_id', listingId)
+    .not('status', 'in', '(cancelled_by_user,cancelled_by_host,rejected)');
+  if (error) return false;
+  return (count || 0) > 0;
+}
+
 export async function listBookingsByUser(userId, { limit = 50, offset = 0 } = {}) {
   const { data, error } = await supabase
     .from(BOOKINGS_TABLE)
@@ -318,12 +335,22 @@ export async function listBookingsByUserWithListing(userId, { limit = 100 } = {}
   const { data, error } = await supabase
     .from(BOOKINGS_TABLE)
     .select(
-      'id, booking_ref, listing_type, status, guests, quantity, check_in, check_out, event_slot, reservation_time, total_price, price_at_booking, created_at, cancelled_by, cancellation_note, listings!listing_id(id, title, listing_type, image_url, price)'
+      'id, booking_ref, listing_type, status, guests, quantity, check_in, check_out, event_slot, reservation_time, total_price, price_at_booking, created_at, cancelled_by, cancellation_note, listings!listing_id(id, title, listing_type, price)'
     )
     .eq('user_id', userId)
     .order('created_at', { ascending: false })
     .limit(limit);
-  return { data, error };
+
+  if (error || !data) return { data, error };
+
+  // listings has no image_url column — images live in stay_images/event_images/offering_images
+  const imageMap = await fetchImagesForListings(data.map((b) => b.listings).filter(Boolean));
+  const enriched = data.map((b) => ({
+    ...b,
+    listings: b.listings ? { ...b.listings, image_url: imageMap.get(b.listings.id) || null } : null,
+  }));
+
+  return { data: enriched, error: null };
 }
 
 export async function updateBookingStatus(bookingId, status, options = {}) {
@@ -361,6 +388,7 @@ export async function completeBooking(bookingId) {
 export default {
   createBooking,
   getBookingById,
+  hasUserBookedListing,
   listBookingsByUser,
   listBookingsByUserWithListing,
   checkAvailability,

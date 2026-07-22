@@ -203,16 +203,17 @@ export async function getListingById(listingId) {
 
     if (error) throw error;
 
-    // Get all images
+    // Get all images + amenities
     const imageTable = getImageTableName(data.listing_type);
-    const { data: images } = await supabase
-      .from(imageTable)
-      .select("image_url")
-      .eq("listing_id", listingId);
+    const [{ data: images }, { data: amenityRows }] = await Promise.all([
+      supabase.from(imageTable).select("image_url").eq("listing_id", listingId),
+      supabase.from("amenity_listings").select("amenities(id, name, icon_name)").eq("listing_id", listingId),
+    ]);
 
     return {
       ...data,
       images: images?.map((img) => img.image_url) || [],
+      amenities: (amenityRows || []).map((row) => row.amenities).filter(Boolean),
     };
   } catch (error) {
     console.error("Error fetching listing:", error);
@@ -488,7 +489,7 @@ export async function getUserHiddenListingIds(userId) {
  * Fetches the first image for each listing in a batch using at most 3 parallel queries
  * (one per image table type), rather than one query per listing.
  */
-async function fetchImagesForListings(listings) {
+export async function fetchImagesForListings(listings) {
   const byTable = {};
   for (const l of listings) {
     const table = getImageTableName(l.listing_type);

@@ -54,7 +54,7 @@ export default function CurrencyPicker({ visible, onClose }) {
                   <MaterialCommunityIcons
                     name="check-circle"
                     size={20}
-                    color={theme.colors.primary}
+                    color={theme.colors.text}
                   />
                 )}
               </TouchableOpacity>
@@ -123,7 +123,7 @@ const getStyles = (theme) => StyleSheet.create({
     gap: 12,
   },
   rowSelected: {
-    backgroundColor: theme.colors.primaryTint,
+    backgroundColor: theme.colors.surfaceStrong,
   },
   flag: {
     fontSize: 24,
@@ -138,8 +138,8 @@ const getStyles = (theme) => StyleSheet.create({
     marginBottom: 2,
   },
   rowNameSelected: {
-    color: theme.colors.primary,
-    fontWeight: '600',
+    color: theme.colors.text,
+    fontWeight: '700',
   },
   rowMeta: {
     fontSize: 12,

@@ -245,7 +245,7 @@ export default function ProfileScreen() {
   if (loading) {
     return (
       <View style={styles.centered}>
-        <ActivityIndicator size="large" color={theme.colors.primary} />
+        <ActivityIndicator size="large" color={theme.colors.textMuted} />
       </View>
     );
   }
@@ -279,7 +279,7 @@ export default function ProfileScreen() {
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Personal Information</Text>
             <TouchableOpacity style={styles.editBtn} onPress={openEdit}>
-              <Ionicons name="pencil" size={13} color={theme.colors.primary} />
+              <Ionicons name="pencil" size={13} color={theme.colors.buttonText} />
               <Text style={styles.editBtnText}>Edit</Text>
             </TouchableOpacity>
           </View>
@@ -344,7 +344,7 @@ export default function ProfileScreen() {
                   <Ionicons
                     name={isDark ? 'moon' : 'sunny-outline'}
                     size={20}
-                    color={theme.colors.primary}
+                    color={theme.colors.textMuted}
                   />
                 </View>
                 <View>
@@ -355,7 +355,7 @@ export default function ProfileScreen() {
               <Switch
                 value={isDark}
                 onValueChange={(val) => setColorScheme(val ? 'dark' : 'light')}
-                trackColor={{ false: theme.colors.border, true: theme.colors.primarySoft }}
+                trackColor={{ false: theme.colors.border, true: theme.colors.textMuted }}
                 thumbColor={theme.colors.white}
               />
             </View>
@@ -363,7 +363,7 @@ export default function ProfileScreen() {
             <TouchableOpacity style={styles.prefRow} onPress={() => setCurrencyVisible(true)}>
               <View style={styles.prefLeft}>
                 <View style={styles.prefIconWrap}>
-                  <Ionicons name="cash-outline" size={20} color={theme.colors.primary} />
+                  <Ionicons name="cash-outline" size={20} color={theme.colors.textMuted} />
                 </View>
                 <View>
                   <Text style={styles.prefLabel}>Currency</Text>
@@ -384,7 +384,7 @@ export default function ProfileScreen() {
             <View style={[styles.prefRow, styles.prefRowBorder]}>
               <View style={styles.prefLeft}>
                 <View style={styles.prefIconWrap}>
-                  <Ionicons name="mail-outline" size={20} color={theme.colors.primary} />
+                  <Ionicons name="mail-outline" size={20} color={theme.colors.textMuted} />
                 </View>
                 <View style={styles.prefTextWrap}>
                   <Text style={styles.prefLabel}>Email</Text>
@@ -400,7 +400,7 @@ export default function ProfileScreen() {
             <View style={styles.prefRow}>
               <View style={styles.prefLeft}>
                 <View style={styles.prefIconWrap}>
-                  <Ionicons name="calendar-number-outline" size={20} color={theme.colors.primary} />
+                  <Ionicons name="calendar-number-outline" size={20} color={theme.colors.textMuted} />
                 </View>
                 <View>
                   <Text style={styles.prefLabel}>Member Since</Text>
@@ -445,9 +445,9 @@ export default function ProfileScreen() {
               <Text style={styles.modalCancel}>Cancel</Text>
             </TouchableOpacity>
             <Text style={styles.modalTitle}>Edit Profile</Text>
-            <TouchableOpacity onPress={saveProfile} disabled={saving}>
+            <TouchableOpacity style={styles.modalSaveBtn} onPress={saveProfile} disabled={saving}>
               {saving ? (
-                <ActivityIndicator size="small" color={theme.colors.primary} />
+                <ActivityIndicator size="small" color={theme.colors.buttonText} />
               ) : (
                 <Text style={styles.modalSave}>Save</Text>
               )}
@@ -583,7 +583,7 @@ export default function ProfileScreen() {
                 </Text>
               </View>
               {selectedCurrency.code === c.code && (
-                <Ionicons name="checkmark" size={20} color={theme.colors.primary} />
+                <Ionicons name="checkmark" size={20} color={theme.colors.text} />
               )}
             </TouchableOpacity>
           ))}
@@ -731,7 +731,7 @@ const getStyles = (theme: any) =>
       width: 96,
       height: 96,
       borderRadius: 48,
-      backgroundColor: theme.colors.primary,
+      backgroundColor: theme.colors.textMuted,
       justifyContent: 'center',
       alignItems: 'center',
       marginBottom: 16,
@@ -785,7 +785,7 @@ const getStyles = (theme: any) =>
       flexDirection: 'row',
       alignItems: 'center',
       gap: 4,
-      backgroundColor: theme.colors.primaryTint,
+      backgroundColor: theme.colors.buttonBg,
       paddingHorizontal: 12,
       paddingVertical: 6,
       borderRadius: 16,
@@ -793,7 +793,7 @@ const getStyles = (theme: any) =>
     editBtnText: {
       fontSize: 13,
       fontWeight: '600',
-      color: theme.colors.primary,
+      color: theme.colors.buttonText,
     },
 
     // Card
@@ -832,7 +832,7 @@ const getStyles = (theme: any) =>
       width: 38,
       height: 38,
       borderRadius: 10,
-      backgroundColor: theme.colors.primaryTint,
+      backgroundColor: theme.colors.surfaceAlt,
       justifyContent: 'center',
       alignItems: 'center',
     },
@@ -904,11 +904,18 @@ const getStyles = (theme: any) =>
       color: theme.colors.textMuted,
       minWidth: 48,
     },
-    modalSave: {
-      fontSize: 16,
-      fontWeight: '600',
-      color: theme.colors.primary,
+    modalSaveBtn: {
+      backgroundColor: theme.colors.buttonBg,
+      paddingHorizontal: 14,
+      paddingVertical: 6,
+      borderRadius: 14,
       minWidth: 48,
+      alignItems: 'center',
+    },
+    modalSave: {
+      fontSize: 15,
+      fontWeight: '600',
+      color: theme.colors.buttonText,
       textAlign: 'right',
     },
     modalBody: {
@@ -938,15 +945,15 @@ const getStyles = (theme: any) =>
       borderColor: theme.colors.border,
     },
     genderOptionSelected: {
-      borderColor: theme.colors.primary,
-      backgroundColor: theme.colors.primaryTint,
+      borderColor: theme.colors.text,
+      backgroundColor: theme.colors.surfaceStrong,
     },
     genderOptionText: {
       fontSize: 14,
       color: theme.colors.textMuted,
     },
     genderOptionTextSelected: {
-      color: theme.colors.primary,
+      color: theme.colors.text,
       fontWeight: '600',
     },
 
@@ -960,7 +967,7 @@ const getStyles = (theme: any) =>
       borderBottomColor: theme.colors.border,
     },
     currencyRowSelected: {
-      backgroundColor: theme.colors.primaryTint,
+      backgroundColor: theme.colors.surfaceStrong,
     },
     currencyFlag: {
       fontSize: 26,
@@ -971,7 +978,8 @@ const getStyles = (theme: any) =>
       color: theme.colors.text,
     },
     currencyNameSelected: {
-      color: theme.colors.primary,
+      color: theme.colors.text,
+      fontWeight: '700',
     },
     currencyCode: {
       fontSize: 12,
