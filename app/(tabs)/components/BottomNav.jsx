@@ -23,7 +23,7 @@ export default function BottomNav({
 
   const NAV_ITEMS = [
     { name: 'home',          icon: 'home-outline',          label: 'Home',     onPress: onHomePress },
-    { name: 'chat',          icon: 'chatbubble-outline',    label: 'Advisory', onPress: onChatPress },
+    { name: 'chat',          icon: 'chatbubble-outline',    label: 'Guide', onPress: onChatPress },
     { name: 'search',        icon: 'search-outline',        label: 'Search',   onPress: onSearchPress },
     { name: 'notifications', icon: 'notifications-outline', label: 'Alerts',   onPress: onNotificationsPress },
     { name: 'profile',       icon: 'person-outline',        label: 'Profile',  onPress: onProfilePress },

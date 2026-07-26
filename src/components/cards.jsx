@@ -7,6 +7,7 @@ import { useCurrency } from "../context/CurrencyContext";
 import bookingService from "../services/bookingService";
 import { InteractionService } from "../services/interactionService";
 import { formatEventDateSmart } from "../utils/dateFormat";
+import { formatCount } from "../utils/formatCount";
 import { oneOf } from "../utils/relations";
 import EventBookingModal from "./booking/EventBooking";
 import OfferingBookingModal from "./booking/OfferingBooking";
@@ -33,7 +34,28 @@ const ListingCard = React.memo(function ListingCard({ item, onPress, onFavoriteP
   const [isFavorited, setIsFavorited] = useState(propIsFavorited ?? item.is_favorited ?? false);
   const [remainingTickets, setRemainingTickets] = useState(null);
   const scaleAnim = useRef(new Animated.Value(1)).current;
+  const imageGlowAnim = useRef(new Animated.Value(0)).current;
   const hasPropRef = useRef(propIsFavorited !== undefined);
+
+  // Periodic soft light-up pulse on the image, every 4s: hold, then fade in
+  // and back out. Kept subtle (low peak opacity) so it reads as ambient
+  // motion rather than a flash.
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.delay(2600),
+        Animated.timing(imageGlowAnim, { toValue: 1, duration: 700, useNativeDriver: true }),
+        Animated.timing(imageGlowAnim, { toValue: 0, duration: 700, useNativeDriver: true }),
+      ])
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [imageGlowAnim]);
+
+  const imageGlowOpacity = imageGlowAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0, 0.18],
+  });
 
   useEffect(() => {
     if (!hasPropRef.current) checkIfFavorited();
@@ -175,6 +197,13 @@ const ListingCard = React.memo(function ListingCard({ item, onPress, onFavoriteP
                 <Ionicons name={typeIcon.name} size={60} color={theme.colors.textSubtle} />
               </View>
             )}
+            <Animated.View
+              pointerEvents="none"
+              style={[
+                styles.imageGlow,
+                { backgroundColor: typeIcon.color, opacity: imageGlowOpacity },
+              ]}
+            />
           </TouchableOpacity>
 
           <View style={styles.interactions}>
@@ -314,19 +343,19 @@ function getListingMetaText(item, remainingTickets) {
       const stay = oneOf(item.stays);
       const rooms = stay.available_rooms ?? 0;
       const guests = stay.max_guests ?? 0;
-      return `${rooms} room${rooms !== 1 ? "s" : ""} available`;
+      return `${formatCount(rooms)} room${rooms !== 1 ? "s" : ""} available`;
     }
     case "event": {
       const event = oneOf(item.events);
       const dateStr = formatEventDateSmart(event.event_time);
       if (event.capacity && remainingTickets != null) {
-        return `${dateStr} - ${remainingTickets} ticket${remainingTickets === 1 ? "" : "s"} left`;
+        return `${dateStr} - ${formatCount(remainingTickets)} ticket${remainingTickets === 1 ? "" : "s"} left`;
       }
       return dateStr;
     }
     case "offering": {
       const offering = oneOf(item.offering);
-      return formatSchedule(`${offering.opening_hours}:00 to ${offering.closing_hours}:00`) || "Schedule varies";
+      return formatSchedule(offering.opening_hours) || "Schedule varies";
     }
     default:
       return "Listing";
@@ -391,6 +420,9 @@ const getStyles = (theme) => StyleSheet.create({
   image: {
     width: "100%",
     height: "100%",
+  },
+  imageGlow: {
+    ...StyleSheet.absoluteFillObject,
   },
   imagePlaceholder: {
     justifyContent: "center",

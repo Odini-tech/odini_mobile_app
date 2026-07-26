@@ -13,6 +13,7 @@ import {
 import { useAppMode } from '../../context/AppModeContext';
 import { useCurrency } from '../../context/CurrencyContext';
 import { oneOf } from '../../utils/relations';
+import { formatCount } from '../../utils/formatCount';
 import { resolveAmenityIcon } from '../../utils/reactIconsMap';
 import StayBookingModal from '../booking/StayBooking';
 import ImageCarousel from '../shared/ImageCarousel';
@@ -127,7 +128,7 @@ export default function StayDetail({ listing, onClose, onHostPress }) {
               <View style={styles.detailsGrid}>
                 <View style={styles.detailCard}>
                   <Ionicons name="door-open" size={24} color={theme.colors.textMuted} />
-                  <Text style={styles.detailValue}>{stayDetails.available_rooms || 0}</Text>
+                  <Text style={styles.detailValue}>{formatCount(stayDetails.available_rooms)}</Text>
                   <Text style={styles.detailLabel}>Rooms</Text>
                 </View>
                 <View style={styles.detailCard}>

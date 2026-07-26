@@ -16,6 +16,7 @@ import { supabase } from '../../../lib/supabase';
 import bookingService from '../../../src/services/bookingService';
 import { useAppMode } from '../../context/AppModeContext';
 import { formatEventTimeSmart } from '../../utils/dateFormat';
+import { formatCount } from '../../utils/formatCount';
 
 export default function EventBookingModal({ listing, eventDetails, onClose, onConfirm }) {
   const { theme } = useAppMode();
@@ -217,7 +218,7 @@ export default function EventBookingModal({ listing, eventDetails, onClose, onCo
             </View>
             {remainingTickets != null && (
               <Text style={soldOut ? styles.soldOutText : styles.availabilityText}>
-                {soldOut ? 'This event is sold out' : `${remainingTickets} ticket${remainingTickets === 1 ? '' : 's'} left`}
+                {soldOut ? 'This event is sold out' : `${formatCount(remainingTickets)} ticket${remainingTickets === 1 ? '' : 's'} left`}
               </Text>
             )}
           </View>

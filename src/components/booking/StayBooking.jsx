@@ -16,6 +16,7 @@ import {
 import { supabase } from '../../../lib/supabase';
 import bookingService from '../../../src/services/bookingService';
 import { useAppMode } from '../../context/AppModeContext';
+import { formatCount } from '../../utils/formatCount';
 
 const toDateOnlyString = (date) => date.toISOString().split('T')[0];
 
@@ -279,7 +280,7 @@ export default function StayBookingModal({ listing, stayDetails, onClose, onConf
             </View>
             {remainingRooms != null && (
               <Text style={soldOut ? styles.soldOutText : styles.availabilityText}>
-                {soldOut ? 'No rooms left for these dates' : `${remainingRooms} room${remainingRooms === 1 ? '' : 's'} left for these dates`}
+                {soldOut ? 'No rooms left for these dates' : `${formatCount(remainingRooms)} room${remainingRooms === 1 ? '' : 's'} left for these dates`}
               </Text>
             )}
             <Text style={styles.availabilityText}>
