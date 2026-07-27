@@ -74,7 +74,7 @@ export default function DetailSuggestionCarousel({ listing }) {
 
   const renderCard = (item) => {
     const typeMeta = getTypeMeta(item.listing_type, theme);
-    const location = item.profiles?.location || item.location || item.address_city || null;
+    const location = item.venueName || item.profiles?.location || item.location || null;
 
     return (
       <TouchableOpacity

@@ -20,6 +20,15 @@ export interface EngineListingCard {
   tags: string[];
   categories: string[];
   score?: number;
+  venueId: string | null;
+  venueName: string | null;
+}
+
+export interface EngineVenueSummary {
+  id: string;
+  name: string;
+  description: string | null;
+  location: { city: string | null; country: string | null; lat: number | null; lng: number | null } | null;
 }
 
 export interface EngineMix {
@@ -43,6 +52,17 @@ interface MixesResponse {
 interface SimilarResponse {
   source: 'pair_affinity' | 'content_fallback';
   items: EngineListingCard[];
+}
+
+interface VenueListingsResponse {
+  venue: EngineVenueSummary;
+  source: 'personalized' | 'cold_start';
+  items: EngineListingCard[];
+  nextCursor: string | null;
+}
+
+interface SimilarVenuesResponse {
+  venues: EngineVenueSummary[];
 }
 
 /**
@@ -140,6 +160,53 @@ export const RecommendationService = {
           const path = recommendationApiPath(`/api/listings/${encodeURIComponent(listingId)}/similar`, { limit });
           const envelope = await callRecommendationApi<SimilarResponse>(path, { method: 'GET' });
           return toRecommended(envelope.data.items || []);
+        },
+        basic: async () => [],
+      });
+    } catch {
+      return [];
+    }
+  },
+
+  /**
+   * Listings at a single venue, ranked for the caller the same way Feed is
+   * (guest/cold-start falls back to newest first). Returns null venue on a
+   * 404 (not enrolled/not found) so callers can show an empty state.
+   */
+  async getVenueListings(
+    venueId: string,
+    limit = 20
+  ): Promise<{ venue: EngineVenueSummary | null; items: RecommendedListing[] }> {
+    if (!venueId) return { venue: null, items: [] };
+    try {
+      return await runDualMode<{ venue: EngineVenueSummary | null; items: RecommendedListing[] }>({
+        context: 'recommendationService.getVenueListings',
+        fallbackToBasicOnError: false,
+        recEng: async () => {
+          const path = recommendationApiPath(`/api/venues/${encodeURIComponent(venueId)}/listings`, { limit });
+          const envelope = await callRecommendationApi<VenueListingsResponse>(path, { method: 'GET' });
+          return { venue: envelope.data.venue || null, items: toRecommended(envelope.data.items || []) };
+        },
+        basic: async () => ({ venue: null, items: [] }),
+      });
+    } catch {
+      return { venue: null, items: [] };
+    }
+  },
+
+  /**
+   * Content-based "venues like this one". Not user-specific — no auth needed.
+   */
+  async getSimilarVenues(venueId: string, limit = 10): Promise<EngineVenueSummary[]> {
+    if (!venueId) return [];
+    try {
+      return await runDualMode<EngineVenueSummary[]>({
+        context: 'recommendationService.getSimilarVenues',
+        fallbackToBasicOnError: false,
+        recEng: async () => {
+          const path = recommendationApiPath(`/api/venues/${encodeURIComponent(venueId)}/similar`, { limit });
+          const envelope = await callRecommendationApi<SimilarVenuesResponse>(path, { method: 'GET' });
+          return envelope.data.venues || [];
         },
         basic: async () => [],
       });

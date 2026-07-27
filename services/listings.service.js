@@ -1,5 +1,22 @@
 import { supabase } from "../lib/supabase";
 
+// listings.venue_id -> venues.id -> venues.location_id -> locations.id
+const VENUE_SELECT = "venues:venue_id(id, name, description, locations:location_id(city, country, lat, lng))";
+
+/**
+ * Flattens the nested `venues` join Supabase returns into venueId/venueName
+ * so card components have a stable place to read them regardless of which
+ * query produced the row.
+ */
+function withVenue(row) {
+  const venue = row.venues || null;
+  return {
+    ...row,
+    venueId: venue?.id ?? null,
+    venueName: venue?.name ?? null,
+  };
+}
+
 /**
  * Takes an array of ListingCard objects returned by the recommendation engine
  * and enriches them with full Supabase data (profiles, images, type-specific details).
@@ -24,6 +41,7 @@ export async function enrichRecommendationListings(recListings = []) {
         created_at,
         price,
         profiles:host_id(username, firstname, lastname, location),
+        ${VENUE_SELECT},
         stays(durations_nights, max_guests, available_rooms),
         events(event_time, event_type, capacity),
         offering(service_type, opening_hours, duration_minutes, max_bookings)
@@ -37,12 +55,12 @@ export async function enrichRecommendationListings(recListings = []) {
 
     const enriched = data.map((listing) => {
       const recMeta = recListings.find((r) => r.id === listing.id);
-      return {
+      return withVenue({
         ...listing,
         image_url: imageMap.get(listing.id) || null,
         rec_score: recMeta?.score ?? null,
         rec_reason: recMeta?.explanation ?? null,
-      };
+      });
     });
 
     const orderMap = new Map(ids.map((id, i) => [id, i]));
@@ -94,6 +112,7 @@ export async function getListingsByIds(ids = []) {
         created_at,
         price,
         profiles:host_id(username, firstname, lastname, location),
+        ${VENUE_SELECT},
         stays(durations_nights, max_guests, available_rooms),
         events(event_time, event_type, capacity),
         offering(service_type, opening_hours, duration_minutes, max_bookings)
@@ -106,7 +125,7 @@ export async function getListingsByIds(ids = []) {
 
     const imageMap = await fetchImagesForListings(data);
 
-    const enriched = data.map((listing) => ({
+    const enriched = data.map((listing) => withVenue({
       ...listing,
       image_url: imageMap.get(listing.id) || null,
     }));
@@ -137,6 +156,7 @@ export async function getListings(listingType = null) {
         is_active,
         created_at,
         profiles:host_id(username, firstname, lastname, location),
+        ${VENUE_SELECT},
         stays(durations_nights, max_guests, available_rooms),
         events(event_time, event_type, capacity),
         offering(service_type, opening_hours, duration_minutes, max_bookings),
@@ -163,10 +183,10 @@ export async function getListings(listingType = null) {
           .eq("listing_id", listing.id)
           .limit(1);
 
-        return {
+        return withVenue({
           ...listing,
           image_url: images?.[0]?.image_url || null,
-        };
+        });
       })
     );
 
@@ -193,6 +213,7 @@ export async function getListingById(listingId) {
         is_active,
         created_at,
         profiles:host_id(username, firstname, lastname, location),
+        ${VENUE_SELECT},
         stays(durations_nights, max_guests, available_rooms),
         events(event_time, event_type, capacity),
         offering(service_type, opening_hours, duration_minutes, max_bookings),
@@ -210,11 +231,11 @@ export async function getListingById(listingId) {
       supabase.from("amenity_listings").select("amenities(id, name, icon_name)").eq("listing_id", listingId),
     ]);
 
-    return {
+    return withVenue({
       ...data,
       images: images?.map((img) => img.image_url) || [],
       amenities: (amenityRows || []).map((row) => row.amenities).filter(Boolean),
-    };
+    });
   } catch (error) {
     console.error("Error fetching listing:", error);
     throw error;
@@ -236,6 +257,7 @@ export async function getSuggestedListings(excludeId, listingType, limit = 6) {
           price,
           location,
           profiles:host_id(username, firstname, lastname, location),
+          ${VENUE_SELECT},
           stays(durations_nights, max_guests, available_rooms),
           events(event_time, event_type, capacity),
           offering(service_type, opening_hours, duration_minutes, max_bookings)
@@ -258,6 +280,7 @@ export async function getSuggestedListings(excludeId, listingType, limit = 6) {
           price,
           location,
           profiles:host_id(username, firstname, lastname, location),
+          ${VENUE_SELECT},
           stays(durations_nights, max_guests, available_rooms),
           events(event_time, event_type, capacity),
           offering(service_type, opening_hours, duration_minutes, max_bookings)
@@ -274,7 +297,7 @@ export async function getSuggestedListings(excludeId, listingType, limit = 6) {
     const items = [...sameType, ...otherType];
     const imageMap = await fetchImagesForListings(items);
 
-    const enrich = (item) => ({
+    const enrich = (item) => withVenue({
       ...item,
       image_url: imageMap.get(item.id) || null,
     });
@@ -367,6 +390,7 @@ export async function getUserFavoriteListings(userId) {
       .select(`
         id, host_id, listing_type, title, description, is_active, created_at, price,
         profiles:host_id(username, firstname, lastname, location),
+        ${VENUE_SELECT},
         stays(durations_nights, max_guests, available_rooms),
         events(event_time, event_type, capacity),
         offering(service_type, opening_hours, duration_minutes, max_bookings)
@@ -384,7 +408,7 @@ export async function getUserFavoriteListings(userId) {
           .select('image_url')
           .eq('listing_id', listing.id)
           .limit(1);
-        return { ...listing, image_url: images?.[0]?.image_url || null, is_favorited: true };
+        return withVenue({ ...listing, image_url: images?.[0]?.image_url || null, is_favorited: true });
       })
     );
 
@@ -427,6 +451,7 @@ export async function getUserRecentlyViewedListings(userId, limit = 8) {
       .select(`
         id, host_id, listing_type, title, description, is_active, created_at, price,
         profiles:host_id(username, firstname, lastname, location),
+        ${VENUE_SELECT},
         stays(durations_nights, max_guests, available_rooms),
         events(event_time, event_type, capacity),
         offering(service_type, opening_hours, duration_minutes, max_bookings)
@@ -444,7 +469,7 @@ export async function getUserRecentlyViewedListings(userId, limit = 8) {
           .select('image_url')
           .eq('listing_id', listing.id)
           .limit(1);
-        return { ...listing, image_url: images?.[0]?.image_url || null };
+        return withVenue({ ...listing, image_url: images?.[0]?.image_url || null });
       })
     );
 

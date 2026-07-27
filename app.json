@@ -45,6 +45,13 @@
       ],
       "expo-router",
       [
+        "expo-notifications",
+        {
+          "icon": "./assets/images/odinicon.png",
+          "color": "#7C3048"
+        }
+      ],
+      [
         "expo-splash-screen",
         {
           "image": "./assets/images/odinicon.png",

@@ -1,4 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
+import { useRouter } from "expo-router";
 import React, { useEffect, useRef, useState } from "react";
 import { ActivityIndicator, Animated, Image, Share, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { supabase } from "../../lib/supabase";
@@ -26,8 +27,12 @@ const ListingCard = React.memo(function ListingCard({ item, onPress, onFavoriteP
   };
   const styles = externalStyles || getStyles(theme);
   const { formatPrice } = useCurrency();
+  const router = useRouter();
   const typeIcon = listingTypeIcons[item.listing_type] || listingTypeIcons.stay;
-  const hostName = item.profiles?.firstname || item.profiles?.username || "Host";
+  const venueLocation = item.venues?.locations;
+  const listingLocationText = venueLocation
+    ? [venueLocation.city, venueLocation.country].filter(Boolean).join(", ")
+    : item.profiles?.location;
   const [showDetails, setShowDetails] = useState(false);
   const [showBooking, setShowBooking] = useState(false);
   const [menuVisible, setMenuVisible] = useState(false);
@@ -103,6 +108,10 @@ const ListingCard = React.memo(function ListingCard({ item, onPress, onFavoriteP
     setShowBooking(true);
   };
 
+  const handleVenuePress = () => {
+    if (item.venueId) router.push(`/venue/${item.venueId}`);
+  };
+
   const handleLongPress = () => {
     Animated.sequence([
       Animated.timing(scaleAnim, { toValue: 0.98, duration: 80, useNativeDriver: true }),
@@ -176,7 +185,7 @@ const ListingCard = React.memo(function ListingCard({ item, onPress, onFavoriteP
               <View style={styles.userDetails}>
                 <Text style={styles.username} numberOfLines={1}>{item.title}</Text>
                 <Text style={styles.location} numberOfLines={1}>
-                  {item.profiles?.location || "Location not specified"}
+                  {listingLocationText || "Location not specified"}
                 </Text>
               </View>
             </View>
@@ -269,7 +278,15 @@ const ListingCard = React.memo(function ListingCard({ item, onPress, onFavoriteP
               <Text style={styles.captionBadge}>
                 <Text style={{ color: typeIcon.color }}>{getBadgeLabel(item)}</Text>
               </Text>
-              <Text style={styles.captionMeta}>@ {hostName}</Text>
+              <TouchableOpacity
+                onPress={handleVenuePress}
+                disabled={!item.venueId}
+                hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+              >
+                <Text style={[styles.captionMeta, item.venueId && styles.captionMetaLink]}>
+                  {item.venueName ? `@ ${item.venueName}` : "Venue not specified"}
+                </Text>
+              </TouchableOpacity>
             </View>
 
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
@@ -479,6 +496,11 @@ const getStyles = (theme) => StyleSheet.create({
   captionMeta: {
     fontSize: 12,
     color: theme.colors.textSubtle,
+  },
+  captionMetaLink: {
+    color: theme.colors.text,
+    fontWeight: "600",
+    textDecorationLine: "underline",
   },
   captionTitle: {
     fontSize: 13,

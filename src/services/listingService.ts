@@ -11,6 +11,15 @@ export interface Listing {
   created_at: string;
   price: number | null;
   location: string | null;
+  venue_id?: string | null;
+  venueId?: string | null;
+  venueName?: string | null;
+  venues?: {
+    id: string;
+    name: string;
+    description: string | null;
+    locations?: { city: string | null; country: string | null; lat: number | null; lng: number | null } | null;
+  } | null;
   events?: {
     event_time: string | null;
     event_type: string | null;
@@ -81,27 +90,47 @@ const listingSelect = `
   created_at,
   price,
   location,
+  venue_id,
+  venues:venue_id(id, name, description, locations:location_id(city, country, lat, lng)),
   events(event_time, event_type, capacity, available_slots, end_time),
   stays(durations_nights, max_guests, available_rooms),
   offering(service_type, opening_hours, duration_minutes, max_bookings)
 `;
 
+// Flattens the nested `venues` join so callers can read venueId/venueName
+// directly, regardless of whether the row came from Supabase or the rec API.
+// Takes `any` because supabase-js (without generated DB types) can't always
+// infer whether a to-one embed comes back as an object or a single-item array.
+const withVenue = (row: any): Listing => {
+  const venue = Array.isArray(row.venues) ? row.venues[0] : row.venues;
+  return {
+    ...row,
+    venueId: venue?.id ?? row.venue_id ?? null,
+    venueName: venue?.name ?? null,
+    venues: venue ?? null,
+  };
+};
+
 type RecommendationApiListing = Partial<Listing> & { hostId?: string };
 
-const normalizeApiListing = (row: RecommendationApiListing): Listing => ({
-  id: String(row.id || ''),
-  host_id: String(row.host_id || row.hostId || ''),
-  listing_type: (row.listing_type as Listing['listing_type']) || 'stay',
-  title: row.title || 'Untitled listing',
-  description: row.description || null,
-  is_active: row.is_active ?? true,
-  created_at: row.created_at || new Date().toISOString(),
-  price: typeof row.price === 'number' ? row.price : Number(row.price || 0),
-  location: row.location || null,
-  events: row.events || null,
-  stays: row.stays || null,
-  offering: row.offering || null,
-});
+const normalizeApiListing = (row: RecommendationApiListing): Listing =>
+  withVenue({
+    id: String(row.id || ''),
+    host_id: String(row.host_id || row.hostId || ''),
+    listing_type: (row.listing_type as Listing['listing_type']) || 'stay',
+    title: row.title || 'Untitled listing',
+    description: row.description || null,
+    is_active: row.is_active ?? true,
+    created_at: row.created_at || new Date().toISOString(),
+    price: typeof row.price === 'number' ? row.price : Number(row.price || 0),
+    location: row.location || null,
+    venue_id: row.venue_id ?? null,
+    venueId: row.venueId ?? row.venue_id ?? null,
+    venueName: row.venueName ?? null,
+    events: row.events || null,
+    stays: row.stays || null,
+    offering: row.offering || null,
+  });
 
 /**
  * Main listing service - handles all listing-related operations
@@ -182,7 +211,7 @@ export const listingService = {
         throw new Error(`Failed to fetch listings: ${error.message}`);
       }
 
-      return (data || []) as Listing[];
+      return (data || []).map(withVenue);
     };
 
     try {
@@ -231,7 +260,7 @@ export const listingService = {
         throw new Error(`Failed to fetch listing: ${error.message}`);
       }
 
-      return (data as Listing | null) || null;
+      return data ? withVenue(data) : null;
     } catch (error) {
       console.error('Error in fetchListingById:', error);
       throw error;
@@ -399,7 +428,7 @@ export const listingService = {
         throw new Error(`Search failed: ${error.message}`);
       }
 
-      return (data || []) as Listing[];
+      return (data || []).map(withVenue);
     } catch (error) {
       console.error('Error in searchListings:', error);
       throw error;
@@ -426,7 +455,7 @@ export const listingService = {
         throw new Error(`Failed to fetch host listings: ${error.message}`);
       }
 
-      return (data || []) as Listing[];
+      return (data || []).map(withVenue);
     } catch (error) {
       console.error('Error in getListingsByHost:', error);
       throw error;
@@ -464,7 +493,7 @@ export const listingService = {
         .filter(row => row.listing)
         .map((row: any) => ({
           tripId: row.id,
-          listing: row.listing as Listing,
+          listing: withVenue(row.listing),
           startDate: row.check_in,
           endDate: row.check_out,
           status: row.status,

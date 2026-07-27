@@ -1,4 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 import React, { useEffect, useRef, useState } from 'react';
 import { Animated, Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { supabase } from '../../lib/supabase';
@@ -11,6 +12,7 @@ const ExploreCard = React.memo(function ExploreCard({ item, onPress, onInteracti
   const { theme } = useAppMode();
   const styles = getStyles(theme);
   const { formatPrice } = useCurrency();
+  const router = useRouter();
   const typeIcon = getTypeIcon(item.listing_type, theme);
   const imageUrl = getFirstImageUrl(item);
   const [menuVisible, setMenuVisible] = useState(false);
@@ -45,6 +47,10 @@ const ExploreCard = React.memo(function ExploreCard({ item, onPress, onInteracti
       Animated.timing(scaleAnim, { toValue: 1, duration: 80, useNativeDriver: true }),
     ]).start();
     setMenuVisible(true);
+  };
+
+  const handleVenuePress = () => {
+    if (item.venueId) router.push(`/venue/${item.venueId}`);
   };
 
   const handleInteractionAction = async (actionId, listing) => {
@@ -120,9 +126,19 @@ const ExploreCard = React.memo(function ExploreCard({ item, onPress, onInteracti
           </Text>
 
           <View style={styles.cardFooter}>
-            <Text style={styles.hostName} numberOfLines={1}>
-              {item.profiles?.location || ''}
-            </Text>
+            <TouchableOpacity
+              onPress={handleVenuePress}
+              disabled={!item.venueId}
+              hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+              style={{ flex: 1 }}
+            >
+              <Text
+                style={[styles.hostName, item.venueId && styles.hostNameLink]}
+                numberOfLines={1}
+              >
+                {item.venueName || ''}
+              </Text>
+            </TouchableOpacity>
           </View>
         </TouchableOpacity>
       </Animated.View>
@@ -275,5 +291,10 @@ const getStyles = (theme) => StyleSheet.create({
     color: theme.colors.textMuted,
     flex: 1,
     paddingBottom: 10,
+  },
+  hostNameLink: {
+    color: theme.colors.text,
+    fontWeight: '600',
+    textDecorationLine: 'underline',
   },
 });

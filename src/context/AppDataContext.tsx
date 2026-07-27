@@ -12,6 +12,7 @@ import {
 import { ensureDailyListingMatchNotifications } from '../services/notificationService';
 import { RecommendationService } from '../services/recommendationService';
 import { getRecommendationModeStatus } from '../services/recommendationGateway';
+import { fetchVenuesForDash, VenueSummary } from '../services/venueService';
 
 const INITIAL_COUNT = 12;
 const BATCH_SIZE = 6;
@@ -62,6 +63,7 @@ interface AppDataState {
   upcomingEvents: AppListing[];
   madeForYou: AppListing[];
   categoryMixes: CategoryMix[];
+  venues: VenueSummary[];
   pastBookings: any[];
   collections: any[];
 
@@ -93,6 +95,7 @@ const defaultState: AppDataState = {
   upcomingEvents: [],
   madeForYou: [],
   categoryMixes: [],
+  venues: [],
   pastBookings: [],
   collections: [],
   popularCategories: [],
@@ -197,6 +200,7 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
         collectionsResult,
         recModeListings,
         mixesResult,
+        venuesResult,
       ] = await Promise.allSettled([
         uid ? getUserFavoriteListings(uid) : Promise.resolve([]),
         uid ? getUserRecentlyViewedListings(uid, 8) : Promise.resolve([]),
@@ -240,6 +244,7 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
             .then((enrichedMixes) => enrichedMixes.filter((m) => m.items.length > 0))
             .catch(() => []);
         })(),
+        fetchVenuesForDash(8).catch(() => []),
       ]);
 
       setProgress(72);
@@ -278,6 +283,8 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
         recModeListings.status === 'fulfilled' ? recModeListings.value : [];
       const categoryMixes: CategoryMix[] =
         mixesResult.status === 'fulfilled' ? mixesResult.value : [];
+      const venues: VenueSummary[] =
+        venuesResult.status === 'fulfilled' ? venuesResult.value : [];
 
       const upcomingEvents = listings.filter((l) => l.listing_type === 'event').slice(0, 6);
       const madeForYou: AppListing[] =
@@ -296,6 +303,7 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
         upcomingEvents,
         madeForYou,
         categoryMixes,
+        venues,
         pastBookings,
         popularCategories,
         collections,

@@ -20,6 +20,7 @@ import { useAppData } from '../../context/AppDataContext';
 import { useAppMode } from '../../context/AppModeContext';
 import { useCurrency } from '../../context/CurrencyContext';
 import { InteractionService } from '../../services/interactionService';
+import { VenueSummary } from '../../services/venueService';
 import { formatEventDateSmart } from '../../utils/dateFormat';
 import EventDetail from '../details/EventDetail';
 import OfferingDetail from '../details/OfferingDetail';
@@ -38,6 +39,8 @@ interface Listing {
   is_favorited?: boolean;
   // Supabase returns profiles as object; enriched listings may return array form
   profiles?: { firstname?: string; username?: string; location?: string } | any;
+  venueId?: string | null;
+  venueName?: string | null;
   stays?: any[];
   events?: any[];
   offering?: any[];
@@ -61,6 +64,7 @@ export default function Dash({ onItemClick }: { onItemClick?: (listing: Listing)
     recentlyViewed: ctxRecent,
     madeForYou: ctxMadeForYou,
     categoryMixes: ctxCategoryMixes,
+    venues: ctxVenues,
     pastBookings: ctxBookings,
     collections: ctxCollections,
     userName: ctxUserName,
@@ -78,6 +82,7 @@ export default function Dash({ onItemClick }: { onItemClick?: (listing: Listing)
   const [recentlyViewed, setRecentlyViewed] = useState<Listing[]>([]);
   const [madeForYou, setMadeForYou] = useState<Listing[]>([]);
   const [categoryMixes, setCategoryMixes] = useState<CategoryMix[]>([]);
+  const [venues, setVenues] = useState<VenueSummary[]>([]);
   const [pastBookings, setPastBookings] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -101,13 +106,14 @@ export default function Dash({ onItemClick }: { onItemClick?: (listing: Listing)
       setRecentlyViewed((ctxRecent as Listing[]) || []);
       setMadeForYou((ctxMadeForYou as Listing[]) || []);
       setCategoryMixes((ctxCategoryMixes as CategoryMix[]) || []);
+      setVenues((ctxVenues as VenueSummary[]) || []);
       setPastBookings(ctxBookings || []);
       setCollections(ctxCollections.length ? ctxCollections : getDefaultCollections());
       setUserName(ctxUserName);
       setUserId(ctxUserId);
       setLoading(false);
     }
-  }, [isReady, ctxEvents, ctxFavorites, ctxRecent, ctxMadeForYou, ctxCategoryMixes, ctxBookings, ctxCollections, ctxUserName, ctxUserId]);
+  }, [isReady, ctxEvents, ctxFavorites, ctxRecent, ctxMadeForYou, ctxCategoryMixes, ctxVenues, ctxBookings, ctxCollections, ctxUserName, ctxUserId]);
 
   const handleRefresh = async () => {
     setRefreshing(true);
@@ -142,6 +148,10 @@ export default function Dash({ onItemClick }: { onItemClick?: (listing: Listing)
 
   const handleHostPress = (hostId: string) => {
     router.push(`/host/${hostId}`);
+  };
+
+  const handleVenuePress = (venueId: string) => {
+    router.push(`/venue/${venueId}` as any);
   };
 
   const handleLongPress = (listing: Listing) => {
@@ -271,10 +281,6 @@ export default function Dash({ onItemClick }: { onItemClick?: (listing: Listing)
       : listing.listing_type === 'offering'
       ? '#8B4B61'
       : '#7A1E3A';
-    const locationText = (listing as Listing & { location?: string; profiles?: { location?: string } }).profiles?.location
-      || (listing as Listing & { location?: string }).location
-      || null;
-
     return (
       <TouchableOpacity
         key={listing.id}
@@ -307,10 +313,45 @@ export default function Dash({ onItemClick }: { onItemClick?: (listing: Listing)
         </View>
         <View style={styles.cardInfo}>
           <Text style={styles.cardTitle} numberOfLines={2}>{listing.title}</Text>
-          {locationText ? (
-            <Text style={styles.cardLocation} numberOfLines={1}>{locationText}</Text>
+          {listing.venueName ? (
+            <TouchableOpacity
+              onPress={() => listing.venueId && handleVenuePress(listing.venueId)}
+              hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
+            >
+              <Text style={[styles.cardLocation, styles.cardVenueLink]} numberOfLines={1}>
+                {listing.venueName}
+              </Text>
+            </TouchableOpacity>
           ) : null}
           <Text style={[styles.cardPrice, { color: theme.colors.text }]}>{formatPrice(listing.price)}</Text>
+        </View>
+      </TouchableOpacity>
+    );
+  };
+
+  const renderVenueCard = (venue: VenueSummary) => {
+    const locationLabel = [venue.location?.city, venue.location?.country].filter(Boolean).join(', ');
+    return (
+      <TouchableOpacity
+        key={venue.id}
+        style={styles.smallCard}
+        onPress={() => handleVenuePress(venue.id)}
+        activeOpacity={0.75}
+      >
+        <View style={styles.cardImageWrapper}>
+          {venue.previewImageUrl ? (
+            <Image source={{ uri: venue.previewImageUrl }} style={styles.smallCardImage} />
+          ) : (
+            <View style={[styles.smallCardImage, styles.cardImagePlaceholder]}>
+              <MaterialCommunityIcons name="office-building-marker" size={28} color={theme.colors.textSubtle} />
+            </View>
+          )}
+        </View>
+        <View style={styles.cardInfo}>
+          <Text style={styles.cardTitle} numberOfLines={1}>{venue.name}</Text>
+          {locationLabel ? (
+            <Text style={styles.cardLocation} numberOfLines={1}>{locationLabel}</Text>
+          ) : null}
         </View>
       </TouchableOpacity>
     );
@@ -532,6 +573,25 @@ export default function Dash({ onItemClick }: { onItemClick?: (listing: Listing)
             </View>
           );
         })}
+
+        {/* Venues — browse venues directly */}
+        {venues.length > 0 && (
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <View>
+                <Text style={styles.sectionTitle}>Venues</Text>
+                <Text style={styles.sectionSubtitle}>Places hosting stays, events & activities</Text>
+              </View>
+            </View>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.horizontalScroll}
+            >
+              {venues.map((v) => renderVenueCard(v))}
+            </ScrollView>
+          </View>
+        )}
 
         {/* Your Trips */}
         {pastBookings.length > 0 && (
@@ -818,6 +878,11 @@ const getStyles = (theme: any) => StyleSheet.create({
     fontSize: 11,
     color: theme.colors.textMuted,
     marginBottom: 2,
+  },
+  cardVenueLink: {
+    color: theme.colors.text,
+    fontWeight: '600',
+    textDecorationLine: 'underline',
   },
   cardPrice: {
     fontSize: 12,

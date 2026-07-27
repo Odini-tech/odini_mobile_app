@@ -71,15 +71,11 @@ export interface HostDashboardData {
   locationSummaries: HostLocationSummary[];
 }
 
-type ListingLocationRow = {
-  listing_id: string;
-  lat: number | null;
-  lng: number | null;
-  place_id: string | null;
-  formatted_address: string | null;
+type VenueLocation = {
   city: string | null;
   country: string | null;
-  created_at: string;
+  lat: number | null;
+  lng: number | null;
 };
 
 const IMAGE_TABLES: Record<Listing['listing_type'], string> = {
@@ -89,10 +85,10 @@ const IMAGE_TABLES: Record<Listing['listing_type'], string> = {
 };
 
 function formatLocationLabel(
-  locationRow: ListingLocationRow | undefined,
+  venueLocation: VenueLocation | null | undefined,
   listingLocation: string | null | undefined
 ): string {
-  const parts = [locationRow?.formatted_address, locationRow?.city, locationRow?.country]
+  const parts = [venueLocation?.city, venueLocation?.country]
     .filter(Boolean)
     .map((part) => String(part).trim());
 
@@ -138,24 +134,6 @@ async function fetchPreviewImages(listings: Listing[]): Promise<Map<string, stri
 
   await Promise.all(queries);
   return imageMap;
-}
-
-async function fetchLocations(listingIds: string[]): Promise<Map<string, ListingLocationRow>> {
-  if (listingIds.length === 0) {
-    return new Map();
-  }
-
-  const { data } = await supabase
-    .from('locations')
-    .select('listing_id, lat, lng, place_id, formatted_address, city, country, created_at')
-    .in('listing_id', listingIds);
-
-  const locationMap = new Map<string, ListingLocationRow>();
-  (data || []).forEach((row) => {
-    locationMap.set(row.listing_id, row as ListingLocationRow);
-  });
-
-  return locationMap;
 }
 
 function buildBookingAggregates(bookings: HostBooking[]): {
@@ -235,9 +213,8 @@ export async function fetchHostDashboard(hostId: string): Promise<HostDashboardD
 
   const profile = (profileData as HostProfile | null) || null;
   const listings = await listingService.getListingsByHost(hostId, { page: 1, pageSize: 200 });
-  const listingIds = listings.map((listing) => listing.id);
 
-  const [bookingsResult, locationMap, previewImages] = await Promise.all([
+  const [bookingsResult, previewImages] = await Promise.all([
     supabase
       .from('bookings')
       .select(
@@ -245,7 +222,6 @@ export async function fetchHostDashboard(hostId: string): Promise<HostDashboardD
       )
       .eq('host_id', hostId)
       .order('created_at', { ascending: false }),
-    fetchLocations(listingIds),
     fetchPreviewImages(listings),
   ]);
 
@@ -258,17 +234,17 @@ export async function fetchHostDashboard(hostId: string): Promise<HostDashboardD
   const listingById = new Map(listings.map((listing) => [listing.id, listing]));
 
   const enrichedListings: HostListing[] = listings.map((listing) => {
-    const locationRow = locationMap.get(listing.id);
-    const label = formatLocationLabel(locationRow, listing.location);
+    const venueLocation = listing.venues?.locations || null;
+    const label = formatLocationLabel(venueLocation, listing.location);
 
     return {
       ...listing,
       preview_image_url: previewImages.get(listing.id) || null,
       location_label: label,
-      location_city: locationRow?.city || null,
-      location_country: locationRow?.country || null,
-      location_lat: locationRow?.lat ?? null,
-      location_lng: locationRow?.lng ?? null,
+      location_city: venueLocation?.city || null,
+      location_country: venueLocation?.country || null,
+      location_lat: venueLocation?.lat ?? null,
+      location_lng: venueLocation?.lng ?? null,
       booking_count: bookingCountByListing[listing.id] || 0,
       latest_booking_at: latestBookingAtByListing[listing.id] || null,
     };
@@ -276,12 +252,11 @@ export async function fetchHostDashboard(hostId: string): Promise<HostDashboardD
 
   const bookingsWithListingInfo: HostBooking[] = bookings.map((booking) => {
     const listing = listingById.get(booking.listing_id);
-    const locationRow = locationMap.get(booking.listing_id);
 
     return {
       ...booking,
       listing_title: listing?.title || null,
-      location_label: formatLocationLabel(locationRow, listing?.location),
+      location_label: formatLocationLabel(listing?.venues?.locations || null, listing?.location),
     };
   });
 

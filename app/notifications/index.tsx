@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
@@ -40,6 +40,8 @@ export default function NotificationsScreen() {
   const router = useRouter();
   const { theme } = useAppMode();
   const styles = getStyles(theme);
+  const params = useLocalSearchParams<{ openId?: string | string[] }>();
+  const openId = Array.isArray(params.openId) ? params.openId[0] : params.openId;
 
   const [userId, setUserId] = useState<string | null>(null);
   const [notifications, setNotifications] = useState<any[]>([]);
@@ -49,6 +51,7 @@ export default function NotificationsScreen() {
   const [selectedListing, setSelectedListing] = useState<any>(null);
   const [detailsType, setDetailsType] = useState<string | null>(null);
   const channelRef = useRef<any>(null);
+  const autoOpenedRef = useRef<string | null>(null);
 
   const load = useCallback(async (uid: string) => {
     const { data } = await notificationService.listNotifications(uid);
@@ -95,8 +98,16 @@ export default function NotificationsScreen() {
     }
 
     if (notification.type === 'listing_match') {
-      const listingId = notification.data?.listing_id;
-      if (!listingId) return;
+      // App-seeded rows use `listing_id`; rows written by the recommendation
+      // engine's daily match job use camelCase `listingId`/`venueId`.
+      const listingId = notification.data?.listingId ?? notification.data?.listing_id;
+      const venueId = notification.data?.venueId;
+
+      if (!listingId) {
+        if (venueId) router.push(`/venue/${venueId}` as any);
+        return;
+      }
+
       setOpeningId(notification.id);
       try {
         const listing = await getListingById(listingId);
@@ -109,6 +120,17 @@ export default function NotificationsScreen() {
       }
     }
   };
+
+  // Deep-link from a push tap: /notifications?openId=<row id> auto-opens that
+  // row's detail once the list has loaded, same as tapping it in the list.
+  useEffect(() => {
+    if (!openId || autoOpenedRef.current === openId || !notifications.length) return;
+    const target = notifications.find((n) => n.id === openId);
+    if (!target) return;
+    autoOpenedRef.current = openId;
+    handlePress(target);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [openId, notifications]);
 
   const handleCloseDetails = () => {
     setSelectedListing(null);

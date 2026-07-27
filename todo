@@ -5,7 +5,7 @@
 - [*] Plan for trips feature
 - [*] Make interactions service work
 - [*] Investigate map/location app stuff
-- [] add interactions service
-- [] add interactions ui
-- [] unify theme
-- [] test further
+- [*]add interactions service
+- [*]add interactions ui
+- [*]unify theme
+- []test further
