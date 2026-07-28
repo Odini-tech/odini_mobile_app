@@ -116,7 +116,7 @@ const ExploreCard = React.memo(function ExploreCard({ item, onPress, onInteracti
 
             {isFavorited && (
               <View style={styles.favoriteBadge}>
-                <Ionicons name="heart" size={12} color={theme.colors.danger} />
+                <Ionicons name="bookmark" size={20} color="yellow" />
               </View>
             )}
           </View>
@@ -221,7 +221,7 @@ const getStyles = (theme) => StyleSheet.create({
   typeBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: theme.colors.background,
+    backgroundColor: theme.colors.surface,
     gap: 16,
     paddingHorizontal: 8,
     paddingVertical: 6,
@@ -236,9 +236,9 @@ const getStyles = (theme) => StyleSheet.create({
     position: 'absolute',
     right: 8,
     bottom: 8,
+    backgroundColor: theme.colors.surface,
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#000',
     paddingHorizontal: 8,
     paddingVertical: 6,
     borderRadius: 8,
@@ -259,12 +259,8 @@ const getStyles = (theme) => StyleSheet.create({
   },
   favoriteBadge: {
     position: 'absolute',
-    top: 8,
-    left: 8,
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: 'rgba(255,255,255,0.92)',
+    top: 6,
+    left: 6,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -295,6 +291,5 @@ const getStyles = (theme) => StyleSheet.create({
   hostNameLink: {
     color: theme.colors.text,
     fontWeight: '600',
-    textDecorationLine: 'underline',
   },
 });

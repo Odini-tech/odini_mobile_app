@@ -193,8 +193,8 @@ const getStyles = (theme, insets) =>
       fontWeight: '600',
     },
     activeTabLabel: {
-      color: '#FFFFFF',
-      fontWeight: '800',
+      color: theme.colors.text,
+      fontWeight: '900',
     },
     recDotWrapper: {
       position: 'absolute',
@@ -222,7 +222,7 @@ const getStyles = (theme, insets) =>
       top: 0,
       width: width / 6,
       height: 3,
-      backgroundColor: theme.colors.text,
+      backgroundColor: theme.colors.primary,
       borderRadius: 999,
     },
     pagerView: {

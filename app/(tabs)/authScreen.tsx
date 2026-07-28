@@ -1,8 +1,9 @@
 import { Ionicons } from '@expo/vector-icons';
-import React, { useState } from 'react';
+import { useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  Image,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -153,15 +154,14 @@ export default function AuthScreen() {
           <View style={styles.topRow} />
 
           <View style={styles.logoBadge}>
-            <Ionicons
-              name="globe-outline"
-              size={60}
-              color={theme.colors.text}
+            <Image
+              source={require('../../assets/images/odinicon.png')}
               style={styles.logo}
+              resizeMode="contain"
             />
           </View>
 
-          <Text style={styles.title}>{isSignUp ? 'Create Account' : 'Welcome Back'}</Text>
+          <Text style={styles.title}>{isSignUp ? 'Welcome' : 'Welcome Back'}</Text>
           <Text style={styles.subtitle}>
             {isSignUp
               ? 'Sign up to explore amazing travel experiences'
@@ -331,18 +331,20 @@ const getStyles = (theme: ReturnType<typeof useAppMode>['theme']) =>
       fontWeight: '700',
     },
     logoBadge: {
-      width: 112,
+      width: 200,
       height: 112,
-      borderRadius: 56,
+      borderRadius: 16,
       alignItems: 'center',
       justifyContent: 'center',
-      backgroundColor: theme.colors.surfaceAlt,
-      borderWidth: 1,
+      
       borderColor: theme.colors.border,
-      marginBottom: 20,
+      marginBottom: 0,
       alignSelf: 'center',
     },
-    logo: {},
+    logo: {
+      width: 200,
+      height: 150,
+    },
     title: {
       fontSize: 28,
       fontWeight: '700',
@@ -358,9 +360,9 @@ const getStyles = (theme: ReturnType<typeof useAppMode>['theme']) =>
     form: {
       width: '100%',
       backgroundColor: theme.colors.surface,
-      borderRadius: 24,
+      borderRadius: 6,
       padding: 20,
-      borderWidth: 1,
+      borderWidth: 2,
       borderColor: theme.colors.border,
       ...theme.shadow,
     },
@@ -377,7 +379,7 @@ const getStyles = (theme: ReturnType<typeof useAppMode>['theme']) =>
       flexDirection: 'row',
       alignItems: 'center',
       backgroundColor: theme.colors.surfaceAlt,
-      borderRadius: 12,
+      borderRadius: 4,
       borderWidth: 1,
       borderColor: theme.colors.border,
       paddingHorizontal: 16,
@@ -406,7 +408,7 @@ const getStyles = (theme: ReturnType<typeof useAppMode>['theme']) =>
     },
     authButton: {
       backgroundColor: theme.colors.buttonBg,
-      borderRadius: 12,
+      borderRadius: 4,
       height: 56,
       justifyContent: 'center',
       alignItems: 'center',
@@ -443,7 +445,7 @@ const getStyles = (theme: ReturnType<typeof useAppMode>['theme']) =>
     toggleButton: {
       paddingVertical: 10,
       paddingHorizontal: 16,
-      borderRadius: 20,
+      borderRadius: 4,
       backgroundColor: theme.colors.buttonBg,
       alignSelf: 'center',
       marginTop: 6,

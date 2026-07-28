@@ -49,6 +49,22 @@ export function FeedCardSkeleton() {
   );
 }
 
+/** Full-width skeleton for the Dash hero carousel while personalized content loads */
+export function HeroCarouselSkeleton() {
+  const { theme } = useAppMode();
+  const styles = getStyles(theme);
+  const opacity = useShimmer();
+  return (
+    <Animated.View style={[styles.hero, { opacity }]}>
+      <View style={styles.heroLines}>
+        <View style={[styles.line, { width: '30%', height: 10, marginBottom: 10 }]} />
+        <View style={[styles.line, { width: '65%', height: 20, marginBottom: 8 }]} />
+        <View style={[styles.line, { width: '45%', height: 20 }]} />
+      </View>
+    </Animated.View>
+  );
+}
+
 /** Smaller skeleton for the explore grid card */
 export function GridCardSkeleton({ aspectRatio = 1.2 }) {
   const { theme } = useAppMode();
@@ -113,6 +129,17 @@ const getStyles = (theme) => {
       height: 13,
       borderRadius: 6,
       backgroundColor: BG,
+    },
+    // Hero carousel
+    hero: {
+      width: '100%',
+      height: 320,
+      backgroundColor: theme.colors.surface,
+      justifyContent: 'flex-end',
+    },
+    heroLines: {
+      paddingHorizontal: 24,
+      paddingBottom: 28,
     },
     // Grid card
     gridCard: {

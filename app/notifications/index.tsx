@@ -12,10 +12,10 @@ import {
 } from 'react-native';
 import { supabase } from '../../lib/supabase';
 import { getListingById } from '../../services/listings.service';
-import { useAppMode } from '../../src/context/AppModeContext';
 import EventDetail from '../../src/components/details/EventDetail';
 import OfferingDetail from '../../src/components/details/OfferingDetail';
 import StayDetail from '../../src/components/details/StayDetail';
+import { useAppMode } from '../../src/context/AppModeContext';
 import notificationService from '../../src/services/notificationService';
 
 const TYPE_ICON: Record<string, string> = {
@@ -185,14 +185,15 @@ export default function NotificationsScreen() {
         <Text style={styles.headerTitle}>Notifications</Text>
         <View style={styles.headerSpacer} />
       </View>
-
       <TouchableOpacity
         style={styles.bookingsBtn}
         onPress={() => router.push('/bookings' as any)}
         activeOpacity={0.8}
       >
-        <Ionicons name="calendar-outline" size={18} color={theme.colors.buttonText} />
-        <Text style={styles.bookingsBtnText}>View Bookings</Text>
+        <Ionicons name="calendar-outline" size={38} color={theme.colors.surface
+          
+        } />
+        <Text style={styles.bookingsBtnText}>View Bookings →</Text>
       </TouchableOpacity>
 
       <FlatList
@@ -260,16 +261,16 @@ const getStyles = (theme: any) => StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    backgroundColor: theme.colors.buttonBg,
+  
     marginHorizontal: 16,
     marginTop: 14,
     paddingVertical: 12,
     borderRadius: 12,
   },
   bookingsBtnText: {
-    color: theme.colors.buttonText,
-    fontWeight: '700',
-    fontSize: 14,
+    color: theme.colors.text,
+    fontWeight: '500',
+    fontSize: 30,
   },
   content: {
     padding: 16,

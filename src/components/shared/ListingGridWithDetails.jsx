@@ -1,12 +1,15 @@
-import { useRef, useState } from 'react';
-import { ActivityIndicator, FlatList, StyleSheet, Text, View } from 'react-native';
+import { useMemo, useRef, useState } from 'react';
+import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { getListingById } from '../../../services/listings.service';
+import { distributeIntoColumns } from '../../utils/masonryLayout';
 import { useBottomNavScroll } from '../../context/BottomNavVisibilityContext';
 import ExploreCard from '../ExploreCard';
 import EventDetail from '../details/EventDetail';
 import OfferingDetail from '../details/OfferingDetail';
 import StayDetail from '../details/StayDetail';
 import { useAppMode } from '../../context/AppModeContext';
+
+const NUM_COLUMNS = 2;
 
 export default function ListingGridWithDetails({
   listings = [],
@@ -22,6 +25,8 @@ export default function ListingGridWithDetails({
   const [detailsType, setDetailsType] = useState(null);
   const detailRequestRef = useRef(null);
   const bottomNavScroll = useBottomNavScroll();
+
+  const columns = useMemo(() => distributeIntoColumns(listings, NUM_COLUMNS), [listings]);
 
   const handleCardPress = async (listing) => {
     detailRequestRef.current = listing.id;
@@ -59,17 +64,21 @@ export default function ListingGridWithDetails({
     body = <Text style={styles.messageText}>{emptyMessage}</Text>;
   } else {
     body = (
-      <FlatList
-        data={listings}
-        keyExtractor={(item) => item.id}
-        renderItem={({ item }) => (
-          <ExploreCard item={item} onPress={() => handleCardPress(item)} />
-        )}
-        numColumns={2}
+      <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={contentContainerStyle || styles.gridContent}
         {...bottomNavScroll}
-      />
+      >
+        <View style={styles.masonryRow}>
+          {columns.map((column, columnIndex) => (
+            <View key={columnIndex} style={styles.column}>
+              {column.map((item) => (
+                <ExploreCard key={item.id} item={item} onPress={() => handleCardPress(item)} />
+              ))}
+            </View>
+          ))}
+        </View>
+      </ScrollView>
     );
   }
 
@@ -101,6 +110,13 @@ const getStyles = (theme) => StyleSheet.create({
   gridContent: {
     paddingHorizontal: 6,
     paddingBottom: 16,
+  },
+  masonryRow: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  column: {
+    flex: 1,
   },
   messageText: {
     fontSize: 16,

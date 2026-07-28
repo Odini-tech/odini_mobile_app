@@ -3,7 +3,6 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import {
-  ActivityIndicator,
   Dimensions,
   Image,
   ImageBackground,
@@ -21,13 +20,20 @@ import { useAppMode } from '../../context/AppModeContext';
 import { useCurrency } from '../../context/CurrencyContext';
 import { InteractionService } from '../../services/interactionService';
 import { VenueSummary } from '../../services/venueService';
-import { formatEventDateSmart } from '../../utils/dateFormat';
 import EventDetail from '../details/EventDetail';
 import OfferingDetail from '../details/OfferingDetail';
 import StayDetail from '../details/StayDetail';
 import CardInteractionMenu from '../shared/CardInteractionMenu';
+import { GridCardSkeleton, HeroCarouselSkeleton } from '../shared/CardSkeleton';
+import VenueCard from '../shared/VenueCard';
 
 const { width } = Dimensions.get('window');
+
+const BOOKING_STATUS_META: Record<string, { label: string; color: string; icon: string }> = {
+  pending: { label: 'Waiting Approval', color: '#F59E0B', icon: 'clock-outline' },
+  confirmed: { label: 'Trip Ready', color: '#3B82F6', icon: 'check-decagram-outline' },
+  completed: { label: 'Visited', color: '#22C55E', icon: 'check-circle-outline' },
+};
 
 interface Listing {
   id: string;
@@ -39,8 +45,6 @@ interface Listing {
   is_favorited?: boolean;
   // Supabase returns profiles as object; enriched listings may return array form
   profiles?: { firstname?: string; username?: string; location?: string } | any;
-  venueId?: string | null;
-  venueName?: string | null;
   stays?: any[];
   events?: any[];
   offering?: any[];
@@ -61,7 +65,6 @@ export default function Dash({ onItemClick }: { onItemClick?: (listing: Listing)
     isReady,
     upcomingEvents: ctxEvents,
     favoritePlaces: ctxFavorites,
-    recentlyViewed: ctxRecent,
     madeForYou: ctxMadeForYou,
     categoryMixes: ctxCategoryMixes,
     venues: ctxVenues,
@@ -79,7 +82,6 @@ export default function Dash({ onItemClick }: { onItemClick?: (listing: Listing)
   const carouselRef = useRef<ScrollView | null>(null);
   const { formatPrice } = useCurrency();
   const [favoritePlaces, setFavoritePlaces] = useState<Listing[]>([]);
-  const [recentlyViewed, setRecentlyViewed] = useState<Listing[]>([]);
   const [madeForYou, setMadeForYou] = useState<Listing[]>([]);
   const [categoryMixes, setCategoryMixes] = useState<CategoryMix[]>([]);
   const [venues, setVenues] = useState<VenueSummary[]>([]);
@@ -103,17 +105,24 @@ export default function Dash({ onItemClick }: { onItemClick?: (listing: Listing)
       seededRef.current = true;
       setUpcomingEvents((ctxEvents as Listing[]) || []);
       setFavoritePlaces((ctxFavorites as Listing[]) || []);
-      setRecentlyViewed((ctxRecent as Listing[]) || []);
       setMadeForYou((ctxMadeForYou as Listing[]) || []);
-      setCategoryMixes((ctxCategoryMixes as CategoryMix[]) || []);
-      setVenues((ctxVenues as VenueSummary[]) || []);
       setPastBookings(ctxBookings || []);
-      setCollections(ctxCollections.length ? ctxCollections : getDefaultCollections());
+      setCollections(ctxCollections || []);
       setUserName(ctxUserName);
       setUserId(ctxUserId);
       setLoading(false);
     }
-  }, [isReady, ctxEvents, ctxFavorites, ctxRecent, ctxMadeForYou, ctxCategoryMixes, ctxVenues, ctxBookings, ctxCollections, ctxUserName, ctxUserId]);
+  }, [isReady, ctxEvents, ctxFavorites, ctxMadeForYou, ctxBookings, ctxCollections, ctxUserName, ctxUserId]);
+
+  // Venues and category mixes load in the background after isReady flips
+  // (see AppDataContext), so they're synced continuously rather than once.
+  useEffect(() => {
+    setVenues((ctxVenues as VenueSummary[]) || []);
+  }, [ctxVenues]);
+
+  useEffect(() => {
+    setCategoryMixes((ctxCategoryMixes as CategoryMix[]) || []);
+  }, [ctxCategoryMixes]);
 
   const handleRefresh = async () => {
     setRefreshing(true);
@@ -183,7 +192,6 @@ export default function Dash({ onItemClick }: { onItemClick?: (listing: Listing)
         });
         setMadeForYou((prev) => prev.filter((l) => l.id !== listing.id));
         setUpcomingEvents((prev) => prev.filter((l) => l.id !== listing.id));
-        setRecentlyViewed((prev) => prev.filter((l) => l.id !== listing.id));
         setFavoritePlaces((prev) => prev.filter((l) => l.id !== listing.id));
         setCategoryMixes((prev) => prev.map((m) => ({ ...m, items: m.items.filter((l) => l.id !== listing.id) })).filter((m) => m.items.length > 0));
       }
@@ -212,26 +220,19 @@ export default function Dash({ onItemClick }: { onItemClick?: (listing: Listing)
 
   const renderBookingCard = (booking: any) => {
     const listing = booking.listings;
-    const statusColors: Record<string, string> = {
-      completed: '#22C55E',
-      confirmed: '#3B82F6',
-      pending: '#F59E0B',
-      cancelled_by_user: '#6B7280',
-      cancelled_by_host: '#6B7280',
-      rejected: '#EF4444',
+    const meta = BOOKING_STATUS_META[booking.status] || {
+      label: String(booking.status || '').replace(/_/g, ' '),
+      color: '#6B7280',
+      icon: 'information-outline',
     };
-    const statusColor = statusColors[booking.status] || '#6B7280';
-    const listingType = listing?.listing_type || booking.listing_type;
     const dateStr = booking.check_in || booking.event_slot || booking.reservation_time || booking.created_at;
     const displayDate = dateStr
-      ? listingType === 'event'
-        ? formatEventDateSmart(dateStr)
-        : new Date(dateStr).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })
+      ? new Date(dateStr).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })
       : null;
     const typeColor =
-      listingType === 'event'
+      (listing?.listing_type || booking.listing_type) === 'event'
         ? '#A63456'
-        : listingType === 'offering'
+        : (listing?.listing_type || booking.listing_type) === 'offering'
         ? '#8B4B61'
         : '#7A1E3A';
 
@@ -246,7 +247,7 @@ export default function Dash({ onItemClick }: { onItemClick?: (listing: Listing)
                 (listing?.listing_type || booking.listing_type) === 'event'
                   ? 'calendar'
                   : (listing?.listing_type || booking.listing_type) === 'offering'
-                  ? 'compass'
+                  ? 'briefcase'
                   : 'home'
               }
               size={24}
@@ -259,15 +260,15 @@ export default function Dash({ onItemClick }: { onItemClick?: (listing: Listing)
             {listing?.title || 'Booking'}
           </Text>
           {displayDate && (
-            <Text style={styles.bookingCardDate}>{displayDate}</Text>
+            <View style={styles.bookingDateRow}>
+              <MaterialCommunityIcons name="calendar-blank-outline" size={12} color={theme.colors.textMuted} />
+              <Text style={styles.bookingCardDate}>{displayDate}</Text>
+            </View>
           )}
-          <View style={[styles.bookingStatusPill, { backgroundColor: statusColor + '22' }]}>
-            <View style={[styles.bookingStatusDot, { backgroundColor: statusColor }]} />
-            <Text style={[styles.bookingStatusText, { color: statusColor }]}>
-              {booking.status.replace(/_/g, ' ')}
-            </Text>
+          <View style={[styles.bookingStatusPill, { backgroundColor: meta.color + '1A', borderColor: meta.color + '40' }]}>
+            <MaterialCommunityIcons name={meta.icon as any} size={12} color={meta.color} />
+            <Text style={[styles.bookingStatusText, { color: meta.color }]}>{meta.label}</Text>
           </View>
-          <Text style={styles.bookingRef}>{booking.booking_ref}</Text>
         </View>
       </View>
     );
@@ -281,6 +282,10 @@ export default function Dash({ onItemClick }: { onItemClick?: (listing: Listing)
       : listing.listing_type === 'offering'
       ? '#8B4B61'
       : '#7A1E3A';
+    const locationText = (listing as Listing & { location?: string; profiles?: { location?: string } }).profiles?.location
+      || (listing as Listing & { location?: string }).location
+      || null;
+
     return (
       <TouchableOpacity
         key={listing.id}
@@ -296,61 +301,30 @@ export default function Dash({ onItemClick }: { onItemClick?: (listing: Listing)
           ) : (
             <View style={[imageStyle, styles.cardImagePlaceholder]}>
               <MaterialCommunityIcons
-                name={listing.listing_type === 'event' ? 'calendar' : listing.listing_type === 'offering' ? 'compass' : 'home'}
+                name={listing.listing_type === 'event' ? 'calendar' : listing.listing_type === 'offering' ? 'briefcase' : 'home'}
                 size={size === 'small' ? 24 : 32}
-                color={accent}
+                color= "#ffffff43"
               />
             </View>
           )}
           <View style={[styles.typePill, { backgroundColor: accent }]}>
-            <Text style={styles.typePillText}>{listing.listing_type === 'offering' ? 'ACTIVITY' : listing.listing_type.toUpperCase()}</Text>
+            <Text style={styles.typePillText}>{listing.listing_type.toUpperCase()}</Text>
           </View>
           {listing.is_favorited && (
-            <View style={styles.heartBadge}>
-              <MaterialCommunityIcons name="heart" size={12} color="#E63B6F" />
+            <View style={styles.favoriteBadge}>
+              <MaterialCommunityIcons name="bookmark" size={20} color="yellow" />
             </View>
           )}
         </View>
         <View style={styles.cardInfo}>
-          <Text style={styles.cardTitle} numberOfLines={2}>{listing.title}</Text>
-          {listing.venueName ? (
-            <TouchableOpacity
-              onPress={() => listing.venueId && handleVenuePress(listing.venueId)}
-              hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
-            >
-              <Text style={[styles.cardLocation, styles.cardVenueLink]} numberOfLines={1}>
-                {listing.venueName}
-              </Text>
-            </TouchableOpacity>
-          ) : null}
-          <Text style={[styles.cardPrice, { color: theme.colors.text }]}>{formatPrice(listing.price)}</Text>
-        </View>
-      </TouchableOpacity>
-    );
-  };
-
-  const renderVenueCard = (venue: VenueSummary) => {
-    const locationLabel = [venue.location?.city, venue.location?.country].filter(Boolean).join(', ');
-    return (
-      <TouchableOpacity
-        key={venue.id}
-        style={styles.smallCard}
-        onPress={() => handleVenuePress(venue.id)}
-        activeOpacity={0.75}
-      >
-        <View style={styles.cardImageWrapper}>
-          {venue.previewImageUrl ? (
-            <Image source={{ uri: venue.previewImageUrl }} style={styles.smallCardImage} />
-          ) : (
-            <View style={[styles.smallCardImage, styles.cardImagePlaceholder]}>
-              <MaterialCommunityIcons name="office-building-marker" size={28} color={theme.colors.textSubtle} />
-            </View>
-          )}
-        </View>
-        <View style={styles.cardInfo}>
-          <Text style={styles.cardTitle} numberOfLines={1}>{venue.name}</Text>
-          {locationLabel ? (
-            <Text style={styles.cardLocation} numberOfLines={1}>{locationLabel}</Text>
+          <View style={styles.cardTitleRow}>
+            <Text style={[styles.cardTitle, styles.cardTitleFlex]} numberOfLines={1}>{listing.title}</Text>
+            {listing.price ? (
+              <Text style={[styles.cardPrice, { color: accent }]}>{formatPrice(listing.price)}</Text>
+            ) : null}
+          </View>
+          {locationText ? (
+            <Text style={styles.cardLocation} numberOfLines={1}>{locationText}</Text>
           ) : null}
         </View>
       </TouchableOpacity>
@@ -359,9 +333,20 @@ export default function Dash({ onItemClick }: { onItemClick?: (listing: Listing)
 
   if (loading) {
     return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={theme.colors.textMuted} />
-      </View>
+      <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
+        <HeroCarouselSkeleton />
+        {[0, 1].map((row) => (
+          <View key={row} style={styles.section}>
+            <View style={styles.skeletonRow}>
+              {[0, 1, 2].map((i) => (
+                <View key={i} style={styles.skeletonCard}>
+                  <GridCardSkeleton aspectRatio={0.85} />
+                </View>
+              ))}
+            </View>
+          </View>
+        ))}
+      </ScrollView>
     );
   }
 
@@ -376,10 +361,11 @@ export default function Dash({ onItemClick }: { onItemClick?: (listing: Listing)
           <RefreshControl
             refreshing={refreshing}
             onRefresh={handleRefresh}
-            tintColor={theme.colors.textMuted}
+            tintColor={theme.colors.primary}
           />
         }
       >
+        {collections.length > 0 && (
         <View style={styles.heroSection}>
           <ScrollView
             ref={carouselRef}
@@ -419,7 +405,7 @@ export default function Dash({ onItemClick }: { onItemClick?: (listing: Listing)
                       onPress={() => handleCollectionCheckout(collection)}
                       activeOpacity={0.85}
                     >
-                      <Text style={styles.checkoutButtonText}>Explore</Text>
+                      <Text style={styles.checkoutButtonText}>Explore →</Text>
                     </TouchableOpacity>
                   </View>
                 </ImageBackground>
@@ -435,6 +421,7 @@ export default function Dash({ onItemClick }: { onItemClick?: (listing: Listing)
             ))}
           </View>
         </View>
+        )}
 
         {/* Your Favorites */}
         {favoritePlaces.length > 0 && (
@@ -445,7 +432,7 @@ export default function Dash({ onItemClick }: { onItemClick?: (listing: Listing)
                 <Text style={styles.sectionSubtitle}>Places you&apos;ve saved</Text>
               </View>
               {favoritePlaces.length > 4 && (
-                <TouchableOpacity style={styles.showAllBtn} onPress={() => handleShowAll('favorites')}>
+                <TouchableOpacity onPress={() => handleShowAll('favorites')}>
                   <Text style={styles.showAllText}>
                     {expandedSection === 'favorites' ? 'Show less' : 'See all'}
                   </Text>
@@ -466,29 +453,6 @@ export default function Dash({ onItemClick }: { onItemClick?: (listing: Listing)
           </View>
         )}
 
-        {/* Recently Viewed */}
-        {recentlyViewed.length > 0 && (
-          <View style={styles.section}>
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Recently Viewed</Text>
-              {recentlyViewed.length > 4 && (
-                <TouchableOpacity style={styles.showAllBtn} onPress={() => handleShowAll('recent')}>
-                  <Text style={styles.showAllText}>
-                    {expandedSection === 'recent' ? 'Show less' : 'Show all'}
-                  </Text>
-                </TouchableOpacity>
-              )}
-            </View>
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.horizontalScroll}
-            >
-              {recentlyViewed.map((l) => renderListingCard(l, 'small'))}
-            </ScrollView>
-          </View>
-        )}
-
         {/* Coming Up (Events) */}
         {upcomingEvents.length > 0 && (
           <View style={styles.section}>
@@ -498,9 +462,9 @@ export default function Dash({ onItemClick }: { onItemClick?: (listing: Listing)
                 <Text style={styles.sectionSubtitle}>Events near you</Text>
               </View>
               {upcomingEvents.length > 4 && (
-                <TouchableOpacity style={styles.showAllBtn} onPress={() => handleShowAll('events')}>
+                <TouchableOpacity onPress={() => handleShowAll('events')}>
                   <Text style={styles.showAllText}>
-                    {expandedSection === 'events' ? 'Show less' : 'View all'}
+                    {expandedSection === 'events' ? 'Show less' : 'View all'} ...
                   </Text>
                 </TouchableOpacity>
               )}
@@ -511,6 +475,27 @@ export default function Dash({ onItemClick }: { onItemClick?: (listing: Listing)
               contentContainerStyle={styles.horizontalScroll}
             >
               {getDisplayItems(upcomingEvents, 'events').map((l) => renderListingCard(l, 'medium'))}
+            </ScrollView>
+          </View>
+        )}
+
+        {/* Venues */}
+        {venues.length > 0 && (
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <View>
+                <Text style={styles.sectionTitle}>Venues</Text>
+                <Text style={styles.sectionSubtitle}>Places hosting multiple listings</Text>
+              </View>
+            </View>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.horizontalScroll}
+            >
+              {venues.map((v) => (
+                <VenueCard key={v.id} venue={v} onPress={() => handleVenuePress(v.id)} />
+              ))}
             </ScrollView>
           </View>
         )}
@@ -526,7 +511,7 @@ export default function Dash({ onItemClick }: { onItemClick?: (listing: Listing)
                 </Text>
               </View>
               {madeForYou.length > 4 && (
-                <TouchableOpacity style={styles.showAllBtn} onPress={() => handleShowAll('foryou')}>
+                <TouchableOpacity onPress={() => handleShowAll('foryou')}>
                   <Text style={styles.showAllText}>
                     {expandedSection === 'foryou' ? 'Show less' : 'See more'}
                   </Text>
@@ -554,7 +539,7 @@ export default function Dash({ onItemClick }: { onItemClick?: (listing: Listing)
                   <Text style={styles.sectionSubtitle}>{mix.reason}</Text>
                 </View>
                 {mix.items.length > 4 && (
-                  <TouchableOpacity style={styles.showAllBtn} onPress={() => handleShowAll(sectionId)}>
+                  <TouchableOpacity onPress={() => handleShowAll(sectionId)}>
                     <Text style={styles.showAllText}>
                       {expandedSection === sectionId ? 'Show less' : 'See all'}
                     </Text>
@@ -574,25 +559,6 @@ export default function Dash({ onItemClick }: { onItemClick?: (listing: Listing)
           );
         })}
 
-        {/* Venues — browse venues directly */}
-        {venues.length > 0 && (
-          <View style={styles.section}>
-            <View style={styles.sectionHeader}>
-              <View>
-                <Text style={styles.sectionTitle}>Venues</Text>
-                <Text style={styles.sectionSubtitle}>Places hosting stays, events & activities</Text>
-              </View>
-            </View>
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.horizontalScroll}
-            >
-              {venues.map((v) => renderVenueCard(v))}
-            </ScrollView>
-          </View>
-        )}
-
         {/* Your Trips */}
         {pastBookings.length > 0 && (
           <View style={styles.section}>
@@ -601,9 +567,6 @@ export default function Dash({ onItemClick }: { onItemClick?: (listing: Listing)
                 <Text style={styles.sectionTitle}>Your Trips</Text>
                 <Text style={styles.sectionSubtitle}>Recent bookings</Text>
               </View>
-              <TouchableOpacity style={styles.showAllBtn} onPress={() => router.push('/bookings' as any)}>
-                <Text style={styles.showAllText}>View Status</Text>
-              </TouchableOpacity>
             </View>
             <ScrollView
               horizontal
@@ -649,29 +612,23 @@ function getGreeting() {
   return 'Good evening';
 }
 
-function getDefaultCollections() {
-    return [
-    { id: 1, title: 'LSK Nightlife', description: 'After-dark spots', count: 12, collection_image_url: null },
-    { id: 2, title: 'Nshima Spots', description: 'Delicious discoveries', count: 18, collection_image_url: null },
-    { id: 3, title: 'Weekend Escapes', description: 'Perfect getaways', count: 8, collection_image_url: null },
-    { id: 4, title: 'Arts & Culture', description: 'Creative experiences', count: 15, collection_image_url: null },
-  ];
-}
-
 const getStyles = (theme: any) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: theme.colors.background,
   },
-  loadingContainer: {
+  skeletonRow: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  skeletonCard: {
+    width: 150,
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: theme.colors.background,
   },
   heroSection: {
     width: '100%',
     height: 320,
+    marginBottom: 22,
   },
   heroCarouselContainer: {
     height: '100%',
@@ -715,16 +672,16 @@ const getStyles = (theme: any) => StyleSheet.create({
   },
   checkoutButton: {
     marginTop: 18,
-    backgroundColor: theme.colors.buttonBg,
-    paddingVertical: 14,
-    paddingHorizontal: 24,
-    borderRadius: 28,
+    paddingVertical: 1,
+    paddingHorizontal: 2,
+
     alignSelf: 'flex-start',
   },
   checkoutButtonText: {
-    color: theme.colors.buttonText,
-    fontWeight: '700',
-    fontSize: 14,
+    color: '#ffffff9e',
+    fontWeight: '900',
+    fontSize: 23,
+    marginLeft: "60%",
   },
   heroDots: {
     position: 'absolute',
@@ -751,31 +708,26 @@ const getStyles = (theme: any) => StyleSheet.create({
   },
   sectionHeader: {
     flexDirection: 'row',
+    marginTop: 4,
     justifyContent: 'space-between',
     alignItems: 'flex-start',
     marginBottom: 12,
   },
   sectionTitle: {
-    fontSize: 18,
-    fontWeight: '700',
+    fontSize: 35,
+    fontWeight: '600',
     color: theme.colors.text,
-    marginBottom: 2,
+    marginBottom: 4,
   },
   sectionSubtitle: {
-    fontSize: 12,
+    fontSize: 18,
     color: theme.colors.textMuted,
   },
-  showAllBtn: {
-    backgroundColor: theme.colors.buttonBg,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 14,
-    marginTop: 4,
-  },
   showAllText: {
-    fontSize: 13,
-    color: theme.colors.buttonText,
-    fontWeight: '600',
+    fontSize: 14,
+    color: theme.colors.text,
+    fontWeight: '200',
+    marginTop: 20,
   },
   horizontalScroll: {
     paddingRight: 14,
@@ -850,14 +802,12 @@ const getStyles = (theme: any) => StyleSheet.create({
     fontWeight: '700',
     color: '#fff',
   },
-  heartBadge: {
+  favoriteBadge: {
     position: 'absolute',
     top: 6,
     right: 6,
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    backgroundColor: 'rgba(255,255,255,0.92)',
+    width: 40,
+    height: 40,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -868,30 +818,36 @@ const getStyles = (theme: any) => StyleSheet.create({
     backgroundColor: 'transparent',
     justifyContent: 'flex-start',
   },
+  cardTitleRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 2,
+  },
   cardTitle: {
     fontSize: 12,
     fontWeight: '600',
     color: theme.colors.text,
-    marginBottom: 2,
+  },
+  cardTitleFlex: {
+    flex: 1,
+    marginRight: 8,
   },
   cardLocation: {
     fontSize: 11,
     color: theme.colors.textMuted,
     marginBottom: 2,
   },
-  cardVenueLink: {
-    color: theme.colors.text,
-    fontWeight: '600',
-    textDecorationLine: 'underline',
-  },
   cardPrice: {
     fontSize: 12,
     fontWeight: '700',
+    flexShrink: 0,
   },
   bookingCard: {
     width: 220,
     height: 368,
     overflow: 'hidden',
+    marginBottom: 8,
     borderWidth: 0,
     elevation: 0,
     backgroundColor: 'transparent',
@@ -919,6 +875,11 @@ const getStyles = (theme: any) => StyleSheet.create({
     fontWeight: '700',
     color: theme.colors.text,
   },
+  bookingDateRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
   bookingCardDate: {
     fontSize: 11,
     color: theme.colors.textMuted,
@@ -931,21 +892,12 @@ const getStyles = (theme: any) => StyleSheet.create({
     paddingHorizontal: 7,
     paddingVertical: 3,
     borderRadius: 20,
+    borderWidth: 1,
     marginTop: 2,
-  },
-  bookingStatusDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
   },
   bookingStatusText: {
     fontSize: 10,
     fontWeight: '600',
     textTransform: 'capitalize',
-  },
-  bookingRef: {
-    fontSize: 10,
-    color: theme.colors.textMuted,
-    marginTop: 2,
   },
 });

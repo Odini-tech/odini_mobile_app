@@ -14,6 +14,7 @@ import {
 import EventDetail from '../../src/components/details/EventDetail';
 import OfferingDetail from '../../src/components/details/OfferingDetail';
 import StayDetail from '../../src/components/details/StayDetail';
+import VenueCard from '../../src/components/shared/VenueCard';
 import { useAppMode } from '../../src/context/AppModeContext';
 import { useCurrency } from '../../src/context/CurrencyContext';
 import { fetchSimilarVenues, fetchVenueListings, VenueSummary } from '../../src/services/venueService';
@@ -164,7 +165,7 @@ export default function VenueScreen() {
         {similarVenues.length > 0 && (
           <CarouselSection title="Similar venues" subtitle="You might also like" styles={styles}>
             {similarVenues.map((v) => (
-              <VenueCard key={v.id} venue={v} onPress={() => handleSimilarVenuePress(v.id)} theme={theme} styles={styles} />
+              <VenueCard key={v.id} venue={v} onPress={() => handleSimilarVenuePress(v.id)} />
             ))}
           </CarouselSection>
         )}
@@ -242,41 +243,10 @@ function ListingCard({
         </View>
       </View>
       <View style={styles.cardInfo}>
-        <Text style={styles.cardTitle} numberOfLines={2}>{listing.title}</Text>
-        <Text style={[styles.cardPrice, { color: theme.colors.text }]}>{formatPrice(listing.price)}</Text>
-      </View>
-    </TouchableOpacity>
-  );
-}
-
-function VenueCard({
-  venue,
-  onPress,
-  theme,
-  styles,
-}: {
-  venue: VenueSummary;
-  onPress: () => void;
-  theme: ReturnType<typeof getThemeForMode>;
-  styles: ReturnType<typeof getStyles>;
-}) {
-  const locationLabel = [venue.location?.city, venue.location?.country].filter(Boolean).join(', ');
-  return (
-    <TouchableOpacity style={styles.venueCard} activeOpacity={0.78} onPress={onPress}>
-      <View style={styles.venueCardImageWrap}>
-        {venue.previewImageUrl ? (
-          <Image source={{ uri: venue.previewImageUrl }} style={styles.venueCardImage} />
-        ) : (
-          <View style={[styles.venueCardImage, styles.cardImagePlaceholder]}>
-            <Ionicons name="business" size={26} color={theme.colors.textSubtle} />
-          </View>
-        )}
-      </View>
-      <View style={styles.cardInfo}>
-        <Text style={styles.cardTitle} numberOfLines={1}>{venue.name}</Text>
-        {locationLabel ? (
-          <Text style={styles.cardLocation} numberOfLines={1}>{locationLabel}</Text>
-        ) : null}
+        <View style={styles.cardTitleRow}>
+          <Text style={[styles.cardTitle, styles.cardTitleFlex]} numberOfLines={1}>{listing.title}</Text>
+          <Text style={[styles.cardPrice, { color: theme.colors.text }]}>{formatPrice(listing.price)}</Text>
+        </View>
       </View>
     </TouchableOpacity>
   );
@@ -484,42 +454,28 @@ const getStyles = (theme: ReturnType<typeof getThemeForMode>) => StyleSheet.crea
     backgroundColor: 'transparent',
     justifyContent: 'flex-start',
   },
+  cardTitleRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
   cardTitle: {
     fontSize: 12,
     fontWeight: '600',
     color: theme.colors.text,
   },
+  cardTitleFlex: {
+    flex: 1,
+    marginRight: 8,
+  },
   cardPrice: {
     fontSize: 12,
     fontWeight: '700',
+    flexShrink: 0,
   },
   cardLocation: {
     fontSize: 11,
     color: theme.colors.textMuted,
     marginTop: 2,
-  },
-
-  // Venue card (similar venues)
-  venueCard: {
-    width: 160,
-    backgroundColor: 'transparent',
-    borderRadius: 5,
-    overflow: 'hidden',
-  },
-  venueCardImageWrap: {
-    borderRadius: 5,
-    overflow: 'hidden',
-    backgroundColor: theme.colors.surface,
-    elevation: 3,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.12,
-    shadowRadius: 6,
-  },
-  venueCardImage: {
-    width: '100%',
-    height: 120,
-    backgroundColor: theme.colors.surfaceAlt,
-    borderRadius: 5,
   },
 });

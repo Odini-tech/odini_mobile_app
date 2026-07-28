@@ -2,13 +2,13 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import {
-    Modal,
-    SafeAreaView,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  Modal,
+  SafeAreaView,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import { useAppMode } from '../../context/AppModeContext';
 import { useCurrency } from '../../context/CurrencyContext';
@@ -16,6 +16,7 @@ import { formatEventTimeSmart } from '../../utils/dateFormat';
 import { resolveAmenityIcon } from '../../utils/reactIconsMap';
 import { oneOf } from '../../utils/relations';
 import EventBookingModal from '../booking/EventBooking';
+import FavoriteToggleButton from '../shared/FavoriteToggleButton';
 import ImageCarousel from '../shared/ImageCarousel';
 import ListingMap from '../shared/ListingMap';
 import SuggestionCarousel from '../SuggestionCarousel';
@@ -50,15 +51,23 @@ export default function EventDetail({ listing, onClose, onHostPress }) {
     }, 0);
   };
 
+  const handleVenuePress = () => {
+    if (!listing.venueId) return;
+    onClose?.();
+    setTimeout(() => {
+      router.push(`/venue/${listing.venueId}`);
+    }, 0);
+  };
+
   return (
-    <Modal visible animationType="slide">
+    <Modal visible animationType="slide" onRequestClose={onClose}>
       <SafeAreaView style={styles.container}>
         <View style={styles.header}>
           <TouchableOpacity onPress={onClose}>
             <Ionicons name="chevron-back" size={28} color={theme.colors.text} />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Event Details</Text>
-          <View style={styles.headerSpacer} />
+          <FavoriteToggleButton listingId={listing.id} />
         </View>
 
         <ScrollView showsVerticalScrollIndicator={false}>
@@ -85,13 +94,17 @@ export default function EventDetail({ listing, onClose, onHostPress }) {
               </View>
             </View>
 
-            <View style={styles.ratingRow}>
-              <View style={styles.ratingStars}>
-                <Ionicons name="star" size={16} color="#FFB800" />
-                <Text style={styles.rating}>{listing.average_rating?.toFixed(1) || 'N/A'}</Text>
+            {listing.review_count ? (
+              <View style={styles.ratingRow}>
+                <View style={styles.ratingStars}>
+                  <Ionicons name="star" size={16} color="#FFB800" />
+                  <Text style={styles.rating}>{listing.average_rating?.toFixed(1) || 'N/A'}</Text>
+                </View>
+                <Text style={styles.reviews}>({listing.review_count} reviews)</Text>
               </View>
-              <Text style={styles.reviews}>({listing.review_count || 0} reviews)</Text>
-            </View>
+            ) : (
+              <Text style={styles.noReviews}>No reviews yet</Text>
+            )}
 
             <View style={styles.hostSection}>
               <TouchableOpacity
@@ -111,10 +124,28 @@ export default function EventDetail({ listing, onClose, onHostPress }) {
                 </View>
                 <Ionicons name="chevron-forward" size={20} color={theme.colors.textMuted} />
               </TouchableOpacity>
-              <TouchableOpacity style={styles.contactButton}>
-                <Ionicons name="chatbubble-outline" size={20} color={theme.colors.buttonText} />
-              </TouchableOpacity>
             </View>
+
+            {listing.venueId && (
+              <View style={styles.hostSection}>
+                <TouchableOpacity
+                  style={styles.hostInfoButton}
+                  onPress={handleVenuePress}
+                  activeOpacity={0.85}
+                >
+                  <View style={styles.hostInfo}>
+                    <View style={styles.hostAvatar}>
+                      <Ionicons name="business" size={24} color={theme.colors.white} />
+                    </View>
+                    <View>
+                      <Text style={styles.hostName}>{listing.venueName}</Text>
+                      <Text style={styles.hostRole}>Venue</Text>
+                    </View>
+                  </View>
+                  <Ionicons name="chevron-forward" size={20} color={theme.colors.textMuted} />
+                </TouchableOpacity>
+              </View>
+            )}
 
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Location</Text>
@@ -180,7 +211,7 @@ export default function EventDetail({ listing, onClose, onHostPress }) {
                 <Text style={styles.price}>{formatPrice(listing.price || 0)}</Text>
               </View>
               <TouchableOpacity style={styles.bookButton} onPress={() => setShowBooking(true)}>
-                <Text style={styles.bookButtonText}>Get Tickets</Text>
+                <Text style={styles.bookButtonText}> | Get Tickets →</Text>
               </TouchableOpacity>
             </View>
 
@@ -225,9 +256,6 @@ const getStyles = (theme, EVENT_ACCENT) => StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: theme.colors.border,
     backgroundColor: theme.colors.surface,
-  },
-  headerSpacer: {
-    width: 28,
   },
   headerTitle: {
     fontSize: 18,
@@ -294,6 +322,11 @@ const getStyles = (theme, EVENT_ACCENT) => StyleSheet.create({
     fontSize: 12,
     color: theme.colors.textSubtle,
   },
+  noReviews: {
+    fontSize: 13,
+    color: theme.colors.textSubtle,
+    marginBottom: 16,
+  },
   hostSection: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -340,14 +373,6 @@ const getStyles = (theme, EVENT_ACCENT) => StyleSheet.create({
     fontSize: 12,
     color: theme.colors.textSubtle,
     marginTop: 2,
-  },
-  contactButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: theme.colors.buttonBg,
   },
   section: {
     marginBottom: 24,
@@ -449,14 +474,14 @@ const getStyles = (theme, EVENT_ACCENT) => StyleSheet.create({
     color: theme.colors.text,
   },
   bookButton: {
-    backgroundColor: theme.colors.buttonBg,
-    paddingHorizontal: 32,
-    paddingVertical: 14,
+  
+    paddingHorizontal: 3,
+    paddingVertical: 1,
     borderRadius: 12,
   },
   bookButtonText: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: theme.colors.buttonText,
+    fontSize: 30,
+    fontWeight: '600',
+    color: theme.colors.text,
   },
 });

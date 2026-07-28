@@ -22,6 +22,9 @@ export default function SearchResultsPage() {
   const [activeCategory, setActiveCategory] = useState(
     params.categoryId ? { id: params.categoryId, name: params.categoryName || 'Category' } : null
   );
+  const [activeTag, setActiveTag] = useState(
+    params.tagId ? { id: params.tagId, name: params.tagName || 'Tag' } : null
+  );
   const [listings, setListings] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -31,14 +34,25 @@ export default function SearchResultsPage() {
   useEffect(() => {
     if (params.categoryId && params.categoryId !== activeCategory?.id) {
       setActiveCategory({ id: params.categoryId, name: params.categoryName || 'Category' });
+      setActiveTag(null);
       setQueryInput('');
       setSearchTerm('');
     }
   }, [params.categoryId, params.categoryName, activeCategory?.id]);
 
   useEffect(() => {
+    if (params.tagId && params.tagId !== activeTag?.id) {
+      setActiveTag({ id: params.tagId, name: params.tagName || 'Tag' });
+      setActiveCategory(null);
+      setQueryInput('');
+      setSearchTerm('');
+    }
+  }, [params.tagId, params.tagName, activeTag?.id]);
+
+  useEffect(() => {
     if (params.query !== undefined && params.query !== searchTerm) {
       setActiveCategory(null);
+      setActiveTag(null);
       setSearchTerm(params.query);
       setQueryInput(params.query);
     }
@@ -55,6 +69,9 @@ export default function SearchResultsPage() {
         let data = [];
         if (activeCategory?.id) {
           const res = await searchService.searchByCategory(activeCategory.id, { page: 1, page_size: 60 });
+          data = res.listings || [];
+        } else if (activeTag?.id) {
+          const res = await searchService.searchByTag(activeTag.id, { page: 1, page_size: 60 });
           data = res.listings || [];
         } else {
           const res = await searchService.searchListings({
@@ -90,11 +107,12 @@ export default function SearchResultsPage() {
     return () => {
       isActive = false;
     };
-  }, [activeCategory?.id, searchTerm, filters.type, filters.price_min, filters.price_max, filters.active]);
+  }, [activeCategory?.id, activeTag?.id, searchTerm, filters.type, filters.price_min, filters.price_max, filters.active]);
 
   const handleSearchSubmit = () => {
     const trimmed = queryInput.trim();
     setActiveCategory(null);
+    setActiveTag(null);
     setSearchTerm(trimmed);
     router.replace({
       pathname: '/search/results',
@@ -109,13 +127,17 @@ export default function SearchResultsPage() {
 
   const headerLabel = activeCategory
     ? `Results for ${activeCategory.name}`
-    : searchTerm
-      ? `Results for "${searchTerm}"`
-      : 'Search results';
+    : activeTag
+      ? `Results for #${activeTag.name}`
+      : searchTerm
+        ? `Results for "${searchTerm}"`
+        : 'Search results';
 
   const emptyMessage = activeCategory
     ? 'No listings match this category yet.'
-    : 'No listings match your search yet.';
+    : activeTag
+      ? 'No listings match this tag yet.'
+      : 'No listings match your search yet.';
 
   return (
     <View style={styles.page}>

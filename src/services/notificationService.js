@@ -23,6 +23,33 @@ export async function markAsRead(notificationId) {
   return { data, error };
 }
 
+export async function getUnreadCount(userId) {
+  const { count, error } = await supabase
+    .from(TABLE)
+    .select('id', { count: 'exact', head: true })
+    .eq('user_id', userId)
+    .eq('is_read', false);
+  return { count: count || 0, error };
+}
+
+/**
+ * Subscribes to any change (new notification, marked read, etc.) on this
+ * user's notifications so the caller can re-derive things like an unread
+ * badge count. Returns the channel so the caller can supabase.removeChannel
+ * it on unmount.
+ */
+export function subscribeToNotificationChanges(userId, onChange) {
+  const channel = supabase
+    .channel(`notifications-changes:${userId}`)
+    .on(
+      'postgres_changes',
+      { event: '*', schema: 'public', table: TABLE, filter: `user_id=eq.${userId}` },
+      () => onChange?.()
+    )
+    .subscribe();
+  return channel;
+}
+
 /**
  * Subscribes to new notifications for a user via Supabase Realtime.
  * Returns the channel so the caller can supabase.removeChannel(channel) on unmount.
@@ -87,6 +114,8 @@ export async function ensureDailyListingMatchNotifications(userId) {
 export default {
   listNotifications,
   markAsRead,
+  getUnreadCount,
   subscribeToNotifications,
+  subscribeToNotificationChanges,
   ensureDailyListingMatchNotifications,
 };

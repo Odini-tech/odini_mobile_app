@@ -4,46 +4,16 @@ import { RefreshControl, ScrollView, StyleSheet, Text, TouchableOpacity, View } 
 import { useAppData } from '../../context/AppDataContext';
 import { useAppMode } from '../../context/AppModeContext';
 import { InteractionService } from '../../services/interactionService';
-import ExploreCard from '../ExploreCard';
-import { GridCardSkeleton } from '../shared/CardSkeleton';
-import StayDetail from '../details/StayDetail';
+import { distributeIntoColumns, getAspectRatio } from '../../utils/masonryLayout';
 import EventDetail from '../details/EventDetail';
 import OfferingDetail from '../details/OfferingDetail';
+import StayDetail from '../details/StayDetail';
+import ExploreCard from '../ExploreCard';
+import { GridCardSkeleton } from '../shared/CardSkeleton';
 
 const NUM_COLUMNS = 2;
 const LOAD_MORE_THRESHOLD = 500;
-const MIN_ASPECT_RATIO = 0.62;
-const MAX_ASPECT_RATIO = 1.4;
 const SKELETON_RATIOS = [1.3, 0.8, 0.7, 1.1, 1.35, 0.9];
-
-// Deterministic pseudo-random aspect ratio per listing so heights vary
-// (pinterest-style) but stay stable across re-renders for the same item.
-function getAspectRatio(id) {
-  const str = String(id);
-  let hash = 0;
-  for (let i = 0; i < str.length; i++) {
-    hash = (hash * 31 + str.charCodeAt(i)) | 0;
-  }
-  const normalized = (Math.abs(hash) % 1000) / 1000;
-  return MIN_ASPECT_RATIO + normalized * (MAX_ASPECT_RATIO - MIN_ASPECT_RATIO);
-}
-
-// Greedily distributes listings across columns, always appending to the
-// column with the smallest estimated running height, so columns stay
-// visually balanced like a Pinterest/masonry grid.
-function distributeIntoColumns(listings, numColumns) {
-  const columns = Array.from({ length: numColumns }, () => []);
-  const heights = Array(numColumns).fill(0);
-  listings.forEach((item) => {
-    let shortest = 0;
-    for (let i = 1; i < numColumns; i++) {
-      if (heights[i] < heights[shortest]) shortest = i;
-    }
-    columns[shortest].push(item);
-    heights[shortest] += getAspectRatio(item.id) * 100 + 70;
-  });
-  return columns;
-}
 
 export default function Explore({ onItemClick }) {
   const { theme } = useAppMode();
@@ -88,7 +58,7 @@ export default function Explore({ onItemClick }) {
     setDetailsType(item.listing_type);
     onItemClick?.(item);
     if (userId) {
-      InteractionService.trackClick(userId, item.id).catch(() => {});
+      InteractionService.trackClick(userId, item.id).catch(() => { });
     }
   }, [userId, onItemClick]);
 
@@ -195,6 +165,10 @@ export default function Explore({ onItemClick }) {
     return (
       <View style={styles.container}>
         <View style={styles.masonryRow}>
+          <View>
+          <Text style={styles.sectionTitle}>Coming Up</Text>
+          <Text style={styles.sectionSubtitle}>Events near you</Text>
+        </View>
           <View style={styles.column}>
             {SKELETON_RATIOS.filter((_, i) => i % 2 === 0).map((ratio, i) => (
               <GridCardSkeleton key={`l-${i}`} aspectRatio={ratio} />
@@ -289,5 +263,14 @@ const getStyles = (theme) => StyleSheet.create({
     fontSize: 13,
     fontWeight: '600',
     color: theme.colors.buttonText,
+  },sectionTitle: {
+    fontSize: 35,
+    fontWeight: '600',
+    color: theme.colors.text,
+    marginBottom: 4,
   },
+  sectionSubtitle: {
+    fontSize: 18,
+    color: theme.colors.textMuted,
+  }
 });

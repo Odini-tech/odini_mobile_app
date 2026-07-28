@@ -22,7 +22,7 @@ import StayDetail from '../../src/components/details/StayDetail';
 import { useAppData } from '../../src/context/AppDataContext';
 import { useAppMode } from '../../src/context/AppModeContext';
 import { useBottomNavScroll } from '../../src/context/BottomNavVisibilityContext';
-import { guideService, GuideResult } from '../../src/services/guideService';
+import { GuideResult, guideService } from '../../src/services/guideService';
 import { InteractionService } from '../../src/services/interactionService';
 import { SearchListing } from '../../src/services/searchService';
 import { extractIntent } from '../../src/utils/guideNlp';
@@ -213,9 +213,6 @@ export default function ChatScreen() {
       keyboardVerticalOffset={insets.top}
     >
       <View style={styles.header}>
-        <View style={styles.headerIconWrap}>
-          <Ionicons name="sparkles" size={18} color={theme.colors.primary} />
-        </View>
         <View>
           <Text style={styles.headerTitle}>Guide</Text>
           <Text style={styles.headerSubtitle}>Your personal travel advisor</Text>

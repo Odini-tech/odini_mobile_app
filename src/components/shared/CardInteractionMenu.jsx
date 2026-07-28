@@ -18,7 +18,7 @@ export default function CardInteractionMenu({ visible, listing, onAction, onClos
     {
       id: 'favorite',
       label: 'Add to Favorites',
-      icon: 'heart',
+      icon: 'bookmark',
       color: theme.colors.danger,
       description: 'Save this to your favorites',
     },

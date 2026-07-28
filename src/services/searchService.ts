@@ -507,4 +507,35 @@ export const searchService = {
       throw error;
     }
   },
+
+  /**
+   * Top tags ranked by how many listings carry them
+   */
+  async getPopularTags(limit = 10): Promise<Tag[]> {
+    try {
+      const { data, error } = await supabase
+        .from('tag_listings')
+        .select('tag_id, tag:tags(id, name, created_at)');
+
+      if (error) {
+        throw new Error(`Failed to fetch popular tags: ${error.message}`);
+      }
+
+      const countByTag: Record<string, { tag: Tag; count: number }> = {};
+      ((data || []) as unknown as TagJoinRow[]).forEach((row) => {
+        const tag = Array.isArray(row.tag) ? row.tag[0] : row.tag;
+        if (!tag) return;
+        countByTag[tag.id] = countByTag[tag.id] || { tag, count: 0 };
+        countByTag[tag.id].count += 1;
+      });
+
+      return Object.values(countByTag)
+        .sort((a, b) => b.count - a.count)
+        .slice(0, limit)
+        .map((entry) => entry.tag);
+    } catch (error) {
+      console.error('Error in getPopularTags:', error);
+      return [];
+    }
+  },
 };

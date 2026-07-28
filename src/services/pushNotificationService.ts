@@ -1,6 +1,6 @@
 import Constants from 'expo-constants';
 import * as Device from 'expo-device';
-import * as Notifications from 'expo-notifications';
+import type { NotificationBehavior } from 'expo-notifications';
 import { Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { callRecommendationApi, getRecommendationModeStatus } from './recommendationGateway';
@@ -14,11 +14,20 @@ const expoExtra =
 
 const easProjectId: string | undefined = expoExtra?.eas?.projectId;
 
+// Android remote push support was pulled from Expo Go in SDK 53, and even
+// `import`-ing expo-notifications there throws. Detect Expo Go and lazily
+// require the module only outside it, so the app still boots in Expo Go.
+const isExpoGo = Constants.appOwnership === 'expo';
+const Notifications: typeof import('expo-notifications') | null = isExpoGo
+  ? null
+  : require('expo-notifications');
+
 /**
  * Governs how a push shows up while the app is in the foreground. Registered
  * once at app startup, before any permission/token work happens.
  */
 export function configureNotificationHandler(): void {
+  if (!Notifications) return;
   Notifications.setNotificationHandler({
     handleNotification: async () => ({
       shouldShowBanner: true,
@@ -28,7 +37,7 @@ export function configureNotificationHandler(): void {
       // Older expo-notifications typings only know this field; the two above
       // cover current SDKs. Harmless if ignored.
       shouldShowAlert: true,
-    } as Notifications.NotificationBehavior),
+    } as NotificationBehavior),
   });
 
   if (Platform.OS === 'android') {
@@ -40,6 +49,7 @@ export function configureNotificationHandler(): void {
 }
 
 async function getExpoPushToken(): Promise<string | null> {
+  if (!Notifications) return null; // running in Expo Go — no native module available
   if (!Device.isDevice) return null; // push tokens aren't issued to simulators/emulators
 
   const existing = await Notifications.getPermissionsAsync();
@@ -103,6 +113,8 @@ export type NotificationTapPayload = {
 export function attachNotificationTapListener(
   onTap: (payload: NotificationTapPayload) => void
 ): () => void {
+  if (!Notifications) return () => undefined;
+
   Notifications.getLastNotificationResponseAsync()
     .then((response) => {
       if (response?.notification.request.content.data) {

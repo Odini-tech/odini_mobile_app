@@ -243,7 +243,7 @@ const ListingCard = React.memo(function ListingCard({ item, onPress, onFavoriteP
                   <ActivityIndicator size="small" color={theme.colors.danger} />
                 ) : (
                   <Ionicons
-                    name={isFavorited ? "heart" : "heart-outline"}
+                    name={isFavorited ? "bookmark" : "bookmark-outline"}
                     size={24}
                     color={isFavorited ? theme.colors.danger : theme.colors.text}
                   />
@@ -484,14 +484,12 @@ const getStyles = (theme) => StyleSheet.create({
     marginBottom: 6,
   },
   captionBadge: {
-    fontSize: 11,
-    fontWeight: "700",
-    paddingHorizontal: 6,
-    paddingVertical: 3,
-    borderRadius: 4,
-    borderWidth: 1,
+    fontSize: 14,
+    fontWeight: "900",
+    fontFamily: "Inter_600SemiBold",
+    color: theme.colors.burgundy,
+    borderWidth: 0,
     borderColor: theme.colors.border,
-    backgroundColor: theme.colors.surfaceAlt,
   },
   captionMeta: {
     fontSize: 12,
@@ -499,8 +497,7 @@ const getStyles = (theme) => StyleSheet.create({
   },
   captionMetaLink: {
     color: theme.colors.text,
-    fontWeight: "600",
-    textDecorationLine: "underline",
+    fontWeight: "900",
   },
   captionTitle: {
     fontSize: 13,

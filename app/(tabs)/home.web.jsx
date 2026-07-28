@@ -114,14 +114,14 @@ const getStyles = (theme) =>
     },
     activeTabLabel: {
       color: theme.colors.text,
-      fontWeight: 'bold',
+      fontWeight: '900',
     },
     indicator: {
       position: 'absolute',
       bottom: 0,
       width: width / 3,
       height: 4,
-      backgroundColor: theme.colors.text,
+      backgroundColor: theme.colors.primary,
       borderRadius: 999,
     },
     page: {

@@ -4,7 +4,6 @@ import {
   getShuffledListingIds,
   getListingsByIds,
   getUserFavoriteListings,
-  getUserRecentlyViewedListings,
   getListings,
   enrichRecommendationListings,
   fetchImagesForListings,
@@ -59,7 +58,6 @@ interface AppDataState {
 
   // Dash
   favoritePlaces: AppListing[];
-  recentlyViewed: AppListing[];
   upcomingEvents: AppListing[];
   madeForYou: AppListing[];
   categoryMixes: CategoryMix[];
@@ -91,7 +89,6 @@ const defaultState: AppDataState = {
   hasMore: true,
   favoritedIds: new Set(),
   favoritePlaces: [],
-  recentlyViewed: [],
   upcomingEvents: [],
   madeForYou: [],
   categoryMixes: [],
@@ -147,7 +144,7 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
         getShuffledListingIds(),
       ]);
 
-      setProgress(12);
+      setProgress(15);
 
       const uid =
         authResult.status === 'fulfilled' ? authResult.value.data?.user?.id ?? null : null;
@@ -170,7 +167,7 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
           : Promise.resolve({ data: null }),
       ]);
 
-      setProgress(42);
+      setProgress(40);
 
       const listings: AppListing[] =
         firstListings.status === 'fulfilled' ? (firstListings.value as AppListing[]) : [];
@@ -188,71 +185,41 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
         hasMore: shuffledIds.length > INITIAL_COUNT,
         userId: uid,
         userName,
-        progress: 42,
+        progress: 40,
       }));
 
-      // ── Phase 3: personalized dash data + search categories (parallel) ──
-      const [
-        favResult,
-        recentResult,
-        bookingsResult,
-        popCatResult,
-        collectionsResult,
-        recModeListings,
-        mixesResult,
-        venuesResult,
-      ] = await Promise.allSettled([
-        uid ? getUserFavoriteListings(uid) : Promise.resolve([]),
-        uid ? getUserRecentlyViewedListings(uid, 8) : Promise.resolve([]),
-        uid
-          ? supabase
-              .from('bookings')
-              .select(
-                'id, booking_ref, listing_type, status, check_in, event_slot, reservation_time, created_at, listings!listing_id(id, title, listing_type)'
-              )
-              .eq('user_id', uid)
-              .order('created_at', { ascending: false })
-              .limit(10)
-          : Promise.resolve({ data: [] }),
-        fetchPopularCategories(),
-        supabase.from('categories').select('id, name, description, image_url, collection_image_url').limit(6),
-        (() => {
-          const { mode } = getRecommendationModeStatus();
-          if (mode === 'rec_eng' && uid) {
-            return RecommendationService.getForYou(uid)
-              .then((recs) => (recs.length ? enrichRecommendationListings(recs) : []))
-              .catch(() => []);
-          }
-          return Promise.resolve([]);
-        })(),
-        (() => {
-          const { mode } = getRecommendationModeStatus();
-          if (mode !== 'rec_eng') return Promise.resolve([]);
-          return RecommendationService.getMixes()
-            .then((mixes) =>
-              Promise.all(
-                mixes.map(async (mix) => ({
-                  id: mix.id,
-                  title: mix.title,
-                  reason: mix.reason,
-                  items: await enrichRecommendationListings(
-                    mix.items.map((item) => ({ id: item.id, score: item.score }))
-                  ),
-                }))
-              )
-            )
-            .then((enrichedMixes) => enrichedMixes.filter((m) => m.items.length > 0))
-            .catch(() => []);
-        })(),
-        fetchVenuesForDash(8).catch(() => []),
-      ]);
+      // ── Phase 3: everything Dash/Explore need for first paint (parallel) ──
+      const [favResult, bookingsResult, popCatResult, heroCollectionsResult, recModeListings] =
+        await Promise.allSettled([
+          uid ? getUserFavoriteListings(uid) : Promise.resolve([]),
+          uid
+            ? supabase
+                .from('bookings')
+                .select(
+                  'id, booking_ref, listing_type, status, check_in, event_slot, reservation_time, created_at, listings!listing_id(id, title, listing_type)'
+                )
+                .eq('user_id', uid)
+                .in('status', ['pending', 'confirmed', 'completed'])
+                .order('created_at', { ascending: false })
+                .limit(10)
+            : Promise.resolve({ data: [] }),
+          fetchPopularCategories(),
+          fetchPersonalizedHeroCollections(uid),
+          (() => {
+            const { mode } = getRecommendationModeStatus();
+            if (mode === 'rec_eng' && uid) {
+              return RecommendationService.getForYou(uid)
+                .then((recs) => (recs.length ? enrichRecommendationListings(recs) : []))
+                .catch(() => []);
+            }
+            return Promise.resolve([]);
+          })(),
+        ]);
 
-      setProgress(72);
+      setProgress(75);
 
       const favoritePlaces: AppListing[] =
         favResult.status === 'fulfilled' ? (favResult.value as AppListing[]) : [];
-      const recentlyViewed: AppListing[] =
-        recentResult.status === 'fulfilled' ? (recentResult.value as AppListing[]) : [];
       const rawPastBookings: any[] =
         bookingsResult.status === 'fulfilled'
           ? ((bookingsResult.value as any)?.data ?? [])
@@ -267,24 +234,10 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
       }));
       const popularCategories: SearchCategory[] =
         popCatResult.status === 'fulfilled' ? popCatResult.value : [];
-      const rawCollections =
-        collectionsResult.status === 'fulfilled'
-          ? ((collectionsResult.value as any)?.data ?? [])
-          : [];
-      const collections = rawCollections.map((cat: any) => ({
-        id: cat.id,
-        title: cat.name,
-        description: cat.description || 'Curated picks for you',
-        count: 12,
-        image_url: cat.image_url,
-        collection_image_url: cat.collection_image_url,
-      }));
+      const collections =
+        heroCollectionsResult.status === 'fulfilled' ? heroCollectionsResult.value : [];
       const recListings: AppListing[] =
         recModeListings.status === 'fulfilled' ? recModeListings.value : [];
-      const categoryMixes: CategoryMix[] =
-        mixesResult.status === 'fulfilled' ? mixesResult.value : [];
-      const venues: VenueSummary[] =
-        venuesResult.status === 'fulfilled' ? venuesResult.value : [];
 
       const upcomingEvents = listings.filter((l) => l.listing_type === 'event').slice(0, 6);
       const madeForYou: AppListing[] =
@@ -296,45 +249,68 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
 
       const favoritedIds = new Set(favoritePlaces.map((l) => l.id));
 
+      // Everything Dash and Explore need for their first paint is in — unblock
+      // the UI now. Venues, category mixes, and search-only data (personal
+      // categories, the second listings batch) load in the background below
+      // instead of holding up isReady.
       setState((prev) => ({
         ...prev,
         favoritePlaces,
-        recentlyViewed,
         upcomingEvents,
         madeForYou,
-        categoryMixes,
-        venues,
         pastBookings,
         popularCategories,
         collections,
         favoritedIds,
-        progress: 72,
-      }));
-
-      // ── Phase 4: personal search categories + second batch of listings (parallel) ──
-      const [persCatResult, secondBatchResult] = await Promise.allSettled([
-        uid ? fetchPersonalCategories(uid) : Promise.resolve([]),
-        getListingsByIds(shuffledIds.slice(INITIAL_COUNT, INITIAL_COUNT + BATCH_SIZE)),
-      ]);
-
-      setProgress(94);
-
-      const personalCategories: SearchCategory[] =
-        persCatResult.status === 'fulfilled' ? persCatResult.value : [];
-      const secondBatch: AppListing[] =
-        secondBatchResult.status === 'fulfilled'
-          ? (secondBatchResult.value as AppListing[])
-          : [];
-
-      loadedCountRef.current = INITIAL_COUNT + secondBatch.length;
-
-      setState((prev) => ({
-        ...prev,
-        listings: [...prev.listings, ...secondBatch],
-        personalCategories,
         progress: 100,
         isReady: true,
       }));
+
+      // ── Background: non-critical sections, merged in as they resolve ──
+      fetchVenuesForDash(8)
+        .then((venues) => setState((prev) => ({ ...prev, venues })))
+        .catch(() => undefined);
+
+      (() => {
+        const { mode } = getRecommendationModeStatus();
+        if (mode !== 'rec_eng') return;
+        RecommendationService.getMixes()
+          .then((mixes) =>
+            Promise.all(
+              mixes.map(async (mix) => ({
+                id: mix.id,
+                title: mix.title,
+                reason: mix.reason,
+                items: await enrichRecommendationListings(
+                  mix.items.map((item) => ({ id: item.id, score: item.score }))
+                ),
+              }))
+            )
+          )
+          .then((enrichedMixes) => enrichedMixes.filter((m) => m.items.length > 0))
+          .then((categoryMixes) => setState((prev) => ({ ...prev, categoryMixes })))
+          .catch(() => undefined);
+      })();
+
+      Promise.allSettled([
+        uid ? fetchPersonalCategories(uid) : Promise.resolve([]),
+        getListingsByIds(shuffledIds.slice(INITIAL_COUNT, INITIAL_COUNT + BATCH_SIZE)),
+      ]).then(([persCatResult, secondBatchResult]) => {
+        const personalCategories: SearchCategory[] =
+          persCatResult.status === 'fulfilled' ? persCatResult.value : [];
+        const secondBatch: AppListing[] =
+          secondBatchResult.status === 'fulfilled'
+            ? (secondBatchResult.value as AppListing[])
+            : [];
+
+        loadedCountRef.current = INITIAL_COUNT + secondBatch.length;
+
+        setState((prev) => ({
+          ...prev,
+          listings: [...prev.listings, ...secondBatch],
+          personalCategories,
+        }));
+      });
     } catch (err) {
       console.error('AppDataContext prefetch error:', err);
       // Still mark ready so the app doesn't hang
@@ -473,6 +449,77 @@ async function fetchPersonalCategories(uid: string): Promise<SearchCategory[]> {
 
     const personal = Object.values(categoryCount).sort((a, b) => b.count - a.count);
     return shuffle(personal.slice(0, 6));
+  } catch {
+    return [];
+  }
+}
+
+interface HeroCollection {
+  id: string;
+  title: string;
+  description: string;
+  image_url: string | null;
+  collection_image_url: string | null;
+}
+
+/**
+ * Hero carousel content, ranked by each user's own interaction history
+ * (via category_listings) instead of raw popularity, with a randomized
+ * weighted draw so the order — and which categories make the cut — varies
+ * between opens instead of showing the same lineup every time.
+ */
+async function fetchPersonalizedHeroCollections(uid: string | null): Promise<HeroCollection[]> {
+  try {
+    const { data: allCats } = await supabase
+      .from('categories')
+      .select('id, name, description, image_url, collection_image_url');
+    if (!allCats?.length) return [];
+
+    const affinity: Record<string, number> = {};
+    if (uid) {
+      const { data: interactions } = await supabase
+        .from('interactions')
+        .select('listing_id, score')
+        .eq('user_id', uid)
+        .gte('score', 1)
+        .order('updated_at', { ascending: false })
+        .limit(100);
+
+      const listingIds = Array.from(new Set((interactions || []).map((i: any) => i.listing_id)));
+      if (listingIds.length) {
+        const scoreByListing = new Map((interactions || []).map((i: any) => [i.listing_id, i.score]));
+        const { data: catListings } = await supabase
+          .from('category_listings')
+          .select('listing_id, category_id')
+          .in('listing_id', listingIds);
+
+        (catListings || []).forEach((cl: any) => {
+          const score = scoreByListing.get(cl.listing_id) || 0;
+          affinity[cl.category_id] = (affinity[cl.category_id] || 0) + score;
+        });
+      }
+    }
+
+    // Weighted-random draw (exponential keys): categories the user engages
+    // with more get a smaller (better) key more often, but every category —
+    // including ones with no signal yet — stays eligible via the +1 floor.
+    const drawn = allCats
+      .map((cat: any) => {
+        const weight = 1 + (affinity[cat.id] || 0);
+        const key = -Math.log(Math.random()) / weight;
+        return { cat, key };
+      })
+      .sort((a, b) => a.key - b.key)
+      .slice(0, 5)
+      .map(({ cat }) => ({
+        id: cat.id,
+        title: cat.name,
+        description: cat.description || 'Curated picks for you',
+        image_url: cat.image_url,
+        collection_image_url: cat.collection_image_url,
+      }));
+
+    return drawn;
   } catch {
     return [];
   }

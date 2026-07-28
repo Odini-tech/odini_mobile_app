@@ -285,16 +285,18 @@ function ListingCard({
         </View>
         {listing.is_favorited && (
           <View style={styles.heartBadge}>
-            <MaterialCommunityIcons name="heart" size={12} color="#E63B6F" />
+            <MaterialCommunityIcons name="bookmark" size={20} color="yellow" />
           </View>
         )}
       </View>
       <View style={styles.cardInfo}>
-        <Text style={styles.cardTitle} numberOfLines={2}>{listing.title}</Text>
+        <View style={styles.cardTitleRow}>
+          <Text style={[styles.cardTitle, styles.cardTitleFlex]} numberOfLines={1}>{listing.title}</Text>
+          <Text style={[styles.cardPrice, { color: theme.colors.text }]}>{formatPrice(listing.price)}</Text>
+        </View>
         {listing.location_label && listing.location_label !== 'Location pending' ? (
           <Text style={styles.cardLocation} numberOfLines={1}>{listing.location_label}</Text>
         ) : null}
-        <Text style={[styles.cardPrice, { color: theme.colors.text }]}>{formatPrice(listing.price)}</Text>
       </View>
     </TouchableOpacity>
   );
@@ -585,10 +587,6 @@ const getStyles = (theme: ReturnType<typeof getThemeForMode>) => StyleSheet.crea
     position: 'absolute',
     top: 6,
     right: 6,
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    backgroundColor: 'rgba(255,255,255,0.92)',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -630,14 +628,24 @@ const getStyles = (theme: ReturnType<typeof getThemeForMode>) => StyleSheet.crea
     backgroundColor: 'transparent',
     justifyContent: 'flex-start',
   },
+  cardTitleRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
   cardTitle: {
     fontSize: 12,
     fontWeight: '600',
     color: theme.colors.text,
   },
+  cardTitleFlex: {
+    flex: 1,
+    marginRight: 8,
+  },
   cardPrice: {
     fontSize: 12,
     fontWeight: '700',
+    flexShrink: 0,
   },
   cardLocation: {
     fontSize: 11,

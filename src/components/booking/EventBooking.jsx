@@ -135,7 +135,7 @@ export default function EventBookingModal({ listing, eventDetails, onClose, onCo
 
   if (submittedBooking) {
     return (
-      <Modal visible transparent animationType="slide">
+      <Modal visible transparent animationType="slide" onRequestClose={onClose}>
         <SafeAreaView style={styles.container}>
           <View style={styles.header}>
             <TouchableOpacity onPress={onClose}>
@@ -167,7 +167,7 @@ export default function EventBookingModal({ listing, eventDetails, onClose, onCo
   }
 
   return (
-    <Modal visible transparent animationType="slide">
+    <Modal visible transparent animationType="slide" onRequestClose={onClose}>
       <SafeAreaView style={styles.container}>
         <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
           <View style={styles.header}>
