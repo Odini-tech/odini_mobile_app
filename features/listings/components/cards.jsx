@@ -10,13 +10,13 @@ import { InteractionService } from "@/services/interactionService";
 import { formatEventDateSmart } from "@/utils/dateFormat";
 import { formatCount } from "@/utils/formatCount";
 import { oneOf } from "@/utils/relations";
-import EventBookingModal from "./booking/EventBooking";
-import OfferingBookingModal from "./booking/OfferingBooking";
-import StayBookingModal from "./booking/StayBooking";
-import EventDetail from "./details/EventDetail";
-import OfferingDetail from "./details/OfferingDetail";
-import StayDetail from "./details/StayDetail";
-import CardInteractionMenu from "./shared/CardInteractionMenu";
+import EventBookingModal from "@/features/listings/components/booking/EventBooking";
+import OfferingBookingModal from "@/features/listings/components/booking/OfferingBooking";
+import StayBookingModal from "@/features/listings/components/booking/StayBooking";
+import EventDetail from "@/features/listings/components/details/EventDetail";
+import OfferingDetail from "@/features/listings/components/details/OfferingDetail";
+import StayDetail from "@/features/listings/components/details/StayDetail";
+import CardInteractionMenu from "@/features/listings/components/shared/CardInteractionMenu";
 
 const ListingCard = React.memo(function ListingCard({ item, onPress, onFavoritePress, favoriteLoading, onInteractionAction, isFavorited: propIsFavorited, styles: externalStyles }) {
   const { theme } = useAppMode();

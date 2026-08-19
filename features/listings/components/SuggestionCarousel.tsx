@@ -25,9 +25,9 @@ import Animated, {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { supabase } from '@/services/supabase/client';
 import { useCurrency } from '@/store/CurrencyContext';
-import EventDetail from './details/EventDetail';
-import OfferingDetail from './details/OfferingDetail';
-import StayDetail from './details/StayDetail';
+import EventDetail from '@/features/listings/components/details/EventDetail';
+import OfferingDetail from '@/features/listings/components/details/OfferingDetail';
+import StayDetail from '@/features/listings/components/details/StayDetail';
 
 const { width: SW, height: SH } = Dimensions.get('window');
 const SQUARE_SIZE = Math.min(SW - 72, SH * 0.42);

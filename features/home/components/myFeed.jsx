@@ -12,11 +12,11 @@ import { RecommendationService } from "@/services/recommendationService";
 import { getRecommendationModeStatus } from "@/services/recommendationGateway";
 import { InteractionService } from "@/services/interactionService";
 import { useAppMode } from "@/store/AppModeContext";
-import ListingCard from "../cards";
-import { FeedCardSkeleton } from "../shared/CardSkeleton";
-import EventDetail from "../details/EventDetail";
-import OfferingDetail from "../details/OfferingDetail";
-import StayDetail from "../details/StayDetail";
+import ListingCard from "@/features/listings/components/cards";
+import { FeedCardSkeleton } from "@/components/ui/CardSkeleton";
+import EventDetail from "@/features/listings/components/details/EventDetail";
+import OfferingDetail from "@/features/listings/components/details/OfferingDetail";
+import StayDetail from "@/features/listings/components/details/StayDetail";
 
 const INITIAL_PAGE_SIZE = 18;
 const LOAD_MORE_SIZE = 6;

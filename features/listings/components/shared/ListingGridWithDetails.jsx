@@ -3,10 +3,10 @@ import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-nat
 import { getListingById } from '@/services/listings.service';
 import { distributeIntoColumns } from '@/utils/masonryLayout';
 import { useBottomNavScroll } from '@/store/BottomNavVisibilityContext';
-import ExploreCard from '../ExploreCard';
-import EventDetail from '../details/EventDetail';
-import OfferingDetail from '../details/OfferingDetail';
-import StayDetail from '../details/StayDetail';
+import ExploreCard from '@/features/listings/components/ExploreCard';
+import EventDetail from '@/features/listings/components/details/EventDetail';
+import OfferingDetail from '@/features/listings/components/details/OfferingDetail';
+import StayDetail from '@/features/listings/components/details/StayDetail';
 import { useAppMode } from '@/store/AppModeContext';
 
 const NUM_COLUMNS = 2;

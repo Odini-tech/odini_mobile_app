@@ -5,11 +5,11 @@ import { useAppData } from '@/store/AppDataContext';
 import { useAppMode } from '@/store/AppModeContext';
 import { InteractionService } from '@/services/interactionService';
 import { distributeIntoColumns, getAspectRatio } from '@/utils/masonryLayout';
-import EventDetail from '../details/EventDetail';
-import OfferingDetail from '../details/OfferingDetail';
-import StayDetail from '../details/StayDetail';
-import ExploreCard from '../ExploreCard';
-import { GridCardSkeleton } from '../shared/CardSkeleton';
+import EventDetail from '@/features/listings/components/details/EventDetail';
+import OfferingDetail from '@/features/listings/components/details/OfferingDetail';
+import StayDetail from '@/features/listings/components/details/StayDetail';
+import ExploreCard from '@/features/listings/components/ExploreCard';
+import { GridCardSkeleton } from '@/components/ui/CardSkeleton';
 
 const NUM_COLUMNS = 2;
 const LOAD_MORE_THRESHOLD = 500;

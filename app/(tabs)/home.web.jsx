@@ -7,9 +7,9 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import Dash from '../../src/components/homeTabs/dash';
-import Explore from '../../src/components/homeTabs/explore';
-import { ForYouPage } from '../../src/components/homeTabs/myFeed';
+import Dash from '@/features/home/components/dash';
+import Explore from '@/features/home/components/explore';
+import { ForYouPage } from '@/features/home/components/myFeed';
 import { useAppMode } from '@/store/AppModeContext';
 
 const { width } = Dimensions.get('window');

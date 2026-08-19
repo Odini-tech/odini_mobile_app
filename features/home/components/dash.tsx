@@ -20,12 +20,12 @@ import { useAppMode } from '@/store/AppModeContext';
 import { useCurrency } from '@/store/CurrencyContext';
 import { InteractionService } from '@/services/interactionService';
 import { VenueSummary } from '@/services/venueService';
-import EventDetail from '../details/EventDetail';
-import OfferingDetail from '../details/OfferingDetail';
-import StayDetail from '../details/StayDetail';
-import CardInteractionMenu from '../shared/CardInteractionMenu';
-import { GridCardSkeleton, HeroCarouselSkeleton } from '../shared/CardSkeleton';
-import VenueCard from '../shared/VenueCard';
+import EventDetail from '@/features/listings/components/details/EventDetail';
+import OfferingDetail from '@/features/listings/components/details/OfferingDetail';
+import StayDetail from '@/features/listings/components/details/StayDetail';
+import CardInteractionMenu from '@/features/listings/components/shared/CardInteractionMenu';
+import { GridCardSkeleton, HeroCarouselSkeleton } from '@/components/ui/CardSkeleton';
+import VenueCard from '@/features/venues/components/VenueCard';
 
 const { width } = Dimensions.get('window');
 

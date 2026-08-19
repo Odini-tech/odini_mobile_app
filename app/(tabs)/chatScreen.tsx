@@ -15,10 +15,10 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { getListingById } from '@/services/listings.service';
-import ExploreCardUntyped from '../../src/components/ExploreCard';
-import EventDetail from '../../src/components/details/EventDetail';
-import OfferingDetail from '../../src/components/details/OfferingDetail';
-import StayDetail from '../../src/components/details/StayDetail';
+import ExploreCardUntyped from '@/features/listings/components/ExploreCard';
+import EventDetail from '@/features/listings/components/details/EventDetail';
+import OfferingDetail from '@/features/listings/components/details/OfferingDetail';
+import StayDetail from '@/features/listings/components/details/StayDetail';
 import { useAppData } from '@/store/AppDataContext';
 import { useAppMode } from '@/store/AppModeContext';
 import { useBottomNavScroll } from '@/store/BottomNavVisibilityContext';

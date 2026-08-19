@@ -5,9 +5,9 @@ import { supabase } from "@/services/supabase/client";
 import { useAppMode } from "@/store/AppModeContext";
 import { useAppData } from "@/store/AppDataContext";
 import { announceRecommendationMode, onRecommendationModeChange } from "@/services/recommendationGateway";
-import { TabLoadingScreen } from "../src/components/shared/TabLoadingScreen";
+import { TabLoadingScreen } from "@/components/ui/TabLoadingScreen";
 
-import AuthScreen from "./(tabs)/authScreen";
+import AuthScreen from "@/features/auth/components/AuthScreen";
 
 export default function App() {
   const [session, setSession] = useState<Session | null>(null);

@@ -12,26 +12,26 @@ import {
 } from 'react-native';
 import { useAppMode } from '@/store/AppModeContext';
 import { useCurrency } from '@/store/CurrencyContext';
-import { formatEventTimeSmart } from '@/utils/dateFormat';
+import { formatCount } from '@/utils/formatCount';
 import { resolveAmenityIcon } from '@/utils/reactIconsMap';
 import { oneOf } from '@/utils/relations';
-import EventBookingModal from '../booking/EventBooking';
-import FavoriteToggleButton from '../shared/FavoriteToggleButton';
-import ImageCarousel from '../shared/ImageCarousel';
-import ListingMap from '../shared/ListingMap';
-import SuggestionCarousel from '../SuggestionCarousel';
-import DetailSuggestionCarousel from './DetailSuggestionCarousel';
+import StayBookingModal from '@/features/listings/components/booking/StayBooking';
+import FavoriteToggleButton from '@/features/listings/components/shared/FavoriteToggleButton';
+import ImageCarousel from '@/components/ui/ImageCarousel';
+import ListingMap from '@/features/listings/components/shared/ListingMap';
+import SuggestionCarousel from '@/features/listings/components/SuggestionCarousel';
+import DetailSuggestionCarousel from '@/features/listings/components/details/DetailSuggestionCarousel';
 
-export default function EventDetail({ listing, onClose, onHostPress }) {
+export default function StayDetail({ listing, onClose, onHostPress }) {
   const { theme } = useAppMode();
   const [showBooking, setShowBooking] = useState(false);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const router = useRouter();
   const { formatPrice } = useCurrency();
-  const EVENT_ACCENT = theme.listingTypeColors.event;
-  const styles = getStyles(theme, EVENT_ACCENT);
+  const STAY_ACCENT = theme.listingTypeColors.stay;
+  const styles = getStyles(theme, STAY_ACCENT);
 
-  const eventDetails = oneOf(listing.events);
+  const stayDetails = oneOf(listing.stays);
   const hostId = listing.host_id || listing.profiles?.id;
   const hostName = [listing.profiles?.firstname, listing.profiles?.lastname].filter(Boolean).join(' ').trim()
     || listing.profiles?.username
@@ -66,7 +66,7 @@ export default function EventDetail({ listing, onClose, onHostPress }) {
           <TouchableOpacity onPress={onClose}>
             <Ionicons name="chevron-back" size={28} color={theme.colors.text} />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Event Details</Text>
+          <Text style={styles.headerTitle}>Stay Details</Text>
           <FavoriteToggleButton listingId={listing.id} />
         </View>
 
@@ -77,23 +77,13 @@ export default function EventDetail({ listing, onClose, onHostPress }) {
             imageStyle={styles.image}
             placeholder={
               <View style={[styles.image, styles.imagePlaceholder]}>
-                <Ionicons name="calendar" size={60} color={theme.colors.textSubtle} />
+                <Ionicons name="home" size={60} color={theme.colors.textSubtle} />
               </View>
             }
           />
 
           <View style={styles.content}>
             <Text style={styles.title}>{listing.title}</Text>
-
-            <View style={styles.badgeRow}>
-              <View style={styles.eventBadge}>
-                <Ionicons name="calendar" size={14} color={theme.colors.white} />
-                <Text style={styles.badgeText}>
-                  {eventDetails.event_type?.toUpperCase() || 'EVENT'}
-                </Text>
-              </View>
-            </View>
-
             {listing.review_count ? (
               <View style={styles.ratingRow}>
                 <View style={styles.ratingStars}>
@@ -119,7 +109,7 @@ export default function EventDetail({ listing, onClose, onHostPress }) {
                   </View>
                   <View>
                     <Text style={styles.hostName}>{hostName}</Text>
-                    <Text style={styles.hostRole}>Event Organizer</Text>
+                    <Text style={styles.hostRole}>Verified Host</Text>
                   </View>
                 </View>
                 <Ionicons name="chevron-forward" size={20} color={theme.colors.textMuted} />
@@ -160,35 +150,39 @@ export default function EventDetail({ listing, onClose, onHostPress }) {
                 height={200}
                 markerTitle={listing.title}
                 markerDescription={[listing.address_city, listing.address_country].filter(Boolean).join(', ')}
+                style={styles.map}
               />
             </View>
 
             <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Event Information</Text>
+              <Text style={styles.sectionTitle}>Accommodation Details</Text>
               <View style={styles.detailsGrid}>
                 <View style={styles.detailCard}>
-                  <Ionicons name="time" size={24} color={theme.colors.textMuted} />
-                  <Text style={styles.detailLabel}>Date & Time</Text>
-                  <Text style={styles.detailValue} numberOfLines={2}>
-                    {formatEventTimeSmart(eventDetails.event_time)}
-                  </Text>
+                  <Ionicons name="door-open" size={24} color={theme.colors.textMuted} />
+                  <Text style={styles.detailValue}>{formatCount(stayDetails.available_rooms)}</Text>
+                  <Text style={styles.detailLabel}>Rooms</Text>
                 </View>
                 <View style={styles.detailCard}>
                   <Ionicons name="people" size={24} color={theme.colors.textMuted} />
-                  <Text style={styles.detailLabel}>Capacity</Text>
-                  <Text style={styles.detailValue}>{eventDetails.capacity || 0}</Text>
+                  <Text style={styles.detailValue}>{stayDetails.max_guests || 0}</Text>
+                  <Text style={styles.detailLabel}>Guests</Text>
+                </View>
+                <View style={styles.detailCard}>
+                  <Ionicons name="moon" size={24} color={theme.colors.textMuted} />
+                  <Text style={styles.detailValue}>{stayDetails.durations_nights || 0}</Text>
+                  <Text style={styles.detailLabel}>Nights Min</Text>
                 </View>
               </View>
             </View>
 
             <View style={styles.section}>
-              <Text style={styles.sectionTitle}>About this event</Text>
+              <Text style={styles.sectionTitle}>About this place</Text>
               <Text style={styles.description}>{listing.description}</Text>
             </View>
 
             {listing.amenities && listing.amenities.length > 0 && (
               <View style={styles.section}>
-                <Text style={styles.sectionTitle}>What&apos;s Included</Text>
+                <Text style={styles.sectionTitle}>Amenities</Text>
                 <View style={styles.amenitiesGrid}>
                   {listing.amenities.map((amenity) => {
                     const { Component: AmenityIcon, name: amenityIconName } = resolveAmenityIcon(amenity.icon_name);
@@ -207,11 +201,11 @@ export default function EventDetail({ listing, onClose, onHostPress }) {
 
             <View style={styles.bookingSection}>
               <View>
-                <Text style={styles.priceLabel}>Price per ticket</Text>
+                <Text style={styles.priceLabel}>Price per night</Text>
                 <Text style={styles.price}>{formatPrice(listing.price || 0)}</Text>
               </View>
               <TouchableOpacity style={styles.bookButton} onPress={() => setShowBooking(true)}>
-                <Text style={styles.bookButtonText}> | Get Tickets →</Text>
+                <Text style={styles.bookButtonText}>| Book Now →</Text>
               </TouchableOpacity>
             </View>
 
@@ -220,9 +214,9 @@ export default function EventDetail({ listing, onClose, onHostPress }) {
         </ScrollView>
 
         {showBooking && (
-          <EventBookingModal
+          <StayBookingModal
             listing={listing}
-            eventDetails={eventDetails}
+            stayDetails={stayDetails}
             onClose={() => setShowBooking(false)}
             onConfirm={() => {
               setShowBooking(false);
@@ -235,14 +229,14 @@ export default function EventDetail({ listing, onClose, onHostPress }) {
           visible={showSuggestions}
           onClose={() => { setShowSuggestions(false); onClose(); }}
           excludeListingId={listing.id}
-          bookedListingType="event"
+          bookedListingType="stay"
         />
       </SafeAreaView>
     </Modal>
   );
 }
 
-const getStyles = (theme, EVENT_ACCENT) => StyleSheet.create({
+const getStyles = (theme, STAY_ACCENT) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: theme.colors.background,
@@ -283,24 +277,6 @@ const getStyles = (theme, EVENT_ACCENT) => StyleSheet.create({
     fontWeight: '700',
     color: theme.colors.text,
     marginBottom: 12,
-  },
-  badgeRow: {
-    marginBottom: 12,
-  },
-  eventBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    backgroundColor: EVENT_ACCENT,
-    alignSelf: 'flex-start',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 20,
-  },
-  badgeText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: theme.colors.white,
   },
   ratingRow: {
     flexDirection: 'row',
@@ -395,6 +371,10 @@ const getStyles = (theme, EVENT_ACCENT) => StyleSheet.create({
     borderColor: theme.colors.border,
     marginBottom: 10,
   },
+  map: {
+    borderRadius: 12,
+    overflow: 'hidden',
+  },
   locationText: {
     fontSize: 14,
     color: theme.colors.textMuted,
@@ -408,17 +388,16 @@ const getStyles = (theme, EVENT_ACCENT) => StyleSheet.create({
     flex: 1,
     backgroundColor: theme.colors.surface,
     borderRadius: 16,
-    padding: 14,
+    padding: 12,
     alignItems: 'center',
     gap: 8,
     borderWidth: 1,
     borderColor: theme.colors.border,
   },
   detailValue: {
-    fontSize: 14,
+    fontSize: 18,
     fontWeight: '700',
     color: theme.colors.text,
-    textAlign: 'center',
   },
   detailLabel: {
     fontSize: 12,
@@ -471,7 +450,7 @@ const getStyles = (theme, EVENT_ACCENT) => StyleSheet.create({
   price: {
     fontSize: 24,
     fontWeight: '700',
-    color: theme.colors.text,
+    color: "#797979",
   },
   bookButton: {
   

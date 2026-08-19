@@ -12,9 +12,9 @@ import {
 } from 'react-native';
 import { supabase } from '@/services/supabase/client';
 import { getListingById } from '@/services/listings.service';
-import EventDetail from '../../src/components/details/EventDetail';
-import OfferingDetail from '../../src/components/details/OfferingDetail';
-import StayDetail from '../../src/components/details/StayDetail';
+import EventDetail from '@/features/listings/components/details/EventDetail';
+import OfferingDetail from '@/features/listings/components/details/OfferingDetail';
+import StayDetail from '@/features/listings/components/details/StayDetail';
 import { useAppMode } from '@/store/AppModeContext';
 import notificationService from '@/services/notificationService';
 

@@ -6,7 +6,7 @@ import { supabase } from '@/services/supabase/client';
 import { useAppMode } from '@/store/AppModeContext';
 import { useCurrency } from '@/store/CurrencyContext';
 import { InteractionService } from '@/services/interactionService';
-import CardInteractionMenu from './shared/CardInteractionMenu';
+import CardInteractionMenu from '@/features/listings/components/shared/CardInteractionMenu';
 
 const ExploreCard = React.memo(function ExploreCard({ item, onPress, onInteractionAction, isFavorited: propIsFavorited, aspectRatio = 0.75 }) {
   const { theme } = useAppMode();

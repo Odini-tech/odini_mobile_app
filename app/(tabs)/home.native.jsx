@@ -10,9 +10,9 @@ import {
 } from 'react-native';
 import PagerView from 'react-native-pager-view';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import Dash from '../../src/components/homeTabs/dash';
-import Explore from '../../src/components/homeTabs/explore';
-import { ForYouPage } from '../../src/components/homeTabs/myFeed';
+import Dash from '@/features/home/components/dash';
+import Explore from '@/features/home/components/explore';
+import { ForYouPage } from '@/features/home/components/myFeed';
 import { useAppMode } from '@/store/AppModeContext';
 import { useBottomNavVisibility } from '@/store/BottomNavVisibilityContext';
 import {

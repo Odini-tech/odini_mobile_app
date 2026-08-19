@@ -14,12 +14,12 @@ import { useAppMode } from '@/store/AppModeContext';
 import { useCurrency } from '@/store/CurrencyContext';
 import { resolveAmenityIcon } from '@/utils/reactIconsMap';
 import { oneOf } from '@/utils/relations';
-import OfferingBookingModal from '../booking/OfferingBooking';
-import FavoriteToggleButton from '../shared/FavoriteToggleButton';
-import ImageCarousel from '../shared/ImageCarousel';
-import ListingMap from '../shared/ListingMap';
-import SuggestionCarousel from '../SuggestionCarousel';
-import DetailSuggestionCarousel from './DetailSuggestionCarousel';
+import OfferingBookingModal from '@/features/listings/components/booking/OfferingBooking';
+import FavoriteToggleButton from '@/features/listings/components/shared/FavoriteToggleButton';
+import ImageCarousel from '@/components/ui/ImageCarousel';
+import ListingMap from '@/features/listings/components/shared/ListingMap';
+import SuggestionCarousel from '@/features/listings/components/SuggestionCarousel';
+import DetailSuggestionCarousel from '@/features/listings/components/details/DetailSuggestionCarousel';
 
 export default function OfferingDetail({ listing, onClose, onHostPress }) {
   const { theme } = useAppMode();

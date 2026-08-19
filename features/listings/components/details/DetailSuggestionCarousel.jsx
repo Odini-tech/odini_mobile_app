@@ -12,9 +12,9 @@ import {
 import { getSuggestedListings } from '@/services/listings.service';
 import { useAppMode } from '@/store/AppModeContext';
 import { useCurrency } from '@/store/CurrencyContext';
-import EventDetail from './EventDetail';
-import OfferingDetail from './OfferingDetail';
-import StayDetail from './StayDetail';
+import EventDetail from '@/features/listings/components/details/EventDetail';
+import OfferingDetail from '@/features/listings/components/details/OfferingDetail';
+import StayDetail from '@/features/listings/components/details/StayDetail';
 
 function getTypeMeta(type, theme) {
   const typeMeta = {

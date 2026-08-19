@@ -11,10 +11,10 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import EventDetail from '../../src/components/details/EventDetail';
-import OfferingDetail from '../../src/components/details/OfferingDetail';
-import StayDetail from '../../src/components/details/StayDetail';
-import VenueCard from '../../src/components/shared/VenueCard';
+import EventDetail from '@/features/listings/components/details/EventDetail';
+import OfferingDetail from '@/features/listings/components/details/OfferingDetail';
+import StayDetail from '@/features/listings/components/details/StayDetail';
+import VenueCard from '@/features/venues/components/VenueCard';
 import { useAppMode } from '@/store/AppModeContext';
 import { useCurrency } from '@/store/CurrencyContext';
 import { fetchSimilarVenues, fetchVenueListings, VenueSummary } from '@/services/venueService';
