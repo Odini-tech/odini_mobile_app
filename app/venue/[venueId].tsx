@@ -15,10 +15,10 @@ import EventDetail from '../../src/components/details/EventDetail';
 import OfferingDetail from '../../src/components/details/OfferingDetail';
 import StayDetail from '../../src/components/details/StayDetail';
 import VenueCard from '../../src/components/shared/VenueCard';
-import { useAppMode } from '../../src/context/AppModeContext';
-import { useCurrency } from '../../src/context/CurrencyContext';
-import { fetchSimilarVenues, fetchVenueListings, VenueSummary } from '../../src/services/venueService';
-import { getThemeForMode } from '../../src/theme/appModeTheme';
+import { useAppMode } from '@/store/AppModeContext';
+import { useCurrency } from '@/store/CurrencyContext';
+import { fetchSimilarVenues, fetchVenueListings, VenueSummary } from '@/services/venueService';
+import { getThemeForMode } from '@/constants/appModeTheme';
 
 export default function VenueScreen() {
   const params = useLocalSearchParams<{ venueId?: string | string[] }>();

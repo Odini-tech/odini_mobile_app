@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { useAppMode } from '../../context/AppModeContext';
+import { useAppMode } from '@/store/AppModeContext';
 
 /**
  * Standard horizontal venue card — large image on the left, name/location/

@@ -10,7 +10,7 @@ import {
 import Dash from '../../src/components/homeTabs/dash';
 import Explore from '../../src/components/homeTabs/explore';
 import { ForYouPage } from '../../src/components/homeTabs/myFeed';
-import { useAppMode } from '../../src/context/AppModeContext';
+import { useAppMode } from '@/store/AppModeContext';
 
 const { width } = Dimensions.get('window');
 

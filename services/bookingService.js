@@ -1,5 +1,5 @@
-import { supabase } from '../../lib/supabase';
-import { fetchImagesForListings } from '../../services/listings.service';
+import { supabase } from '@/services/supabase/client';
+import { fetchImagesForListings } from '@/services/listings.service';
 import { callRecommendationApi, runDualMode } from './recommendationGateway';
 
 /**

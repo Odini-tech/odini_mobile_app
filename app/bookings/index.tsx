@@ -11,11 +11,11 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { supabase } from '../../lib/supabase';
-import { useAppMode } from '../../src/context/AppModeContext';
-import { useCurrency } from '../../src/context/CurrencyContext';
-import bookingService from '../../src/services/bookingService';
-import { formatEventDateSmart } from '../../src/utils/dateFormat';
+import { supabase } from '@/services/supabase/client';
+import { useAppMode } from '@/store/AppModeContext';
+import { useCurrency } from '@/store/CurrencyContext';
+import bookingService from '@/services/bookingService';
+import { formatEventDateSmart } from '@/utils/dateFormat';
 
 const STATUS_GROUPS = [
   { key: 'pending', title: 'Awaiting Approval', statuses: ['pending'] },

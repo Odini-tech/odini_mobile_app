@@ -1,5 +1,5 @@
 import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
-import { supabase } from '../../lib/supabase';
+import { supabase } from '@/services/supabase/client';
 import {
   getShuffledListingIds,
   getListingsByIds,
@@ -7,11 +7,11 @@ import {
   getListings,
   enrichRecommendationListings,
   fetchImagesForListings,
-} from '../../services/listings.service';
-import { ensureDailyListingMatchNotifications } from '../services/notificationService';
-import { RecommendationService } from '../services/recommendationService';
-import { getRecommendationModeStatus } from '../services/recommendationGateway';
-import { fetchVenuesForDash, VenueSummary } from '../services/venueService';
+} from '@/services/listings.service';
+import { ensureDailyListingMatchNotifications } from '@/services/notificationService';
+import { RecommendationService } from '@/services/recommendationService';
+import { getRecommendationModeStatus } from '@/services/recommendationGateway';
+import { fetchVenuesForDash, VenueSummary } from '@/services/venueService';
 
 const INITIAL_COUNT = 12;
 const BATCH_SIZE = 6;

@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { Animated, Easing, StyleSheet, View } from 'react-native';
-import { useAppMode } from '../../context/AppModeContext';
+import { useAppMode } from '@/store/AppModeContext';
 
 const BUBBLE_COUNT = 3;
 const ORBIT_RADIUS = 20;

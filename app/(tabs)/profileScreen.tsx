@@ -16,10 +16,10 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { supabase } from '../../lib/supabase';
-import { useAppMode } from '../../src/context/AppModeContext';
-import { useBottomNavScroll } from '../../src/context/BottomNavVisibilityContext';
-import { CURRENCIES, useCurrency } from '../../src/context/CurrencyContext';
+import { supabase } from '@/services/supabase/client';
+import { useAppMode } from '@/store/AppModeContext';
+import { useBottomNavScroll } from '@/store/BottomNavVisibilityContext';
+import { CURRENCIES, useCurrency } from '@/store/CurrencyContext';
 
 interface CurrencyItem { code: string; name: string; symbol: string; flag: string }
 interface CurrencyCtx {

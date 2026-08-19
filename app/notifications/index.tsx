@@ -10,13 +10,13 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { supabase } from '../../lib/supabase';
-import { getListingById } from '../../services/listings.service';
+import { supabase } from '@/services/supabase/client';
+import { getListingById } from '@/services/listings.service';
 import EventDetail from '../../src/components/details/EventDetail';
 import OfferingDetail from '../../src/components/details/OfferingDetail';
 import StayDetail from '../../src/components/details/StayDetail';
-import { useAppMode } from '../../src/context/AppModeContext';
-import notificationService from '../../src/services/notificationService';
+import { useAppMode } from '@/store/AppModeContext';
+import notificationService from '@/services/notificationService';
 
 const TYPE_ICON: Record<string, string> = {
   booking_status: 'calendar-outline',

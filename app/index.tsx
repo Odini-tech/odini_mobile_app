@@ -1,10 +1,10 @@
 import { Session } from "@supabase/supabase-js";
 import { useRouter } from "expo-router";
 import { useEffect, useRef, useState } from "react";
-import { supabase } from "../lib/supabase";
-import { useAppMode } from "../src/context/AppModeContext";
-import { useAppData } from "../src/context/AppDataContext";
-import { announceRecommendationMode, onRecommendationModeChange } from "../src/services/recommendationGateway";
+import { supabase } from "@/services/supabase/client";
+import { useAppMode } from "@/store/AppModeContext";
+import { useAppData } from "@/store/AppDataContext";
+import { announceRecommendationMode, onRecommendationModeChange } from "@/services/recommendationGateway";
 import { TabLoadingScreen } from "../src/components/shared/TabLoadingScreen";
 
 import AuthScreen from "./(tabs)/authScreen";

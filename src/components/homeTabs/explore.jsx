@@ -1,10 +1,10 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { RefreshControl, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { useAppData } from '../../context/AppDataContext';
-import { useAppMode } from '../../context/AppModeContext';
-import { InteractionService } from '../../services/interactionService';
-import { distributeIntoColumns, getAspectRatio } from '../../utils/masonryLayout';
+import { useAppData } from '@/store/AppDataContext';
+import { useAppMode } from '@/store/AppModeContext';
+import { InteractionService } from '@/services/interactionService';
+import { distributeIntoColumns, getAspectRatio } from '@/utils/masonryLayout';
 import EventDetail from '../details/EventDetail';
 import OfferingDetail from '../details/OfferingDetail';
 import StayDetail from '../details/StayDetail';

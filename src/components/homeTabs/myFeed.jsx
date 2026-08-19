@@ -1,17 +1,17 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useCallback, useEffect, useRef, useState } from "react";
 import { FlatList, RefreshControl, StyleSheet, Text, TouchableOpacity, View } from "react-native";
-import { supabase } from "../../../lib/supabase";
+import { supabase } from "@/services/supabase/client";
 import {
   enrichRecommendationListings,
   getShuffledListingIds,
   getListingsByIds,
-} from "../../../services/listings.service";
-import { useBottomNavScroll } from "../../context/BottomNavVisibilityContext";
-import { RecommendationService } from "../../services/recommendationService";
-import { getRecommendationModeStatus } from "../../services/recommendationGateway";
-import { InteractionService } from "../../services/interactionService";
-import { useAppMode } from "../../context/AppModeContext";
+} from "@/services/listings.service";
+import { useBottomNavScroll } from "@/store/BottomNavVisibilityContext";
+import { RecommendationService } from "@/services/recommendationService";
+import { getRecommendationModeStatus } from "@/services/recommendationGateway";
+import { InteractionService } from "@/services/interactionService";
+import { useAppMode } from "@/store/AppModeContext";
 import ListingCard from "../cards";
 import { FeedCardSkeleton } from "../shared/CardSkeleton";
 import EventDetail from "../details/EventDetail";
@@ -206,7 +206,7 @@ export function ForYouPage({ onEventClick }) {
     }
 
     try {
-      const { getListingById } = await import("../../../services/listings.service");
+      const { getListingById } = await import("@/services/listings.service");
       const detailed = await getListingById(listing.id);
       if (detailRequestRef.current !== listing.id) return;
       if (detailed) setSelectedListing(detailed);

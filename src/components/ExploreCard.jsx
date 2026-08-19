@@ -2,10 +2,10 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useRef, useState } from 'react';
 import { Animated, Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { supabase } from '../../lib/supabase';
-import { useAppMode } from '../context/AppModeContext';
-import { useCurrency } from '../context/CurrencyContext';
-import { InteractionService } from '../services/interactionService';
+import { supabase } from '@/services/supabase/client';
+import { useAppMode } from '@/store/AppModeContext';
+import { useCurrency } from '@/store/CurrencyContext';
+import { InteractionService } from '@/services/interactionService';
 import CardInteractionMenu from './shared/CardInteractionMenu';
 
 const ExploreCard = React.memo(function ExploreCard({ item, onPress, onInteractionAction, isFavorited: propIsFavorited, aspectRatio = 0.75 }) {

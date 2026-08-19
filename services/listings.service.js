@@ -1,4 +1,4 @@
-import { supabase } from "../lib/supabase";
+import { supabase } from "@/services/supabase/client";
 
 // listings.venue_id -> venues.id -> venues.location_id -> locations.id
 const VENUE_SELECT = "venues:venue_id(id, name, description, locations:location_id(city, country, lat, lng))";

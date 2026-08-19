@@ -1,5 +1,5 @@
 import Constants from 'expo-constants';
-import { supabase } from '../../lib/supabase';
+import { supabase } from '@/services/supabase/client';
 
 export type RecommendationRuntimeMode = 'basic' | 'rec_eng';
 

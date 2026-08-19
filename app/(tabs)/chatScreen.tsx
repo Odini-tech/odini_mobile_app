@@ -14,18 +14,18 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { getListingById } from '../../services/listings.service';
+import { getListingById } from '@/services/listings.service';
 import ExploreCardUntyped from '../../src/components/ExploreCard';
 import EventDetail from '../../src/components/details/EventDetail';
 import OfferingDetail from '../../src/components/details/OfferingDetail';
 import StayDetail from '../../src/components/details/StayDetail';
-import { useAppData } from '../../src/context/AppDataContext';
-import { useAppMode } from '../../src/context/AppModeContext';
-import { useBottomNavScroll } from '../../src/context/BottomNavVisibilityContext';
-import { GuideResult, guideService } from '../../src/services/guideService';
-import { InteractionService } from '../../src/services/interactionService';
-import { SearchListing } from '../../src/services/searchService';
-import { extractIntent } from '../../src/utils/guideNlp';
+import { useAppData } from '@/store/AppDataContext';
+import { useAppMode } from '@/store/AppModeContext';
+import { useBottomNavScroll } from '@/store/BottomNavVisibilityContext';
+import { GuideResult, guideService } from '@/services/guideService';
+import { InteractionService } from '@/services/interactionService';
+import { SearchListing } from '@/services/searchService';
+import { extractIntent } from '@/features/chat/utils/guideNlp';
 
 // ExploreCard is a plain .jsx component with no prop typings.
 const ExploreCard = ExploreCardUntyped as ComponentType<{ item: any; onPress: () => void }>;

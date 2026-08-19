@@ -2,7 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
-import { useCurrency } from '../../context/CurrencyContext';
+import { useCurrency } from '@/store/CurrencyContext';
 import {
   Modal,
   SafeAreaView,
@@ -13,9 +13,9 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { supabase } from '../../../lib/supabase';
-import bookingService from '../../../src/services/bookingService';
-import { useAppMode } from '../../context/AppModeContext';
+import { supabase } from '@/services/supabase/client';
+import bookingService from '@/services/bookingService';
+import { useAppMode } from '@/store/AppModeContext';
 
 const toDateOnlyString = (date) => date.toISOString().split('T')[0];
 const pad2 = (n) => n.toString().padStart(2, '0');

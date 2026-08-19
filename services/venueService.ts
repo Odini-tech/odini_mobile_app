@@ -1,9 +1,9 @@
-import { supabase } from '../../lib/supabase';
+import { supabase } from '@/services/supabase/client';
 import {
   enrichRecommendationListings,
   fetchImagesForListings,
   getListingsByIds,
-} from '../../services/listings.service';
+} from '@/services/listings.service';
 import { getRecommendationModeStatus } from './recommendationGateway';
 import { RecommendationService } from './recommendationService';
 

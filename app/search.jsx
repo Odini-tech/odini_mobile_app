@@ -13,10 +13,10 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { useAppData } from '../src/context/AppDataContext';
-import { useAppMode } from '../src/context/AppModeContext';
-import { useBottomNavScroll } from '../src/context/BottomNavVisibilityContext';
-import { searchService } from '../src/services/searchService';
+import { useAppData } from '@/store/AppDataContext';
+import { useAppMode } from '@/store/AppModeContext';
+import { useBottomNavScroll } from '@/store/BottomNavVisibilityContext';
+import { searchService } from '@/services/searchService';
 
 export default function SearchPage() {
   const router = useRouter();

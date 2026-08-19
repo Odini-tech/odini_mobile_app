@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Modal, StyleSheet, Switch, Text, TextInput, TouchableOpacity, View } from 'react-native';
-import { useAppMode } from '../context/AppModeContext';
+import { useAppMode } from '@/store/AppModeContext';
 
 export default function FilterPopup({ visible, onClose, onApply, initialFilters = {} }) {
   const { theme } = useAppMode();

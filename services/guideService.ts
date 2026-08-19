@@ -1,5 +1,5 @@
-import { supabase } from '../../lib/supabase';
-import type { GuideIntent } from '../utils/guideNlp';
+import { supabase } from '@/services/supabase/client';
+import type { GuideIntent } from '@/features/chat/utils/guideNlp';
 import { popularTodayService } from './popularTodayService';
 import { searchService, SearchListing } from './searchService';
 

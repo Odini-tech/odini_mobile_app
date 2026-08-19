@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
-import { useCurrency } from '../../context/CurrencyContext';
+import { useCurrency } from '@/store/CurrencyContext';
 import {
   Modal,
   SafeAreaView,
@@ -12,11 +12,11 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { supabase } from '../../../lib/supabase';
-import bookingService from '../../../src/services/bookingService';
-import { useAppMode } from '../../context/AppModeContext';
-import { formatEventTimeSmart } from '../../utils/dateFormat';
-import { formatCount } from '../../utils/formatCount';
+import { supabase } from '@/services/supabase/client';
+import bookingService from '@/services/bookingService';
+import { useAppMode } from '@/store/AppModeContext';
+import { formatEventTimeSmart } from '@/utils/dateFormat';
+import { formatCount } from '@/utils/formatCount';
 
 export default function EventBookingModal({ listing, eventDetails, onClose, onConfirm }) {
   const { theme } = useAppMode();

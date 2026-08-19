@@ -13,12 +13,12 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Dash from '../../src/components/homeTabs/dash';
 import Explore from '../../src/components/homeTabs/explore';
 import { ForYouPage } from '../../src/components/homeTabs/myFeed';
-import { useAppMode } from '../../src/context/AppModeContext';
-import { useBottomNavVisibility } from '../../src/context/BottomNavVisibilityContext';
+import { useAppMode } from '@/store/AppModeContext';
+import { useBottomNavVisibility } from '@/store/BottomNavVisibilityContext';
 import {
   getRecommendationModeStatus,
   onRecommendationModeChange,
-} from '../../src/services/recommendationGateway';
+} from '@/services/recommendationGateway';
 
 const { width } = Dimensions.get('window');
 const TAB_LABEL_HEIGHT = 40;

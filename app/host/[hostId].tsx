@@ -15,15 +15,15 @@ import {
 import EventDetail from '../../src/components/details/EventDetail';
 import OfferingDetail from '../../src/components/details/OfferingDetail';
 import StayDetail from '../../src/components/details/StayDetail';
-import { useAppMode } from '../../src/context/AppModeContext';
-import { useCurrency } from '../../src/context/CurrencyContext';
+import { useAppMode } from '@/store/AppModeContext';
+import { useCurrency } from '@/store/CurrencyContext';
 import {
   fetchHostDashboard,
   HostDashboardData,
   HostListing,
   HostProfile
-} from '../../src/services/hostService';
-import { getThemeForMode } from '../../src/theme/appModeTheme';
+} from '@/services/hostService';
+import { getThemeForMode } from '@/constants/appModeTheme';
 
 const { width } = Dimensions.get('window');
 const CARD_WIDTH = Math.floor((width - 32 - 12) / 2.2);

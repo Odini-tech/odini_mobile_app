@@ -1,9 +1,9 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, TouchableOpacity } from 'react-native';
-import { supabase } from '../../../lib/supabase';
-import { useAppMode } from '../../context/AppModeContext';
-import { InteractionService } from '../../services/interactionService';
+import { supabase } from '@/services/supabase/client';
+import { useAppMode } from '@/store/AppModeContext';
+import { InteractionService } from '@/services/interactionService';
 
 export default function FavoriteToggleButton({ listingId, size = 26 }) {
   const { theme } = useAppMode();

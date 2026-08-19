@@ -1,4 +1,4 @@
-import { supabase } from '../../lib/supabase';
+import { supabase } from '@/services/supabase/client';
 import { callRecommendationApi, recommendationApiPath, runDualMode } from './recommendationGateway';
 
 export interface Listing {

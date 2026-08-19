@@ -1,5 +1,5 @@
-import { supabase } from '../../lib/supabase';
-import { getListingsByIds, getShuffledListingIds } from '../../services/listings.service';
+import { supabase } from '@/services/supabase/client';
+import { getListingsByIds, getShuffledListingIds } from '@/services/listings.service';
 
 const TABLE = 'notifications';
 

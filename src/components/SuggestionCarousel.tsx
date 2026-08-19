@@ -23,8 +23,8 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { supabase } from '../../lib/supabase';
-import { useCurrency } from '../context/CurrencyContext';
+import { supabase } from '@/services/supabase/client';
+import { useCurrency } from '@/store/CurrencyContext';
 import EventDetail from './details/EventDetail';
 import OfferingDetail from './details/OfferingDetail';
 import StayDetail from './details/StayDetail';

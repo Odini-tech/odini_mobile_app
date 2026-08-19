@@ -10,10 +10,10 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { useAppMode } from '../../context/AppModeContext';
-import { useCurrency } from '../../context/CurrencyContext';
-import { resolveAmenityIcon } from '../../utils/reactIconsMap';
-import { oneOf } from '../../utils/relations';
+import { useAppMode } from '@/store/AppModeContext';
+import { useCurrency } from '@/store/CurrencyContext';
+import { resolveAmenityIcon } from '@/utils/reactIconsMap';
+import { oneOf } from '@/utils/relations';
 import OfferingBookingModal from '../booking/OfferingBooking';
 import FavoriteToggleButton from '../shared/FavoriteToggleButton';
 import ImageCarousel from '../shared/ImageCarousel';

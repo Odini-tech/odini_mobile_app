@@ -9,7 +9,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { useAppMode } from '../../context/AppModeContext';
+import { useAppMode } from '@/store/AppModeContext';
 
 export default function CardInteractionMenu({ visible, listing, onAction, onClose }) {
   const { theme } = useAppMode();

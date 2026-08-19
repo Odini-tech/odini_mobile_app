@@ -13,8 +13,8 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { supabase } from '../../lib/supabase';
-import { useAppMode } from '../../src/context/AppModeContext';
+import { supabase } from '@/services/supabase/client';
+import { useAppMode } from '@/store/AppModeContext';
 
 export default function AuthScreen() {
   const [email, setEmail] = useState('');

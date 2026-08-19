@@ -14,12 +14,12 @@ import {
   View
 } from 'react-native';
 
-import { supabase } from '../../../lib/supabase';
-import { useAppData } from '../../context/AppDataContext';
-import { useAppMode } from '../../context/AppModeContext';
-import { useCurrency } from '../../context/CurrencyContext';
-import { InteractionService } from '../../services/interactionService';
-import { VenueSummary } from '../../services/venueService';
+import { supabase } from '@/services/supabase/client';
+import { useAppData } from '@/store/AppDataContext';
+import { useAppMode } from '@/store/AppModeContext';
+import { useCurrency } from '@/store/CurrencyContext';
+import { InteractionService } from '@/services/interactionService';
+import { VenueSummary } from '@/services/venueService';
 import EventDetail from '../details/EventDetail';
 import OfferingDetail from '../details/OfferingDetail';
 import StayDetail from '../details/StayDetail';

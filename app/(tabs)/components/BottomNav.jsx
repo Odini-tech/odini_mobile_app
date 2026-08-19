@@ -3,9 +3,9 @@ import { useSegments } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { supabase } from '../../../lib/supabase';
-import { useAppMode } from '../../../src/context/AppModeContext';
-import notificationService from '../../../src/services/notificationService';
+import { supabase } from '@/services/supabase/client';
+import { useAppMode } from '@/store/AppModeContext';
+import notificationService from '@/services/notificationService';
 
 export default function BottomNav({
   onHomePress = () => {},

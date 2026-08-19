@@ -2,17 +2,17 @@ import * as NavigationBar from "expo-navigation-bar";
 import { Slot, useRouter } from "expo-router";
 import { useEffect, useState } from "react";
 import { Platform, StyleSheet, View } from "react-native";
-import { supabase } from "../lib/supabase";
-import { AppModeProvider, useAppMode } from "../src/context/AppModeContext";
-import { AppDataProvider } from "../src/context/AppDataContext";
-import { BottomNavVisibilityProvider } from "../src/context/BottomNavVisibilityContext";
-import { CurrencyProvider } from "../src/context/CurrencyContext";
+import { supabase } from "@/services/supabase/client";
+import { AppModeProvider, useAppMode } from "@/store/AppModeContext";
+import { AppDataProvider } from "@/store/AppDataContext";
+import { BottomNavVisibilityProvider } from "@/store/BottomNavVisibilityContext";
+import { CurrencyProvider } from "@/store/CurrencyContext";
 import {
   attachNotificationTapListener,
   configureNotificationHandler,
   NotificationTapPayload,
   syncPushToken,
-} from "../src/services/pushNotificationService";
+} from "@/services/pushNotificationService";
 import BottomNav from "./(tabs)/components/BottomNav";
 
 async function handleNotificationTap(payload: NotificationTapPayload, router: ReturnType<typeof useRouter>) {

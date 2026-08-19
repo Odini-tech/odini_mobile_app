@@ -9,9 +9,9 @@ import {
     TouchableOpacity,
     View,
 } from 'react-native';
-import { getSuggestedListings } from '../../../services/listings.service.js';
-import { useAppMode } from '../../context/AppModeContext';
-import { useCurrency } from '../../context/CurrencyContext';
+import { getSuggestedListings } from '@/services/listings.service';
+import { useAppMode } from '@/store/AppModeContext';
+import { useCurrency } from '@/store/CurrencyContext';
 import EventDetail from './EventDetail';
 import OfferingDetail from './OfferingDetail';
 import StayDetail from './StayDetail';

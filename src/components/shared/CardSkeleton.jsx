@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { Animated, StyleSheet, View } from 'react-native';
-import { useAppMode } from '../../context/AppModeContext';
+import { useAppMode } from '@/store/AppModeContext';
 
 function useShimmer() {
   const anim = useRef(new Animated.Value(0)).current;
