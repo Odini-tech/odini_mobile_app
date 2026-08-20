@@ -155,7 +155,7 @@ export default function AuthScreen() {
 
           <View style={styles.logoBadge}>
             <Image
-              source={require('../../assets/images/odinicon.png')}
+              source={require('../../../assets/images/odinicon.png')}
               style={styles.logo}
               resizeMode="contain"
             />
