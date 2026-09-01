@@ -7,10 +7,10 @@ import {
   View,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import FilterPopup from '../../src/components/FilterPopup';
-import ListingGridWithDetails from '../../src/components/shared/ListingGridWithDetails';
-import { searchService } from '../../src/services/searchService';
-import { useAppMode } from '../../src/context/AppModeContext';
+import FilterPopup from '@/features/listings/components/FilterPopup';
+import ListingGridWithDetails from '@/features/listings/components/shared/ListingGridWithDetails';
+import { searchService } from '@/services/searchService';
+import { useAppMode } from '@/store/AppModeContext';
 
 export default function SearchResultsPage() {
   const router = useRouter();

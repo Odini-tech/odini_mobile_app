@@ -1,19 +1,18 @@
 import * as NavigationBar from "expo-navigation-bar";
 import { Slot, useRouter } from "expo-router";
-import { useEffect, useState } from "react";
-import { Platform, StyleSheet, View } from "react-native";
-import { supabase } from "../lib/supabase";
-import { AppModeProvider, useAppMode } from "../src/context/AppModeContext";
-import { AppDataProvider } from "../src/context/AppDataContext";
-import { BottomNavVisibilityProvider } from "../src/context/BottomNavVisibilityContext";
-import { CurrencyProvider } from "../src/context/CurrencyContext";
+import { useEffect } from "react";
+import { Platform } from "react-native";
+import { supabase } from "@/services/supabase/client";
+import { AppModeProvider, useAppMode } from "@/store/AppModeContext";
+import { AppDataProvider } from "@/store/AppDataContext";
+import { BottomNavVisibilityProvider } from "@/store/BottomNavVisibilityContext";
+import { CurrencyProvider } from "@/store/CurrencyContext";
 import {
   attachNotificationTapListener,
   configureNotificationHandler,
   NotificationTapPayload,
   syncPushToken,
-} from "../src/services/pushNotificationService";
-import BottomNav from "./(tabs)/components/BottomNav";
+} from "@/services/pushNotificationService";
 
 async function handleNotificationTap(payload: NotificationTapPayload, router: ReturnType<typeof useRouter>) {
   const ids = payload.notificationIds || (payload.notificationId ? [payload.notificationId] : []);
@@ -42,8 +41,7 @@ async function handleNotificationTap(payload: NotificationTapPayload, router: Re
 
 function RootLayoutContent() {
   const router = useRouter();
-  const { clearMode, colorScheme } = useAppMode();
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const { colorScheme } = useAppMode();
 
   useEffect(() => {
     if (Platform.OS !== "android") return;
@@ -56,13 +54,11 @@ function RootLayoutContent() {
     // get initial session
     supabase.auth.getSession().then(({ data }) => {
       if (!mounted) return;
-      setIsAuthenticated(!!data.session);
       if (data.session) syncPushToken().catch(() => undefined);
     });
 
     // subscribe to auth changes
     const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
-      setIsAuthenticated(!!session);
       if (session) syncPushToken().catch(() => undefined);
     });
 
@@ -81,54 +77,7 @@ function RootLayoutContent() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const handleProfile = () => {
-    router.push("/profile" as any);
-  };
-
-  const handleHome = () => {
-    router.push("/home" as any);
-  };
-
-  const handleSearch = () => {
-    router.push("/search" as any);
-  };
-
-  const handleChat = () => {
-    router.push("/chat" as any);
-  };
-
-  const handleNotifications = () => {
-    router.push("/notifications" as any);
-  };
-
-  const handleSignOut = async () => {
-    try {
-      await clearMode();
-      await supabase.auth.signOut();
-      router.replace("/" as any);
-    } catch (e) {
-      console.warn("Sign out failed:", e);
-    }
-  };
-
-  return (
-    <View style={styles.container}>
-      <View style={styles.content}>
-        <Slot />
-      </View>
-      {isAuthenticated ? (
-        <View style={styles.navShell}>
-          <BottomNav
-            onHomePress={handleHome}
-            onChatPress={handleChat}
-            onSearchPress={handleSearch}
-            onNotificationsPress={handleNotifications}
-            onProfilePress={handleProfile}
-          />
-        </View>
-      ) : null}
-    </View>
-  );
+  return <Slot />;
 }
 
 export default function RootLayout() {
@@ -144,13 +93,3 @@ export default function RootLayout() {
     </AppModeProvider>
   );
 }
-
-const styles = StyleSheet.create({
-  container: { flex: 1 },
-  content: { flex: 1 },
-  navShell: {
-    left: 0,
-    right: 0,
-    bottom: 0,
-  },
-});
