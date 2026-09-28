@@ -3,7 +3,8 @@ import * as Device from 'expo-device';
 import type { NotificationBehavior } from 'expo-notifications';
 import { Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { callRecommendationApi, getRecommendationModeStatus } from './recommendationGateway';
+import { supabase } from '@/services/supabase/client';
+import { ensureNotificationPermission } from '@/services/notificationPermissionService';
 
 const LAST_SYNCED_TOKEN_KEY = '@odini/last_synced_push_token';
 
@@ -52,13 +53,8 @@ async function getExpoPushToken(): Promise<string | null> {
   if (!Notifications) return null; // running in Expo Go — no native module available
   if (!Device.isDevice) return null; // push tokens aren't issued to simulators/emulators
 
-  const existing = await Notifications.getPermissionsAsync();
-  let status = existing.status;
-  if (status !== 'granted') {
-    const requested = await Notifications.requestPermissionsAsync();
-    status = requested.status;
-  }
-  if (status !== 'granted') return null;
+  const permission = await ensureNotificationPermission();
+  if (permission !== 'granted') return null;
 
   try {
     const { data } = await Notifications.getExpoPushTokenAsync(
@@ -72,16 +68,15 @@ async function getExpoPushToken(): Promise<string | null> {
 }
 
 /**
- * Requests notification permission, fetches this device's Expo push token,
- * and registers it with the recommendation engine (POST /api/push-tokens).
- * Safe to call on every app open — skips the network call when the token
- * hasn't changed since the last successful sync. No-ops when the engine
- * isn't configured, since push delivery is entirely engine-owned.
+ * Requests notification permission (at most once — see
+ * notificationPermissionService), fetches this device's Expo push token, and
+ * upserts it directly into Supabase's `push_tokens` table for the signed-in
+ * user. Safe to call on every app open — skips the network round-trip when
+ * the token hasn't changed since the last successful sync. Writing directly
+ * (rather than through the recommendation-engine's optional dual-mode API)
+ * means booking/reminder pushes keep working even if that service is down.
  */
 export async function syncPushToken(): Promise<void> {
-  const { apiBaseUrl } = getRecommendationModeStatus();
-  if (!apiBaseUrl) return;
-
   const token = await getExpoPushToken();
   if (!token) return;
 
@@ -89,10 +84,23 @@ export async function syncPushToken(): Promise<void> {
     const lastSynced = await AsyncStorage.getItem(LAST_SYNCED_TOKEN_KEY);
     if (lastSynced === token) return;
 
-    await callRecommendationApi('/api/push-tokens', {
-      method: 'POST',
-      body: JSON.stringify({ token }),
-    });
+    const { data: userData } = await supabase.auth.getUser();
+    const userId = userData?.user?.id;
+    if (!userId) return;
+
+    const { error } = await supabase.from('push_tokens').upsert(
+      {
+        user_id: userId,
+        expo_push_token: token,
+        platform: Platform.OS,
+        is_valid: true,
+        updated_at: new Date().toISOString(),
+        last_used_at: new Date().toISOString(),
+      },
+      { onConflict: 'user_id,expo_push_token' }
+    );
+    if (error) throw error;
+
     await AsyncStorage.setItem(LAST_SYNCED_TOKEN_KEY, token);
   } catch (err) {
     console.warn('Failed to sync push token:', err);
@@ -102,6 +110,9 @@ export async function syncPushToken(): Promise<void> {
 export type NotificationTapPayload = {
   notificationIds?: string[];
   notificationId?: string;
+  bookingId?: string;
+  listingId?: string;
+  venueId?: string;
   [key: string]: unknown;
 };
 

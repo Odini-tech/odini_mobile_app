@@ -20,6 +20,17 @@ import { supabase } from '@/services/supabase/client';
 import { useAppMode } from '@/store/AppModeContext';
 import { useBottomNavScroll } from '@/store/BottomNavVisibilityContext';
 import { CURRENCIES, useCurrency } from '@/store/CurrencyContext';
+import {
+  getNotificationPermissionState,
+  NotificationPermissionState,
+  openSystemNotificationSettings,
+} from '@/services/notificationPermissionService';
+import { syncPushToken } from '@/services/pushNotificationService';
+import {
+  getNotificationPreferences,
+  NotificationPreferences,
+  updateNotificationPreferences,
+} from '@/services/notificationPreferencesService';
 
 interface CurrencyItem { code: string; name: string; symbol: string; flag: string }
 interface CurrencyCtx {
@@ -118,6 +129,8 @@ export default function ProfileScreen() {
   const [editVisible, setEditVisible] = useState(false);
   const [currencyVisible, setCurrencyVisible] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [notifPermission, setNotifPermission] = useState<NotificationPermissionState>('undetermined');
+  const [notifPrefs, setNotifPrefs] = useState<NotificationPreferences | null>(null);
   const [editForm, setEditForm] = useState<EditForm>({
     firstname: '',
     middlename: '',
@@ -179,6 +192,28 @@ export default function ProfileScreen() {
   useEffect(() => {
     fetchSessionAndProfile();
   }, [fetchSessionAndProfile]);
+
+  useEffect(() => {
+    if (!session?.user?.id) return;
+    getNotificationPermissionState().then(setNotifPermission);
+    getNotificationPreferences(session.user.id).then(setNotifPrefs).catch(() => undefined);
+  }, [session?.user?.id]);
+
+  const handleEnablePushNotifications = async () => {
+    if (notifPermission === 'denied') {
+      openSystemNotificationSettings();
+      return;
+    }
+    await syncPushToken();
+    setNotifPermission(await getNotificationPermissionState());
+  };
+
+  const handleTogglePreference = async (key: keyof Omit<NotificationPreferences, 'user_id'>, value: boolean) => {
+    if (!session?.user?.id || !notifPrefs) return;
+    setNotifPrefs({ ...notifPrefs, [key]: value });
+    const { error } = await updateNotificationPreferences(session.user.id, { [key]: value });
+    if (error) setNotifPrefs(notifPrefs); // revert on failure
+  };
 
   const openEdit = () => {
     setEditForm({
@@ -374,6 +409,62 @@ export default function ProfileScreen() {
               </View>
               <Ionicons name="chevron-forward" size={20} color={theme.colors.textSubtle} />
             </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* ── Notifications ── */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Notifications</Text>
+          <View style={styles.card}>
+            <View style={[styles.prefRow, styles.prefRowBorder]}>
+              <View style={styles.prefLeft}>
+                <View style={styles.prefIconWrap}>
+                  <Ionicons name="notifications-outline" size={20} color={theme.colors.textMuted} />
+                </View>
+                <View style={styles.prefTextWrap}>
+                  <Text style={styles.prefLabel}>Push notifications</Text>
+                  <Text style={styles.prefSub}>
+                    {notifPermission === 'granted'
+                      ? 'Enabled on this device'
+                      : notifPermission === 'denied'
+                        ? 'Disabled — tap to open Settings'
+                        : 'Not enabled yet'}
+                  </Text>
+                </View>
+              </View>
+              {notifPermission === 'granted' ? (
+                <Ionicons name="checkmark-circle" size={22} color={theme.colors.success} />
+              ) : (
+                <TouchableOpacity onPress={handleEnablePushNotifications}>
+                  <Text style={styles.enableLink}>{notifPermission === 'denied' ? 'Open Settings' : 'Enable'}</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+
+            {notifPrefs && (
+              [
+                { key: 'bookings' as const, label: 'Bookings', sub: 'Confirmations, updates, cancellations' },
+                { key: 'reminders' as const, label: 'Reminders', sub: 'Upcoming bookings and check-ins' },
+                { key: 'listings' as const, label: 'Listings', sub: 'New matches picked for you' },
+                { key: 'announcements' as const, label: 'Announcements', sub: 'Platform news and updates' },
+              ].map((row, i, arr) => (
+                <View key={row.key} style={[styles.prefRow, i < arr.length - 1 && styles.prefRowBorder]}>
+                  <View style={styles.prefLeft}>
+                    <View style={{ width: 38 }} />
+                    <View>
+                      <Text style={styles.prefLabel}>{row.label}</Text>
+                      <Text style={styles.prefSub}>{row.sub}</Text>
+                    </View>
+                  </View>
+                  <Switch
+                    value={notifPrefs[row.key]}
+                    onValueChange={(val) => handleTogglePreference(row.key, val)}
+                    trackColor={{ false: theme.colors.border, true: theme.colors.textMuted }}
+                    thumbColor={theme.colors.white}
+                  />
+                </View>
+              ))
+            )}
           </View>
         </View>
 
@@ -845,6 +936,11 @@ const getStyles = (theme: any) =>
       fontSize: 12,
       color: theme.colors.textMuted,
       marginTop: 2,
+    },
+    enableLink: {
+      fontSize: 13,
+      fontWeight: '700',
+      color: theme.colors.primary ?? theme.colors.text,
     },
 
     // Badges

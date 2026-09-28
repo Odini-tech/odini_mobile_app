@@ -7,7 +7,6 @@
     "icon": "./assets/images/odinicon.png",
     "scheme": "odinimobile",
     "userInterfaceStyle": "automatic",
-    "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "odini",
@@ -22,7 +21,6 @@
         "backgroundImage": "./assets/images/odinicon.png",
         "monochromeImage": "./assets/images/odinicon.png"
       },
-      "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
       "package": "com.himoonga.odinimobile"
     },
@@ -49,6 +47,12 @@
         {
           "icon": "./assets/images/odinicon.png",
           "color": "#7C3048"
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Odini uses your location to show you stays, events, and places nearby."
         }
       ],
       [

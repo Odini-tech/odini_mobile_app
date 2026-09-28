@@ -15,6 +15,7 @@ import {
 import EventDetail from '@/features/listings/components/details/EventDetail';
 import OfferingDetail from '@/features/listings/components/details/OfferingDetail';
 import StayDetail from '@/features/listings/components/details/StayDetail';
+import FollowHostButton from '@/features/hosts/components/FollowHostButton';
 import { useAppMode } from '@/store/AppModeContext';
 import { useCurrency } from '@/store/CurrencyContext';
 import {
@@ -157,6 +158,7 @@ export default function HostDashboardScreen() {
                 </View>
               ) : null}
             </View>
+            <FollowHostButton hostId={hostId} />
           </View>
 
         </View>

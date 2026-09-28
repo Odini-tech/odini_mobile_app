@@ -11,12 +11,17 @@ export type InteractionType =
   | 'share'
   | 'message';
 
+// Non-listing interactions: following a host, favoriting a venue.
+export type TargetInteractionType = 'follow_host' | 'save_venue';
+
 export type SwipeDirection = 'left' | 'right';
 
 export interface InteractionRow {
   id: string;
   user_id: string;
-  listing_id: string;
+  listing_id: string | null;
+  host_id: string | null;
+  venue_id: string | null;
   score: -1 | 0 | 1 | 3 | 5 | 7;
   last_action: string | null;
   created_at: string;
@@ -118,6 +123,38 @@ export const InteractionService = {
     return results.every(r => r.status === 'fulfilled' && r.value === true);
   },
 
+  async followHost(userId: string, hostId: string): Promise<boolean> {
+    return this._upsertTargetInteraction(userId, 'host_id', hostId, 'follow_host');
+  },
+
+  async unfollowHost(userId: string, hostId: string): Promise<boolean> {
+    return this._deleteTargetInteraction(userId, 'host_id', hostId);
+  },
+
+  async isFollowingHost(userId: string, hostId: string): Promise<boolean> {
+    return this._hasTargetInteraction(userId, 'host_id', hostId);
+  },
+
+  async getFollowedHostIds(userId: string): Promise<string[]> {
+    return this._getTargetIds(userId, 'host_id');
+  },
+
+  async saveVenue(userId: string, venueId: string): Promise<boolean> {
+    return this._upsertTargetInteraction(userId, 'venue_id', venueId, 'save_venue');
+  },
+
+  async unsaveVenue(userId: string, venueId: string): Promise<boolean> {
+    return this._deleteTargetInteraction(userId, 'venue_id', venueId);
+  },
+
+  async isVenueSaved(userId: string, venueId: string): Promise<boolean> {
+    return this._hasTargetInteraction(userId, 'venue_id', venueId);
+  },
+
+  async getSavedVenueIds(userId: string): Promise<string[]> {
+    return this._getTargetIds(userId, 'venue_id');
+  },
+
   async getUserRecentInteractions(userId: string, limit = 50): Promise<InteractionRow[]> {
     // The engine has no endpoint for reading a user's raw interaction history
     // back out — it's Supabase-only, in both runtime modes.
@@ -145,6 +182,81 @@ export const InteractionService = {
     } catch (error) {
       console.error('Error in clearUserInteractions:', error);
       return false;
+    }
+  },
+
+  // Host follows and venue favorites are Supabase-only: the rec engine's
+  // /api/interactions endpoint only accepts a listingId.
+  async _upsertTargetInteraction(
+    userId: string,
+    column: 'host_id' | 'venue_id',
+    targetId: string,
+    interactionType: TargetInteractionType
+  ): Promise<boolean> {
+    try {
+      const { data: existing, error: selectErr } = await supabase
+        .from('interactions')
+        .select('id')
+        .eq('user_id', userId)
+        .eq(column, targetId)
+        .maybeSingle();
+      if (selectErr) throw selectErr;
+      if (existing) return true;
+
+      const { error } = await supabase.from('interactions').insert({
+        user_id: userId,
+        [column]: targetId,
+        score: ACTION_SCORE.save,
+        last_action: JSON.stringify({ action: interactionType, [column]: targetId }),
+      });
+      if (error) throw error;
+      return true;
+    } catch (error) {
+      console.error(`Error in _upsertTargetInteraction for ${interactionType}:`, error);
+      return false;
+    }
+  },
+
+  async _deleteTargetInteraction(userId: string, column: 'host_id' | 'venue_id', targetId: string): Promise<boolean> {
+    try {
+      const { error } = await supabase.from('interactions').delete().eq('user_id', userId).eq(column, targetId);
+      if (error) throw error;
+      return true;
+    } catch (error) {
+      console.error(`Error in _deleteTargetInteraction for ${column}:`, error);
+      return false;
+    }
+  },
+
+  async _hasTargetInteraction(userId: string, column: 'host_id' | 'venue_id', targetId: string): Promise<boolean> {
+    try {
+      const { data, error } = await supabase
+        .from('interactions')
+        .select('id')
+        .eq('user_id', userId)
+        .eq(column, targetId)
+        .maybeSingle();
+      if (error) throw error;
+      return !!data;
+    } catch (error) {
+      console.error(`Error in _hasTargetInteraction for ${column}:`, error);
+      return false;
+    }
+  },
+
+  async _getTargetIds(userId: string, column: 'host_id' | 'venue_id'): Promise<string[]> {
+    try {
+      const { data, error } = await supabase
+        .from('interactions')
+        .select(column)
+        .eq('user_id', userId)
+        .not(column, 'is', null)
+        .order('updated_at', { ascending: false });
+      if (error) throw error;
+      return (data ?? []).map((row: any) => row[column]);
+    } catch (error) {
+      console.error(`Error in _getTargetIds for ${column}:`, error);
+      return [];
     }
   },
 

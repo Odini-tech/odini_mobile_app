@@ -160,6 +160,7 @@ async function getInteractionScores(sinceIso: string, untilIso?: string): Promis
   let query = supabase
     .from('interactions')
     .select('listing_id, score')
+    .not('listing_id', 'is', null)
     .gte('created_at', sinceIso);
 
   if (untilIso) {

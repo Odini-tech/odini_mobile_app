@@ -10,6 +10,8 @@ export type ListingLocation = {
   place_id: string | null
 }
 
+export type ListingLocationDraft = Omit<ListingLocation, 'listing_id'>
+
 type LocationResult =
   | { data: ListingLocation; error: null }
   | { data: null; error: string }
@@ -53,4 +55,28 @@ export async function getMultipleListingLocations(
   }
 
   return { data: data ?? [], error: null }
+}
+
+export async function saveListingLocation(
+  listing_id: string,
+  location: ListingLocationDraft,
+): Promise<{ data: ListingLocation | null; error: string | null }> {
+  if (!listing_id) {
+    return { data: null, error: 'listing_id is required' }
+  }
+
+  const { data, error } = await supabase
+    .from('locations')
+    .upsert(
+      { listing_id, ...location },
+      { onConflict: 'listing_id' },
+    )
+    .select('listing_id, lat, lng, formatted_address, city, country, place_id')
+    .single()
+
+  if (error) {
+    return { data: null, error: error.message }
+  }
+
+  return { data, error: null }
 }
