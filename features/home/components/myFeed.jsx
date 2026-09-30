@@ -66,7 +66,7 @@ export function ForYouPage({ onEventClick }) {
     const uid = authData?.user?.id;
 
     const favPromise = uid
-      ? supabase.from('interactions').select('listing_id').eq('user_id', uid).gte('score', 5)
+      ? supabase.from('interactions').select('listing_id').eq('user_id', uid).not('listing_id', 'is', null).gte('score', 5)
       : Promise.resolve({ data: [] });
 
     let finalListings = null;

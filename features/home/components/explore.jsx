@@ -5,6 +5,8 @@ import { useAppData } from '@/store/AppDataContext';
 import { useAppMode } from '@/store/AppModeContext';
 import { InteractionService } from '@/services/interactionService';
 import { distributeIntoColumns, getAspectRatio } from '@/utils/masonryLayout';
+import { getDistanceKm } from '@/utils/distance';
+import { requestAndGetLocation } from '@/services/locationService';
 import EventDetail from '@/features/listings/components/details/EventDetail';
 import OfferingDetail from '@/features/listings/components/details/OfferingDetail';
 import StayDetail from '@/features/listings/components/details/StayDetail';
@@ -36,6 +38,8 @@ export default function Explore({ onItemClick }) {
   const [favoritedIds, setFavoritedIds] = useState(() => new Set());
   const [selectedListing, setSelectedListing] = useState(null);
   const [detailsType, setDetailsType] = useState(null);
+  const [userLocation, setUserLocation] = useState(null);
+  const [locatingNearMe, setLocatingNearMe] = useState(false);
 
   // Seed local state from context once data is ready
   const seededRef = useRef(false);
@@ -118,10 +122,39 @@ export default function Explore({ onItemClick }) {
     }
   }, [loadMore]);
 
+  const sortedListings = useMemo(() => {
+    if (!userLocation) return listings;
+    const withDistance = listings.map((item) => {
+      const loc = item.venues?.locations;
+      const distanceKm = loc?.lat != null && loc?.lng != null
+        ? getDistanceKm(userLocation.latitude, userLocation.longitude, loc.lat, loc.lng)
+        : null;
+      return { item, distanceKm };
+    });
+    // Listings without a known location sort to the end rather than disappearing.
+    withDistance.sort((a, b) => {
+      if (a.distanceKm == null) return b.distanceKm == null ? 0 : 1;
+      if (b.distanceKm == null) return -1;
+      return a.distanceKm - b.distanceKm;
+    });
+    return withDistance.map((x) => x.item);
+  }, [listings, userLocation]);
+
   const columns = useMemo(
-    () => distributeIntoColumns(listings, NUM_COLUMNS),
-    [listings]
+    () => distributeIntoColumns(sortedListings, NUM_COLUMNS),
+    [sortedListings]
   );
+
+  const handleToggleNearMe = useCallback(async () => {
+    if (userLocation) {
+      setUserLocation(null);
+      return;
+    }
+    setLocatingNearMe(true);
+    const coords = await requestAndGetLocation();
+    setLocatingNearMe(false);
+    if (coords) setUserLocation(coords);
+  }, [userLocation]);
 
   const renderCard = useCallback((item) => (
     <ExploreCard
@@ -131,8 +164,9 @@ export default function Explore({ onItemClick }) {
       onPress={() => handleCardPress(item)}
       isFavorited={favoritedIds.has(item.id)}
       onInteractionAction={handleInteractionAction}
+      userLocation={userLocation}
     />
-  ), [favoritedIds, handleCardPress, handleInteractionAction]);
+  ), [favoritedIds, handleCardPress, handleInteractionAction, userLocation]);
 
   const renderFooter = () => {
     if (loadingMore) {
@@ -201,6 +235,20 @@ export default function Explore({ onItemClick }) {
             />
           }
         >
+          <TouchableOpacity
+            style={[styles.nearMeButton, userLocation && styles.nearMeButtonActive]}
+            onPress={handleToggleNearMe}
+            disabled={locatingNearMe}
+          >
+            <Ionicons
+              name="navigate"
+              size={14}
+              color={userLocation ? theme.colors.buttonText : theme.colors.textMuted}
+            />
+            <Text style={[styles.nearMeButtonText, userLocation && styles.nearMeButtonTextActive]}>
+              {locatingNearMe ? 'Finding you…' : userLocation ? 'Sorted by distance' : 'Near me'}
+            </Text>
+          </TouchableOpacity>
           <View style={styles.masonryRow}>
             {columns.map((column, columnIndex) => (
               <View key={columnIndex} style={styles.column}>
@@ -263,7 +311,33 @@ const getStyles = (theme) => StyleSheet.create({
     fontSize: 13,
     fontWeight: '600',
     color: theme.colors.buttonText,
-  },sectionTitle: {
+  },
+  nearMeButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 16,
+    backgroundColor: theme.colors.surfaceAlt,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    marginBottom: 10,
+  },
+  nearMeButtonActive: {
+    backgroundColor: theme.colors.buttonBg,
+    borderColor: theme.colors.buttonBg,
+  },
+  nearMeButtonText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: theme.colors.textMuted,
+  },
+  nearMeButtonTextActive: {
+    color: theme.colors.buttonText,
+  },
+  sectionTitle: {
     fontSize: 35,
     fontWeight: '600',
     color: theme.colors.text,

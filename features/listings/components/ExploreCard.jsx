@@ -7,8 +7,9 @@ import { useAppMode } from '@/store/AppModeContext';
 import { useCurrency } from '@/store/CurrencyContext';
 import { InteractionService } from '@/services/interactionService';
 import CardInteractionMenu from '@/features/listings/components/shared/CardInteractionMenu';
+import { getDistanceKm, formatDistance } from '@/utils/distance';
 
-const ExploreCard = React.memo(function ExploreCard({ item, onPress, onInteractionAction, isFavorited: propIsFavorited, aspectRatio = 0.75 }) {
+const ExploreCard = React.memo(function ExploreCard({ item, onPress, onInteractionAction, isFavorited: propIsFavorited, aspectRatio = 0.75, userLocation }) {
   const { theme } = useAppMode();
   const styles = getStyles(theme);
   const { formatPrice } = useCurrency();
@@ -52,6 +53,11 @@ const ExploreCard = React.memo(function ExploreCard({ item, onPress, onInteracti
   const handleVenuePress = () => {
     if (item.venueId) router.push(`/venue/${item.venueId}`);
   };
+
+  const venueLoc = item.venues?.locations;
+  const distanceLabel = userLocation && venueLoc?.lat != null && venueLoc?.lng != null
+    ? formatDistance(getDistanceKm(userLocation.latitude, userLocation.longitude, venueLoc.lat, venueLoc.lng))
+    : null;
 
   const handleInteractionAction = async (actionId, listing) => {
     try {
@@ -139,6 +145,7 @@ const ExploreCard = React.memo(function ExploreCard({ item, onPress, onInteracti
                 {item.venueName || ''}
               </Text>
             </TouchableOpacity>
+            {distanceLabel && <Text style={styles.distanceText}>{distanceLabel}</Text>}
           </View>
         </TouchableOpacity>
       </Animated.View>
@@ -291,5 +298,10 @@ const getStyles = (theme) => StyleSheet.create({
   hostNameLink: {
     color: theme.colors.text,
     fontWeight: '600',
+  },
+  distanceText: {
+    fontSize: 11,
+    color: theme.colors.textSubtle,
+    paddingBottom: 10,
   },
 });

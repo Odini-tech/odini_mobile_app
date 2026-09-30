@@ -21,6 +21,10 @@ import notificationService from '@/services/notificationService';
 const TYPE_ICON: Record<string, string> = {
   booking_status: 'calendar-outline',
   listing_match: 'sparkles-outline',
+  booking_reminder: 'alarm-outline',
+  listing_reminder: 'alarm-outline',
+  announcement: 'megaphone-outline',
+  message: 'chatbubble-outline',
 };
 
 function timeAgo(dateStr: string | null) {

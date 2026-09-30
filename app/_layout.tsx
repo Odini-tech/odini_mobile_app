@@ -15,6 +15,13 @@ import {
 } from "@/services/pushNotificationService";
 
 async function handleNotificationTap(payload: NotificationTapPayload, router: ReturnType<typeof useRouter>) {
+  // Booking-status pushes carry bookingId directly (see the DB trigger in
+  // supabase/migrations/0001_push_notifications.sql) — no lookup needed.
+  if (payload.bookingId) {
+    router.push("/bookings" as any);
+    return;
+  }
+
   const ids = payload.notificationIds || (payload.notificationId ? [payload.notificationId] : []);
   if (!ids.length) {
     router.push("/notifications" as any);
@@ -25,7 +32,11 @@ async function handleNotificationTap(payload: NotificationTapPayload, router: Re
   const rows = data || [];
 
   if (rows.length === 1) {
-    const rowData = (rows[0].data || {}) as { listingId?: string; venueId?: string };
+    const rowData = (rows[0].data || {}) as { listingId?: string; venueId?: string; bookingId?: string };
+    if (rowData.bookingId) {
+      router.push("/bookings" as any);
+      return;
+    }
     if (rowData.listingId) {
       router.push({ pathname: "/notifications", params: { openId: rows[0].id } } as any);
       return;

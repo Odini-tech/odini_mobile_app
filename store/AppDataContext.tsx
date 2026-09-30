@@ -481,6 +481,7 @@ async function fetchPersonalizedHeroCollections(uid: string | null): Promise<Her
         .from('interactions')
         .select('listing_id, score')
         .eq('user_id', uid)
+        .not('listing_id', 'is', null)
         .gte('score', 1)
         .order('updated_at', { ascending: false })
         .limit(100);

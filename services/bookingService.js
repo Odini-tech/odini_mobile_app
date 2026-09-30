@@ -1,6 +1,7 @@
 import { supabase } from '@/services/supabase/client';
 import { fetchImagesForListings } from '@/services/listings.service';
 import { callRecommendationApi, runDualMode } from './recommendationGateway';
+import { scheduleBookingReminder, cancelBookingReminder } from '@/services/localNotificationsService';
 
 /**
  * Booking service to create and manage bookings for stays, events, and offerings.
@@ -293,11 +294,27 @@ export async function createBooking({ userId, hostId, listingId, listingType, pr
           });
         },
       }).catch(() => undefined);
+
+      // Device-side reminder for the booking itself — independent of the
+      // server-driven booking_status push, and works even if that's disabled.
+      scheduleReminderForBooking(data).catch(() => undefined);
     }
     return { data, error };
   } catch (e) {
     return { data: null, error: e };
   }
+}
+
+async function scheduleReminderForBooking(booking) {
+  const eventDateIso = booking.check_in || booking.event_slot || booking.reservation_time;
+  if (!eventDateIso) return;
+
+  const { data: listing } = await supabase.from('listings').select('title').eq('id', booking.listing_id).maybeSingle();
+  await scheduleBookingReminder({
+    bookingId: booking.id,
+    listingTitle: listing?.title || 'your listing',
+    eventDateIso,
+  });
 }
 
 export async function getBookingById(bookingId) {
@@ -365,6 +382,13 @@ export async function updateBookingStatus(bookingId, status, options = {}) {
   }
   if (options.updated_at) updateFields.updated_at = options.updated_at;
   const { data, error } = await supabase.from(BOOKINGS_TABLE).update(updateFields).eq('id', bookingId).select().single();
+
+  // The booking is no longer upcoming once it's cancelled/rejected/completed —
+  // drop any pending device reminder for it.
+  if (!error && (status.startsWith('cancelled_by') || status === 'rejected' || status === 'completed')) {
+    cancelBookingReminder(bookingId).catch(() => undefined);
+  }
+
   return { data, error };
 }
 

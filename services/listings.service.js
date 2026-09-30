@@ -377,6 +377,7 @@ export async function getUserFavoriteListings(userId) {
       .from('interactions')
       .select('listing_id, score, updated_at')
       .eq('user_id', userId)
+      .not('listing_id', 'is', null)
       .gte('score', 5)
       .order('updated_at', { ascending: false })
       .limit(20);
@@ -428,6 +429,7 @@ export async function getUserRecentlyViewedListings(userId, limit = 8) {
       .from('interactions')
       .select('listing_id, last_action, updated_at')
       .eq('user_id', userId)
+      .not('listing_id', 'is', null)
       .in('score', [1, 3])
       .order('updated_at', { ascending: false })
       .limit(limit * 2);
@@ -489,6 +491,7 @@ export async function getUserHiddenListingIds(userId) {
       .from('interactions')
       .select('listing_id, last_action')
       .eq('user_id', userId)
+      .not('listing_id', 'is', null)
       .eq('score', -1);
 
     if (error || !data) return new Set();

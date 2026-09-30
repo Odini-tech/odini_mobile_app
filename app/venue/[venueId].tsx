@@ -14,6 +14,7 @@ import {
 import EventDetail from '@/features/listings/components/details/EventDetail';
 import OfferingDetail from '@/features/listings/components/details/OfferingDetail';
 import StayDetail from '@/features/listings/components/details/StayDetail';
+import SaveVenueButton from '@/features/venues/components/SaveVenueButton';
 import VenueCard from '@/features/venues/components/VenueCard';
 import { useAppMode } from '@/store/AppModeContext';
 import { useCurrency } from '@/store/CurrencyContext';
@@ -126,8 +127,11 @@ export default function VenueScreen() {
             <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
               <Ionicons name="chevron-back" size={22} color="#fff" />
             </TouchableOpacity>
-            <View style={styles.heroBadge}>
-              <Text style={styles.heroBadgeText}>Venue</Text>
+            <View style={styles.heroTopActions}>
+              <View style={styles.heroBadge}>
+                <Text style={styles.heroBadgeText}>Venue</Text>
+              </View>
+              <SaveVenueButton venueId={venueId} />
             </View>
           </View>
 
@@ -309,6 +313,11 @@ const getStyles = (theme: ReturnType<typeof getThemeForMode>) => StyleSheet.crea
     backgroundColor: 'rgba(255,255,255,0.1)',
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.12)',
+  },
+  heroTopActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
   },
   heroBadge: {
     backgroundColor: 'rgba(255,255,255,0.12)',

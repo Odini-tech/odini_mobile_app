@@ -340,7 +340,8 @@ export async function getUserPreferences(userId = null) {
     const { data: interactions, error } = await supabase
       .from('interactions')
       .select('listing_id, score')
-      .eq('user_id', uid);
+      .eq('user_id', uid)
+      .not('listing_id', 'is', null);
 
     if (error) throw error;
 
