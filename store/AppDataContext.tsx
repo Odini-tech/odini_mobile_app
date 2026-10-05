@@ -38,6 +38,7 @@ interface SearchCategory {
   id: string;
   name: string;
   image_url?: string | null;
+  collection_image_url?: string | null;
   count?: number;
 }
 
@@ -74,6 +75,7 @@ interface AppDataState {
   userName: string;
   progress: number;
   isReady: boolean;
+  dashReady: boolean;
 }
 
 interface AppDataContextValue extends AppDataState {
@@ -101,6 +103,7 @@ const defaultState: AppDataState = {
   userName: 'there',
   progress: 0,
   isReady: false,
+  dashReady: false,
 };
 
 const AppDataContext = createContext<AppDataContextValue>({
@@ -128,152 +131,139 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
   const loadedCountRef = useRef(0);
   const isFetchingRef = useRef(false);
 
-  const setProgress = (p: number) =>
-    setState((prev) => ({ ...prev, progress: Math.min(100, Math.max(prev.progress, p)) }));
-
   const doFetch = useCallback(async () => {
     if (isFetchingRef.current) return;
     isFetchingRef.current = true;
 
     try {
-      setState((prev) => ({ ...prev, progress: 2, isReady: false }));
+      // isReady/dashReady are left as-is so a pull-to-refresh keeps the current
+      // content on screen instead of dropping back to skeletons.
+      setState((prev) => ({ ...prev, progress: 2 }));
 
-      // ── Phase 1: auth + listing IDs (parallel, no blocking) ──
-      const [authResult, idsResult] = await Promise.allSettled([
-        supabase.auth.getUser(),
-        getShuffledListingIds(),
-      ]);
-
-      setProgress(15);
-
-      const uid =
-        authResult.status === 'fulfilled' ? authResult.value.data?.user?.id ?? null : null;
-      const shuffledIds: string[] =
-        idsResult.status === 'fulfilled' ? idsResult.value : [];
+      // getSession reads the stored session locally; getUser would be an extra
+      // network round-trip before anything else could start.
+      const { data: sessionData } = await supabase.auth.getSession();
+      const uid = sessionData?.session?.user?.id ?? null;
+      setState((prev) => ({ ...prev, userId: uid }));
 
       // Fire-and-forget: seeds today's 2 random listing-match notifications if not already done.
       if (uid) ensureDailyListingMatchNotifications(uid).catch(() => undefined);
 
-      // ── Phase 2: first 12 listings + user profile (parallel) ──
-      const firstIds = shuffledIds.slice(0, INITIAL_COUNT);
-      const [firstListings, profileResult] = await Promise.allSettled([
-        getListingsByIds(firstIds),
-        uid
-          ? supabase
-              .from('profiles')
-              .select('firstname, username')
-              .eq('id', uid)
-              .maybeSingle()
-          : Promise.resolve({ data: null }),
-      ]);
+      // Everything below starts at once and merges into state as it lands, so
+      // no section waits on an unrelated (or slow) request.
 
-      setProgress(40);
+      // Explore: first page of shuffled listings — the only thing isReady waits on.
+      const listingsPromise = getShuffledListingIds()
+        .then(async (shuffledIds: string[]) => {
+          const listings = (await getListingsByIds(shuffledIds.slice(0, INITIAL_COUNT))) as AppListing[];
+          loadedCountRef.current = listings.length;
+          setState((prev) => ({
+            ...prev,
+            listings,
+            allShuffledIds: shuffledIds,
+            hasMore: shuffledIds.length > INITIAL_COUNT,
+            upcomingEvents: listings.filter((l) => l.listing_type === 'event').slice(0, 6),
+            progress: Math.max(prev.progress, 60),
+            isReady: true,
+          }));
+          return { shuffledIds, listings };
+        })
+        .catch((err) => {
+          console.error('AppDataContext listings error:', err);
+          setState((prev) => ({ ...prev, isReady: true }));
+          return { shuffledIds: [] as string[], listings: [] as AppListing[] };
+        });
 
-      const listings: AppListing[] =
-        firstListings.status === 'fulfilled' ? (firstListings.value as AppListing[]) : [];
-      loadedCountRef.current = listings.length;
+      const profilePromise = uid
+        ? Promise.resolve(
+            supabase.from('profiles').select('firstname, username').eq('id', uid).maybeSingle()
+          ).then(({ data: profile }) => {
+            setState((prev) => ({
+              ...prev,
+              userName: profile?.firstname || profile?.username || 'there',
+            }));
+          })
+        : Promise.resolve();
 
-      const profile =
-        profileResult.status === 'fulfilled' ? (profileResult.value as any)?.data : null;
-      const userName =
-        profile?.firstname || profile?.username || 'there';
+      const favoritesPromise: Promise<AppListing[]> = (uid ? getUserFavoriteListings(uid) : Promise.resolve([]))
+        .then((favoritePlaces: AppListing[]) => {
+          setState((prev) => ({
+            ...prev,
+            favoritePlaces,
+            favoritedIds: new Set(favoritePlaces.map((l) => l.id)),
+          }));
+          return favoritePlaces;
+        })
+        .catch(() => [] as AppListing[]);
 
-      setState((prev) => ({
-        ...prev,
-        listings,
-        allShuffledIds: shuffledIds,
-        hasMore: shuffledIds.length > INITIAL_COUNT,
-        userId: uid,
-        userName,
-        progress: 40,
-      }));
+      const bookingsPromise = uid
+        ? Promise.resolve(
+            supabase
+              .from('bookings')
+              .select(
+                'id, booking_ref, listing_type, status, check_in, event_slot, reservation_time, created_at, listings!listing_id(id, title, listing_type)'
+              )
+              .eq('user_id', uid)
+              .in('status', ['pending', 'confirmed', 'completed'])
+              .order('created_at', { ascending: false })
+              .limit(10)
+          )
+            .then(async ({ data }) => {
+              const rawPastBookings: any[] = data ?? [];
+              // listings has no image_url column — images live in stay_images/event_images/offering_images
+              const bookingImageMap = await fetchImagesForListings(
+                rawPastBookings.map((b) => b.listings).filter(Boolean)
+              );
+              const pastBookings = rawPastBookings.map((b) => ({
+                ...b,
+                listings: b.listings ? { ...b.listings, image_url: bookingImageMap.get(b.listings.id) || null } : null,
+              }));
+              setState((prev) => ({ ...prev, pastBookings }));
+            })
+            .catch(() => undefined)
+        : Promise.resolve();
 
-      // ── Phase 3: everything Dash/Explore need for first paint (parallel) ──
-      const [favResult, bookingsResult, popCatResult, heroCollectionsResult, recModeListings] =
-        await Promise.allSettled([
-          uid ? getUserFavoriteListings(uid) : Promise.resolve([]),
-          uid
-            ? supabase
-                .from('bookings')
-                .select(
-                  'id, booking_ref, listing_type, status, check_in, event_slot, reservation_time, created_at, listings!listing_id(id, title, listing_type)'
-                )
-                .eq('user_id', uid)
-                .in('status', ['pending', 'confirmed', 'completed'])
-                .order('created_at', { ascending: false })
-                .limit(10)
-            : Promise.resolve({ data: [] }),
-          fetchPopularCategories(),
-          fetchPersonalizedHeroCollections(uid),
-          (() => {
-            const { mode } = getRecommendationModeStatus();
-            if (mode === 'rec_eng' && uid) {
-              return RecommendationService.getForYou(uid)
-                .then((recs) => (recs.length ? enrichRecommendationListings(recs) : []))
-                .catch(() => []);
-            }
-            return Promise.resolve([]);
-          })(),
-        ]);
-
-      setProgress(75);
-
-      const favoritePlaces: AppListing[] =
-        favResult.status === 'fulfilled' ? (favResult.value as AppListing[]) : [];
-      const rawPastBookings: any[] =
-        bookingsResult.status === 'fulfilled'
-          ? ((bookingsResult.value as any)?.data ?? [])
-          : [];
-      // listings has no image_url column — images live in stay_images/event_images/offering_images
-      const bookingImageMap = await fetchImagesForListings(
-        rawPastBookings.map((b) => b.listings).filter(Boolean)
+      const collectionsPromise = fetchPersonalizedHeroCollections(uid).then((collections) =>
+        setState((prev) => ({ ...prev, collections }))
       );
-      const pastBookings: any[] = rawPastBookings.map((b) => ({
-        ...b,
-        listings: b.listings ? { ...b.listings, image_url: bookingImageMap.get(b.listings.id) || null } : null,
-      }));
-      const popularCategories: SearchCategory[] =
-        popCatResult.status === 'fulfilled' ? popCatResult.value : [];
-      const collections =
-        heroCollectionsResult.status === 'fulfilled' ? heroCollectionsResult.value : [];
-      const recListings: AppListing[] =
-        recModeListings.status === 'fulfilled' ? recModeListings.value : [];
 
-      const upcomingEvents = listings.filter((l) => l.listing_type === 'event').slice(0, 6);
-      const madeForYou: AppListing[] =
-        recListings.length > 0
-          ? recListings
-          : uid && favoritePlaces.length > 0
-          ? [...favoritePlaces.slice(0, 2), ...listings.slice(0, 4)]
-          : listings.slice(0, 6);
+      // Dash shows its skeleton until its own quick Supabase reads are in —
+      // it no longer waits on the explore listings or the rec engine.
+      Promise.allSettled([profilePromise, favoritesPromise, bookingsPromise, collectionsPromise]).then(() =>
+        setState((prev) => ({ ...prev, dashReady: true }))
+      );
 
-      const favoritedIds = new Set(favoritePlaces.map((l) => l.id));
+      // Made For You: rec engine when available, otherwise favorites + explore picks.
+      const { mode } = getRecommendationModeStatus();
+      const recPromise: Promise<AppListing[]> =
+        mode === 'rec_eng' && uid
+          ? RecommendationService.getForYou(uid)
+              .then((recs) => (recs.length ? enrichRecommendationListings(recs) : []))
+              .catch(() => [])
+          : Promise.resolve([]);
 
-      // Everything Dash and Explore need for their first paint is in — unblock
-      // the UI now. Venues, category mixes, and search-only data (personal
-      // categories, the second listings batch) load in the background below
-      // instead of holding up isReady.
-      setState((prev) => ({
-        ...prev,
-        favoritePlaces,
-        upcomingEvents,
-        madeForYou,
-        pastBookings,
-        popularCategories,
-        collections,
-        favoritedIds,
-        progress: 100,
-        isReady: true,
-      }));
+      let recLanded = false;
+      recPromise.then((recListings) => {
+        if (!recListings.length) return;
+        recLanded = true;
+        setState((prev) => ({ ...prev, madeForYou: recListings }));
+      });
 
-      // ── Background: non-critical sections, merged in as they resolve ──
+      Promise.all([listingsPromise, favoritesPromise]).then(([{ listings }, favoritePlaces]) => {
+        if (recLanded) return;
+        const madeForYou =
+          uid && favoritePlaces.length > 0
+            ? [...favoritePlaces.slice(0, 2), ...listings.slice(0, 4)]
+            : listings.slice(0, 6);
+        setState((prev) => ({ ...prev, madeForYou }));
+      });
+
+      // ── Background: non-critical sections ──
       fetchVenuesForDash(8)
         .then((venues) => setState((prev) => ({ ...prev, venues })))
         .catch(() => undefined);
 
-      (() => {
-        const { mode } = getRecommendationModeStatus();
-        if (mode !== 'rec_eng') return;
+      if (mode === 'rec_eng') {
         RecommendationService.getMixes()
           .then((mixes) =>
             Promise.all(
@@ -290,31 +280,34 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
           .then((enrichedMixes) => enrichedMixes.filter((m) => m.items.length > 0))
           .then((categoryMixes) => setState((prev) => ({ ...prev, categoryMixes })))
           .catch(() => undefined);
-      })();
+      }
 
-      Promise.allSettled([
-        uid ? fetchPersonalCategories(uid) : Promise.resolve([]),
-        getListingsByIds(shuffledIds.slice(INITIAL_COUNT, INITIAL_COUNT + BATCH_SIZE)),
-      ]).then(([persCatResult, secondBatchResult]) => {
-        const personalCategories: SearchCategory[] =
-          persCatResult.status === 'fulfilled' ? persCatResult.value : [];
-        const secondBatch: AppListing[] =
-          secondBatchResult.status === 'fulfilled'
-            ? (secondBatchResult.value as AppListing[])
-            : [];
+      // Search-tab data: scans whole tables, so it never blocks the home screen.
+      fetchPopularCategories().then((popularCategories) =>
+        setState((prev) => ({ ...prev, popularCategories }))
+      );
+      if (uid) {
+        fetchPersonalCategories(uid).then((personalCategories) =>
+          setState((prev) => ({ ...prev, personalCategories }))
+        );
+      }
 
-        loadedCountRef.current = INITIAL_COUNT + secondBatch.length;
+      listingsPromise.then(({ shuffledIds }) =>
+        getListingsByIds(shuffledIds.slice(INITIAL_COUNT, INITIAL_COUNT + BATCH_SIZE))
+          .then((secondBatch: AppListing[]) => {
+            loadedCountRef.current = INITIAL_COUNT + secondBatch.length;
+            setState((prev) => ({ ...prev, listings: [...prev.listings, ...secondBatch] }));
+          })
+          .catch(() => undefined)
+      );
 
-        setState((prev) => ({
-          ...prev,
-          listings: [...prev.listings, ...secondBatch],
-          personalCategories,
-        }));
-      });
+      // Resolve (for pull-to-refresh) once the visible sections are in.
+      await Promise.allSettled([listingsPromise, favoritesPromise, bookingsPromise, collectionsPromise]);
+      setState((prev) => ({ ...prev, progress: 100 }));
     } catch (err) {
       console.error('AppDataContext prefetch error:', err);
       // Still mark ready so the app doesn't hang
-      setState((prev) => ({ ...prev, progress: 100, isReady: true }));
+      setState((prev) => ({ ...prev, progress: 100, isReady: true, dashReady: true }));
     } finally {
       isFetchingRef.current = false;
     }
@@ -324,7 +317,7 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const t = setTimeout(() => {
       setState((prev) => {
-        if (!prev.isReady) return { ...prev, progress: 100, isReady: true };
+        if (!prev.isReady || !prev.dashReady) return { ...prev, progress: 100, isReady: true, dashReady: true };
         return prev;
       });
     }, 5000);
@@ -337,7 +330,7 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
 
   const refresh = useCallback(async () => {
     loadedCountRef.current = 0;
-    setState((prev) => ({ ...prev, progress: 0, isReady: false }));
+    setState((prev) => ({ ...prev, progress: 0 }));
     await doFetch();
   }, [doFetch]);
 
@@ -392,9 +385,9 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
 async function fetchPopularCategories(): Promise<SearchCategory[]> {
   try {
     const [{ data: catListings }, { data: bookings }, { data: allCats }] = await Promise.all([
-      supabase.from('category_listings').select('listing_id, categories(id, name, image_url)'),
+      supabase.from('category_listings').select('listing_id, categories(id, name, image_url, collection_image_url)'),
       supabase.from('bookings').select('listing_id'),
-      supabase.from('categories').select('id, name, image_url'),
+      supabase.from('categories').select('id, name, image_url, collection_image_url'),
     ]);
 
     if (!catListings) return [];
@@ -436,7 +429,7 @@ async function fetchPersonalCategories(uid: string): Promise<SearchCategory[]> {
 
     const { data: catListings } = await supabase
       .from('category_listings')
-      .select('listing_id, categories(id, name, image_url)')
+      .select('listing_id, categories(id, name, image_url, collection_image_url)')
       .in('listing_id', userListingIds);
 
     const categoryCount: Record<string, SearchCategory & { count: number }> = {};

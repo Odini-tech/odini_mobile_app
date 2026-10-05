@@ -1,3 +1,4 @@
+import { Ionicons } from '@expo/vector-icons';
 import { useEffect, useState } from 'react';
 import {
   StyleSheet,
@@ -7,6 +8,7 @@ import {
   View,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import FilterPopup from '@/features/listings/components/FilterPopup';
 import ListingGridWithDetails from '@/features/listings/components/shared/ListingGridWithDetails';
 import { searchService } from '@/services/searchService';
@@ -15,7 +17,8 @@ import { useAppMode } from '@/store/AppModeContext';
 export default function SearchResultsPage() {
   const router = useRouter();
   const { theme } = useAppMode();
-  const styles = getStyles(theme);
+  const insets = useSafeAreaInsets();
+  const styles = getStyles(theme, insets);
   const params = useLocalSearchParams();
   const [queryInput, setQueryInput] = useState(params.query || '');
   const [searchTerm, setSearchTerm] = useState(params.query || '');
@@ -114,10 +117,7 @@ export default function SearchResultsPage() {
     setActiveCategory(null);
     setActiveTag(null);
     setSearchTerm(trimmed);
-    router.replace({
-      pathname: '/search/results',
-      params: trimmed ? { query: trimmed } : {},
-    });
+    router.setParams({ query: trimmed, categoryId: undefined, categoryName: undefined, tagId: undefined, tagName: undefined });
   };
 
   const handleApplyFilters = (applied) => {
@@ -142,6 +142,13 @@ export default function SearchResultsPage() {
   return (
     <View style={styles.page}>
       <View style={styles.topSearch}>
+        <TouchableOpacity
+          style={styles.backBtn}
+          onPress={() => (router.canGoBack() ? router.back() : router.replace('/search'))}
+          hitSlop={{ top: 8, right: 8, bottom: 8, left: 8 }}
+        >
+          <Ionicons name="chevron-back" size={22} color={theme.colors.text} />
+        </TouchableOpacity>
         <TextInput
           style={styles.searchInput}
           placeholder="Search stays, events, activities..."
@@ -200,7 +207,7 @@ function applyClientFilters(items, filters) {
   });
 }
 
-const getStyles = (theme) => StyleSheet.create({
+const getStyles = (theme, insets) => StyleSheet.create({
   page: {
     flex: 1,
     backgroundColor: theme.colors.background,
@@ -212,11 +219,18 @@ const getStyles = (theme) => StyleSheet.create({
     alignItems: 'center',
     backgroundColor: theme.colors.surface,
     margin: 12,
+    marginTop: insets.top + 8,
     marginBottom: 8,
     borderRadius: 20,
     borderWidth: 1,
     borderColor: theme.colors.border,
     ...theme.shadow,
+  },
+  backBtn: {
+    width: 32,
+    height: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   searchInput: {
     flex: 1,

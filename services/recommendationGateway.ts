@@ -198,6 +198,8 @@ const normalizeEnvelope = <T>(payload: unknown): ApiEnvelope<T> => {
   };
 };
 
+const API_TIMEOUT_MS = 10_000;
+
 export async function callRecommendationApi<T>(
   path: string,
   init?: RequestInit
@@ -221,14 +223,26 @@ export async function callRecommendationApi<T>(
     // no session available — proceed as guest
   }
 
-  const response = await fetch(url, {
-    ...init,
-    headers: {
-      'Content-Type': 'application/json',
-      ...authHeader,
-      ...(init?.headers || {}),
-    },
-  });
+  // Without a timeout a slow or unreachable engine hangs every caller until the
+  // OS gives up (often a minute+). Callers already fall back on errors.
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), API_TIMEOUT_MS);
+  init?.signal?.addEventListener?.('abort', () => controller.abort());
+
+  let response: Response;
+  try {
+    response = await fetch(url, {
+      ...init,
+      signal: controller.signal,
+      headers: {
+        'Content-Type': 'application/json',
+        ...authHeader,
+        ...(init?.headers || {}),
+      },
+    });
+  } finally {
+    clearTimeout(timeout);
+  }
 
   if (!response.ok) {
     const text = await response.text();

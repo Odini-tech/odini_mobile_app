@@ -1,5 +1,6 @@
 import { supabase } from '@/services/supabase/client';
 import { callRecommendationApi, recommendationApiPath, runDualMode } from './recommendationGateway';
+import { fetchImagesForListings } from './listings.service';
 
 /**
  * Category interface
@@ -34,6 +35,9 @@ export interface SearchListing {
   is_active: boolean;
   price: number;
   created_at: string;
+  image_url: string | null;
+  venueId: string | null;
+  venueName: string | null;
   categories: Category[];
   tags: Tag[];
 }
@@ -63,7 +67,7 @@ export interface SearchParams {
   page_size?: number;
 }
 
-type ListingRow = Omit<SearchListing, 'categories' | 'tags'>;
+type ListingRow = Omit<SearchListing, 'categories' | 'tags' | 'image_url' | 'venueId' | 'venueName'>;
 type RecommendationApiListing = Partial<ListingRow> & { hostId?: string };
 
 type CategoryJoinRow = {
@@ -191,7 +195,14 @@ async function attachCategoriesAndTags(listings: ListingRow[]): Promise<SearchRe
 
   const listingIds = listings.map(l => l.id);
 
-  const [{ data: categoryRows, error: categoryError }, { data: tagRows, error: tagError }] = await Promise.all([
+  // Search rows come back bare (no images or venue), so cards need both
+  // fetched here alongside the taxonomy joins.
+  const [
+    { data: categoryRows, error: categoryError },
+    { data: tagRows, error: tagError },
+    imageMap,
+    { data: venueRows },
+  ] = await Promise.all([
     supabase
       .from('category_listings')
       .select('listing_id, category:categories(id, name, description, image_url, parent_id, created_at)')
@@ -200,7 +211,15 @@ async function attachCategoriesAndTags(listings: ListingRow[]): Promise<SearchRe
       .from('tag_listings')
       .select('listing_id, tag:tags(id, name, created_at)')
       .in('listing_id', listingIds),
+    fetchImagesForListings(listings).catch(() => new Map<string, string>()),
+    supabase.from('listings').select('id, venues:venue_id(id, name)').in('id', listingIds),
   ]);
+
+  const venueByListing = new Map<string, { id: string; name: string }>();
+  (venueRows || []).forEach((row: any) => {
+    const venue = Array.isArray(row.venues) ? row.venues[0] : row.venues;
+    if (venue) venueByListing.set(row.id, venue);
+  });
 
   if (categoryError) {
     console.error('Category fetch error:', categoryError);
@@ -223,6 +242,9 @@ async function attachCategoriesAndTags(listings: ListingRow[]): Promise<SearchRe
 
   const searchListings: SearchListing[] = listings.map(listing => ({
     ...listing,
+    image_url: imageMap.get(listing.id) || null,
+    venueId: venueByListing.get(listing.id)?.id ?? null,
+    venueName: venueByListing.get(listing.id)?.name ?? null,
     categories: uniqueById(listingCategoriesMap[listing.id] || []),
     tags: uniqueById(listingTagsMap[listing.id] || []),
   }));

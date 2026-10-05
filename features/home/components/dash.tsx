@@ -62,7 +62,7 @@ export default function Dash({ onItemClick }: { onItemClick?: (listing: Listing)
   const { theme } = useAppMode();
   const styles = getStyles(theme);
   const {
-    isReady,
+    dashReady,
     upcomingEvents: ctxEvents,
     favoritePlaces: ctxFavorites,
     madeForYou: ctxMadeForYou,
@@ -98,24 +98,38 @@ export default function Dash({ onItemClick }: { onItemClick?: (listing: Listing)
   const [detailsType, setDetailsType] = useState<string | null>(null);
   const detailRequestRef = useRef<string | null>(null);
 
-  // Seed from context once data is ready
-  const seededRef = useRef(false);
+  // Each section lands in AppDataContext independently (see doFetch), so the
+  // local copies are re-synced whenever their context value changes. Local
+  // copies exist so long-press actions can update the UI optimistically.
   useEffect(() => {
-    if (isReady && !seededRef.current) {
-      seededRef.current = true;
-      setUpcomingEvents((ctxEvents as Listing[]) || []);
-      setFavoritePlaces((ctxFavorites as Listing[]) || []);
-      setMadeForYou((ctxMadeForYou as Listing[]) || []);
-      setPastBookings(ctxBookings || []);
-      setCollections(ctxCollections || []);
-      setUserName(ctxUserName);
-      setUserId(ctxUserId);
-      setLoading(false);
-    }
-  }, [isReady, ctxEvents, ctxFavorites, ctxMadeForYou, ctxBookings, ctxCollections, ctxUserName, ctxUserId]);
+    if (dashReady) setLoading(false);
+  }, [dashReady]);
 
-  // Venues and category mixes load in the background after isReady flips
-  // (see AppDataContext), so they're synced continuously rather than once.
+  useEffect(() => {
+    setUpcomingEvents((ctxEvents as Listing[]) || []);
+  }, [ctxEvents]);
+
+  useEffect(() => {
+    setFavoritePlaces((ctxFavorites as Listing[]) || []);
+  }, [ctxFavorites]);
+
+  useEffect(() => {
+    setMadeForYou((ctxMadeForYou as Listing[]) || []);
+  }, [ctxMadeForYou]);
+
+  useEffect(() => {
+    setPastBookings(ctxBookings || []);
+  }, [ctxBookings]);
+
+  useEffect(() => {
+    setCollections(ctxCollections || []);
+  }, [ctxCollections]);
+
+  useEffect(() => {
+    setUserName(ctxUserName);
+    setUserId(ctxUserId);
+  }, [ctxUserName, ctxUserId]);
+
   useEffect(() => {
     setVenues((ctxVenues as VenueSummary[]) || []);
   }, [ctxVenues]);
@@ -126,7 +140,6 @@ export default function Dash({ onItemClick }: { onItemClick?: (listing: Listing)
 
   const handleRefresh = async () => {
     setRefreshing(true);
-    seededRef.current = false;
     await ctxRefresh();
     setRefreshing(false);
   };

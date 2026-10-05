@@ -23,11 +23,12 @@ export default function SearchPage() {
   const { theme } = useAppMode();
   const insets = useSafeAreaInsets();
   const bottomNavScroll = useBottomNavScroll();
-  const { personalCategories } = useAppData();
+  const { personalCategories, popularCategories } = useAppData();
   const [query, setQuery] = useState('');
   const [popularTags, setPopularTags] = useState([]);
   const styles = getStyles(theme, insets);
-  const categories = personalCategories.slice(0, 6);
+  // Personal picks need booking history; everyone else gets popular categories.
+  const categories = (personalCategories.length ? personalCategories : popularCategories).slice(0, 6);
 
   useEffect(() => {
     searchService.getPopularTags(10).then(setPopularTags).catch(() => setPopularTags([]));
@@ -35,7 +36,7 @@ export default function SearchPage() {
 
   const handleSearchSubmit = () => {
     const trimmed = query.trim();
-    router.replace({
+    router.push({
       pathname: '/search/results',
       params: trimmed ? { query: trimmed } : {},
     });
@@ -110,7 +111,7 @@ export default function SearchPage() {
             ))}
           </View>
         ) : (
-          <Text style={styles.fallbackText}>Nothing personalised yet.</Text>
+          <Text style={styles.fallbackText}>No categories yet.</Text>
         )}
       </ScrollView>
     </View>
@@ -118,7 +119,8 @@ export default function SearchPage() {
 }
 
 function CategoryTile({ category, onPress, theme, styles }) {
-  const hasImage = !!category.image_url;
+  const imageUrl = category.image_url || category.collection_image_url;
+  const hasImage = !!imageUrl;
   const content = (
     <>
       <LinearGradient
@@ -135,7 +137,7 @@ function CategoryTile({ category, onPress, theme, styles }) {
     <TouchableOpacity style={styles.categoryTile} onPress={onPress} activeOpacity={0.85}>
       {hasImage ? (
         <ImageBackground
-          source={{ uri: category.image_url }}
+          source={{ uri: imageUrl }}
           style={styles.categoryTileImage}
           imageStyle={styles.categoryTileImageRadius}
         >
