@@ -401,19 +401,11 @@ export async function getUserFavoriteListings(userId) {
 
     if (error || !data) return [];
 
-    const enriched = await Promise.all(
-      data.map(async (listing) => {
-        const imageTable = getImageTableName(listing.listing_type);
-        const { data: images } = await supabase
-          .from(imageTable)
-          .select('image_url')
-          .eq('listing_id', listing.id)
-          .limit(1);
-        return withVenue({ ...listing, image_url: images?.[0]?.image_url || null, is_favorited: true });
-      })
-    );
+    const imageMap = await fetchImagesForListings(data);
 
-    return enriched;
+    return data.map((listing) =>
+      withVenue({ ...listing, image_url: imageMap.get(listing.id) || null, is_favorited: true })
+    );
   } catch (error) {
     console.error('Error fetching favorite listings:', error);
     return [];
